@@ -1,0 +1,1 @@
+export { DriverRegisterScreen as default } from './index';

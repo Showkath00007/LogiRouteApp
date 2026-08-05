@@ -1,0 +1,497 @@
+import React, { useState } from 'react';
+import { View, Text, StyleSheet, ScrollView, SafeAreaView, TouchableOpacity, ActivityIndicator, FlatList } from 'react-native';
+import { colors, radius, shadow } from '../../theme';
+import { Btn, Card, StatCard, Badge, SectionLabel, BackBtn, Divider, TransportIcon, CostHero, Chip, Input } from '../../components';
+import { MATERIALS, apiOptimize } from '../../data';
+
+const screen = (pt = 60) => ({ padding: 20, paddingTop: pt, flexGrow: 1 });
+const h1 = { fontSize: 22, fontWeight: '900', color: colors.text, letterSpacing: -0.5, marginBottom: 4 };
+const sub = { fontSize: 13, color: colors.sub, marginBottom: 20 };
+
+// S25 — Route Optimizer
+export function OptimizerScreen({ navigation }) {
+  const [material, setMaterial] = useState('Steel');
+  const [tons, setTons] = useState('');
+  const [source, setSource] = useState('');
+  const [destination, setDestination] = useState('');
+  const [srcSuggestions, setSrcSuggestions] = useState([]);
+  const [dstSuggestions, setDstSuggestions] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
+
+  const { apiAutocomplete } = require('../../data');
+
+  const fetchSrc = async (q) => {
+    setSource(q);
+    if (q.length < 2) { setSrcSuggestions([]); return; }
+    const s = await apiAutocomplete(q);
+    setSrcSuggestions(s);
+  };
+
+  const fetchDst = async (q) => {
+    setDestination(q);
+    if (q.length < 2) { setDstSuggestions([]); return; }
+    const s = await apiAutocomplete(q);
+    setDstSuggestions(s);
+  };
+
+  const optimize = async () => {
+    if (!source || !destination) { setError('Please enter both source and destination.'); return; }
+    if (!tons || isNaN(tons) || Number(tons) <= 0) { setError('Please enter a valid weight in tons.'); return; }
+    setError('');
+    setLoading(true);
+    try {
+      const data = await apiOptimize(material, source, destination, Number(tons));
+      navigation.navigate('Result', { data, source, destination, material, tons: Number(tons) });
+    } catch (e) {
+      setError('Could not connect to server.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <SafeAreaView style={{ flex: 1, backgroundColor: colors.bg }}>
+      <ScrollView contentContainerStyle={screen(60)} keyboardShouldPersistTaps="handled">
+        {/* Header */}
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12, marginBottom: 24 }}>
+          <View style={{ width: 44, height: 44, backgroundColor: colors.accent, borderRadius: radius.lg, alignItems: 'center', justifyContent: 'center' }}>
+            <Text style={{ fontSize: 22 }}>🚚</Text>
+          </View>
+          <View>
+            <Text style={{ fontSize: 20, fontWeight: '900', color: colors.text }}>LogiRoute</Text>
+            <Text style={{ fontSize: 12, color: colors.sub }}>Find the best route & cost</Text>
+          </View>
+        </View>
+
+        {/* Material */}
+        <Card>
+          <SectionLabel label="Material" />
+          <View style={{ flexDirection: 'row', gap: 8 }}>
+            {MATERIALS.map(m => (
+              <TouchableOpacity key={m.id} onPress={() => setMaterial(m.id)} style={{ flex: 1, backgroundColor: material === m.id ? m.color + '22' : colors.surface2, borderWidth: material === m.id ? 2 : 1, borderColor: material === m.id ? m.color : colors.border, borderRadius: 8, paddingVertical: 10, alignItems: 'center' }}>
+                <Text style={{ fontSize: 20 }}>{m.icon}</Text>
+                <Text style={{ fontSize: 10, color: material === m.id ? m.color : colors.sub, fontWeight: material === m.id ? '700' : '400', marginTop: 3 }}>{m.id}</Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+        </Card>
+
+        {/* Cargo Weight */}
+        <Card>
+          <SectionLabel label="Cargo Weight" />
+          <Input
+            placeholder="Enter weight in tons (e.g. 25)"
+            value={tons}
+            onChangeText={setTons}
+            keyboardType="numeric"
+            style={{ marginBottom: 0 }}
+          />
+        </Card>
+
+        {/* Route */}
+        <Card>
+          <SectionLabel label="Route" />
+          <View style={{ flexDirection: 'row', gap: 12, alignItems: 'flex-start' }}>
+            <View style={{ alignItems: 'center', paddingTop: 14, gap: 4 }}>
+              <View style={{ width: 10, height: 10, borderRadius: 5, backgroundColor: colors.green }} />
+              <View style={{ width: 2, height: 28, backgroundColor: colors.border }} />
+              <View style={{ width: 10, height: 10, borderRadius: 5, backgroundColor: colors.accent }} />
+            </View>
+            <View style={{ flex: 1 }}>
+              <View>
+                <Input placeholder="Source city..." value={source} onChangeText={fetchSrc} style={{ marginBottom: 0 }} />
+                {srcSuggestions.length > 0 && (
+                  <View style={sug.wrap}>
+                    {srcSuggestions.map((s, i) => (
+                      <TouchableOpacity key={`src-${i}`} onPress={() => { setSource(s); setSrcSuggestions([]); }} style={sug.item}>
+                        <Text style={sug.text}>📍 {s}</Text>
+                      </TouchableOpacity>
+                    ))}
+                  </View>
+                )}
+              </View>
+              <View style={{ height: 10 }} />
+              <View>
+                <Input placeholder="Destination city..." value={destination} onChangeText={fetchDst} style={{ marginBottom: 0 }} />
+                {dstSuggestions.length > 0 && (
+                  <View style={sug.wrap}>
+                    {dstSuggestions.map((s, i) => (
+                      <TouchableOpacity key={`dst-${i}`} onPress={() => { setDestination(s); setDstSuggestions([]); }} style={sug.item}>
+                        <Text style={sug.text}>📍 {s}</Text>
+                      </TouchableOpacity>
+                    ))}
+                  </View>
+                )}
+              </View>
+            </View>
+          </View>
+        </Card>
+
+        {error ? <Text style={{ color: colors.red, fontSize: 13, marginBottom: 10 }}>{error}</Text> : null}
+        <Btn label="⚡ Optimize Route" onPress={optimize} loading={loading} />
+
+        {/* Quick Features */}
+        <View style={{ flexDirection: 'row', gap: 10, marginTop: 4 }}>
+          {[['🌦', 'Weather', 'Weather', colors.blue], ['📊', 'Compare', 'Compare', colors.purple], ['👤', 'Drivers', 'SelectDriver', colors.green], ['🕐', 'History', 'RouteHistory', colors.accent]].map(([icon, label, route, color]) => (
+            <TouchableOpacity key={label} onPress={() => navigation.navigate(route)} style={{ flex: 1, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border, borderRadius: radius.lg, padding: 12, alignItems: 'center', gap: 6 }}>
+              <Text style={{ fontSize: 22 }}>{icon}</Text>
+              <Text style={{ fontSize: 10, color, fontWeight: '700' }}>{label}</Text>
+            </TouchableOpacity>
+          ))}
+        </View>
+      </ScrollView>
+    </SafeAreaView>
+  );
+}
+
+// S26 — Optimize Result
+export function ResultScreen({ navigation, route }) {
+  const { data, source, destination, material, tons } = route?.params || {
+    data: { distance: 1420, time_text: '23h 40m', best_transport: 'train', best_vessel: 'N/A', minimum_cost: 14200 },
+    source: 'Mumbai', destination: 'Delhi', material: 'Steel', tons: 1,
+  };
+  const PORT_CITIES = new Set([
+    'chennai', 'mumbai', 'kolkata', 'kochi', 'visakhapatnam', 'vizag',
+    'paradip', 'haldia', 'kandla', 'mundra', 'pipavav', 'mormugao',
+    'new mangalore', 'mangalore', 'ennore', 'kamarajar', 'tuticorin',
+    'thoothukudi', 'krishnapatnam', 'gangavaram', 'kakinada',
+  ]);
+  const isPort = (city) => PORT_CITIES.has((city || '').toLowerCase().split(',')[0].trim());
+  const shipAvailable = isPort(source) && isPort(destination);
+  const { MATERIALS: mats } = require('../../data');
+  const matRate = mats?.find(m => m.id === material)?.rate || 8;
+  const bestTransport = data.best_transport === 'ship' && !shipAvailable ? 'train' : data.best_transport;
+  const bestCost = bestTransport !== data.best_transport
+    ? (data.distance || 1420) * matRate * 0.8 * (tons || 1)
+    : data.minimum_cost;
+
+  const transportMeta = {
+    truck: { icon: '🚛', color: colors.orange, label: 'Road Freight', desc: 'Ideal for short-distance delivery under 100km.' },
+    train: { icon: '🚂', color: colors.blue, label: 'Rail Freight', desc: 'Efficient for medium distances 100–800km. Bulk transport.' },
+    ship: { icon: '🚢', color: colors.purple, label: 'Sea Freight', desc: 'Best for long-distance over 800km. Largest capacity.' },
+  };
+  const t = transportMeta[bestTransport] || transportMeta.train;
+
+  return (
+    <SafeAreaView style={{ flex: 1, backgroundColor: colors.bg }}>
+      <ScrollView contentContainerStyle={screen()}>
+        <BackBtn onPress={() => navigation.goBack()} />
+        {/* Route Badge */}
+        <View style={{ backgroundColor: colors.surface2, borderWidth: 1, borderColor: colors.border, borderRadius: radius.lg, padding: 14, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, marginBottom: 14 }}>
+          <Text numberOfLines={1} style={{ fontSize: 13, fontWeight: '700', color: colors.text, flex: 1, textAlign: 'right' }}>{source}</Text>
+          <Text style={{ color: colors.accent, fontSize: 13, flexShrink: 0 }}> → {t.icon} →</Text>
+          <Text numberOfLines={1} style={{ fontSize: 13, fontWeight: '700', color: colors.text, flex: 1, textAlign: 'left' }}>{destination}</Text>
+        </View>
+        <CostHero cost={bestCost} sub={`${material} · ${tons || 1} tons via ${bestTransport} · Best rate found`} style={{ marginBottom: 14 }} />
+        <View style={{ flexDirection: 'row', gap: 10, marginBottom: 12 }}>
+          <StatCard value={`${data.distance?.toFixed(1)} km`} label="Distance" color={colors.blue} style={{ flex: 1 }} />
+          <StatCard value={data.time_text} label="Est. Time" color={colors.green} style={{ flex: 1 }} />
+          <StatCard value={bestTransport} label="Transport" color={t.color} style={{ flex: 1 }} />
+          <StatCard value={`${tons || 1}t`} label="Cargo Weight" color={colors.purple} style={{ flex: 1 }} />
+        </View>
+        <Card style={{ borderColor: t.color + '44', flexDirection: 'row', alignItems: 'center', gap: 14 }}>
+          <View style={{ width: 52, height: 52, borderRadius: radius.lg, backgroundColor: t.color + '22', alignItems: 'center', justifyContent: 'center' }}>
+            <Text style={{ fontSize: 28 }}>{t.icon}</Text>
+          </View>
+          <View style={{ flex: 1 }}>
+            <Text style={{ fontSize: 15, fontWeight: '800', color: t.color, marginBottom: 4 }}>{t.label}</Text>
+            <Text style={{ fontSize: 12, color: colors.sub, lineHeight: 18 }}>{t.desc}</Text>
+          </View>
+        </Card>
+        <Card>
+          <SectionLabel label="Cost Breakdown" />
+          <View style={{ flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 6 }}>
+            <Text style={{ fontSize: 13, color: colors.sub }}>Rate per ton/km</Text>
+            <Text style={{ fontSize: 13, color: colors.text }}>₹{(data.minimum_cost / (tons || 1) / (data.distance || 1)).toFixed(2)}</Text>
+          </View>
+          <View style={{ flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 6 }}>
+            <Text style={{ fontSize: 13, color: colors.sub }}>Cargo Weight</Text>
+            <Text style={{ fontSize: 13, color: colors.text }}>{tons || 1} tons</Text>
+          </View>
+          <View style={{ flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 6 }}>
+            <Text style={{ fontSize: 13, color: colors.sub }}>Distance</Text>
+            <Text style={{ fontSize: 13, color: colors.text }}>{data.distance?.toFixed(0)} km</Text>
+          </View>
+        </Card>
+        <Btn label="🗺 View Route Map" onPress={() => navigation.navigate('RouteMap', { data, source, destination })} variant="blue" />
+        <Btn label="📊 Compare All Costs" onPress={() => navigation.navigate('Compare', { data, source, destination, material, tons })} variant="outline" />
+        <Btn label="✅ Book This Transport" onPress={() => navigation.navigate('BookTransport', { data, source, destination, material, tons })} />
+      </ScrollView>
+    </SafeAreaView>
+  );
+}
+
+// S27 — Route Map (Real map using WebView + Leaflet)
+export function RouteMapScreen({ navigation, route }) {
+  const { source, destination, data } = route?.params || { source: 'Mumbai', destination: 'Delhi', data: {} };
+  const { WebView } = require('react-native-webview');
+
+  const srcCoords = data?.source_coords || [72.8777, 19.0760];
+  const dstCoords = data?.destination_coords || [77.1025, 28.7041];
+  const centerLat = (srcCoords[1] + dstCoords[1]) / 2;
+  const centerLng = (srcCoords[0] + dstCoords[0]) / 2;
+  const geometry = data?.route_geometry || null;
+
+  const html = `
+    <!DOCTYPE html>
+    <html>
+    <head>
+      <meta name="viewport" content="width=device-width, initial-scale=1.0">
+      <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+      <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+      <style>
+        * { margin: 0; padding: 0; }
+        #map { width: 100vw; height: 100vh; }
+      </style>
+    </head>
+    <body>
+      <div id="map"></div>
+      <script>
+        const map = L.map('map').setView([${centerLat}, ${centerLng}], 6);
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+          attribution: '© OpenStreetMap'
+        }).addTo(map);
+
+        const greenIcon = L.divIcon({ className: '', html: '<div style="background:#2ECC8A;width:14px;height:14px;border-radius:50%;border:2px solid white;box-shadow:0 0 6px #2ECC8A"></div>' });
+        const yellowIcon = L.divIcon({ className: '', html: '<div style="background:#2E7CF6;width:14px;height:14px;border-radius:50%;border:2px solid white;box-shadow:0 0 6px #2E7CF6"></div>' });
+
+        L.marker([${srcCoords[1]}, ${srcCoords[0]}], {icon: greenIcon}).addTo(map).bindPopup('${source}').openPopup();
+        L.marker([${dstCoords[1]}, ${dstCoords[0]}], {icon: yellowIcon}).addTo(map).bindPopup('${destination}');
+
+        const geometry = ${JSON.stringify(geometry)};
+        if (geometry && geometry.coordinates) {
+          let coords = [];
+          if (geometry.type === 'MultiLineString') {
+            geometry.coordinates.forEach(line => {
+              line.forEach(c => coords.push([c[1], c[0]]));
+            });
+          } else if (geometry.type === 'LineString') {
+            coords = geometry.coordinates.map(c => [c[1], c[0]]);
+          }
+          if (coords.length > 0) {
+            L.polyline(coords, { color: '#2E7CF6', weight: 4 }).addTo(map);
+            map.fitBounds(coords);
+          }
+        } else {
+          L.polyline([[${srcCoords[1]}, ${srcCoords[0]}], [${dstCoords[1]}, ${dstCoords[0]}]], {
+            color: '#2E7CF6', weight: 3, dashArray: '8,4'
+          }).addTo(map);
+        }
+      </script>
+    </body>
+    </html>
+  `;
+
+  return (
+    <SafeAreaView style={{ flex: 1, backgroundColor: colors.bg }}>
+      <View style={{ paddingTop: 60, paddingHorizontal: 20, paddingBottom: 12, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+        <BackBtn onPress={() => navigation.goBack()} style={{ marginBottom: 0 }} />
+        <Text style={{ fontSize: 16, fontWeight: '800', color: colors.text }}>Route Map</Text>
+        <View style={{ width: 60 }} />
+      </View>
+      <WebView source={{ html }} style={{ flex: 1 }} />
+      <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border, borderRadius: radius.lg, marginHorizontal: 20, marginBottom: 20, padding: 14 }}>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+          <View style={{ width: 10, height: 10, borderRadius: 5, backgroundColor: colors.green }} />
+          <Text style={{ fontSize: 13, color: colors.text, fontWeight: '600' }}>{source}</Text>
+        </View>
+        <Text style={{ fontSize: 12, color: colors.accent }}>── {data?.distance?.toFixed(0) || '?'} km ──</Text>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+          <View style={{ width: 10, height: 10, borderRadius: 5, backgroundColor: colors.accent }} />
+          <Text style={{ fontSize: 13, color: colors.text, fontWeight: '600' }}>{destination}</Text>
+        </View>
+      </View>
+    </SafeAreaView>
+  );
+}
+
+// S28 — Cost Comparison
+export function CompareScreen({ navigation, route }) {
+  const { data, source, destination, material, tons } = route?.params || { source: 'Mumbai', destination: 'Delhi', material: 'Steel', data: { distance: 1420 }, tons: 1 };
+  const dist = data?.distance || 1420;
+  const weight = tons || 1;
+  const { MATERIALS: mats } = require('../../data');
+  const rate = mats.find(m => m.id === material)?.rate || 8;
+  const PORT_CITIES = new Set([
+    'chennai', 'mumbai', 'kolkata', 'kochi', 'visakhapatnam', 'vizag',
+    'paradip', 'haldia', 'kandla', 'mundra', 'pipavav', 'mormugao',
+    'new mangalore', 'mangalore', 'ennore', 'kamarajar', 'tuticorin',
+    'thoothukudi', 'krishnapatnam', 'gangavaram', 'kakinada',
+  ]);
+
+  const isPortCity = (city) => PORT_CITIES.has((city || '').toLowerCase().trim());
+  const shipAvailable = isPortCity(source) && isPortCity(destination);
+
+  const transports = [
+    { icon: '🚛', name: 'Truck', range: '< 100 km', speed: 40, mult: 1.2, color: colors.orange, available: true },
+    { icon: '🚂', name: 'Train', range: '100–800 km', speed: 60, mult: 0.8, color: colors.blue, available: true },
+    { icon: '🚢', name: 'Ship', range: 'Port cities only', speed: 30, mult: 0.5, color: colors.purple, available: shipAvailable },
+  ];
+  const compared = transports.map(t => ({
+    ...t,
+    cost: t.available ? dist * rate * t.mult * weight : null,
+    time: t.available ? dist / t.speed : null,
+    pkm: t.available ? (rate * t.mult).toFixed(1) : null,
+  }));
+  const minCost = Math.min(...compared.filter(c => c.available).map(c => c.cost));
+
+  return (
+    <SafeAreaView style={{ flex: 1, backgroundColor: colors.bg }}>
+      <ScrollView contentContainerStyle={screen()}>
+        <BackBtn onPress={() => navigation.goBack()} />
+        <Text style={h1}>Cost Comparison</Text>
+        <Text style={sub}>{source} → {destination} · {material} · {weight} tons</Text>
+        {/* Bar Chart */}
+        <Card>
+          <SectionLabel label="Cost Chart (₹)" />
+          <View style={{ flexDirection: 'row', alignItems: 'flex-end', height: 100, gap: 10 }}>
+            {compared.map((t, i) => {
+              const maxCost = Math.max(...compared.filter(c => c.available).map(c => c.cost));
+              const h = t.available ? (t.cost / maxCost) * 100 : 8;
+              return (
+                <View key={t.name} style={{ flex: 1, alignItems: 'center', gap: 6 }}>
+                  <Text style={{ fontSize: 12, color: t.available ? t.color : colors.textMuted, fontWeight: '700' }}>
+                    {t.available ? `₹${(t.cost / 1000).toFixed(0)}K` : 'N/A'}
+                  </Text>
+                  <View style={{ width: '100%', height: `${h}%`, backgroundColor: t.available ? t.color : colors.border, borderRadius: 4 }} />
+                  <Text style={{ fontSize: 11, color: t.available ? t.color : colors.textMuted }}>{t.icon} {t.name}</Text>
+                </View>
+              );
+            })}
+          </View>
+        </Card>
+        {compared.map(t => {
+          const h = t.available ? Math.floor(t.time) : 0;
+          const m = t.available ? Math.round((t.time - h) * 60) : 0;
+          const isBest = t.available && t.cost === minCost;
+          return (
+            <Card key={t.name} style={{ borderColor: isBest ? t.color + '66' : t.available ? colors.border : colors.border, opacity: t.available ? 1 : 0.5, position: 'relative' }}>
+              {!t.available && (
+                <View style={{ position: 'absolute', top: 0, right: 0, backgroundColor: colors.red + 'CC', paddingHorizontal: 10, paddingVertical: 4, borderBottomLeftRadius: radius.lg, borderTopRightRadius: radius.lg }}>
+                  <Text style={{ fontSize: 9, fontWeight: '800', color: colors.white }}>🚫 NOT APPLICABLE</Text>
+                </View>
+              )}
+              {isBest && (
+                <View style={{ position: 'absolute', top: 0, right: 0, backgroundColor: t.color, paddingHorizontal: 10, paddingVertical: 4, borderRadius: `0 ${radius.lg}px 0 ${radius.lg}px`, borderBottomLeftRadius: radius.lg, borderTopRightRadius: radius.lg }}>
+                  <Text style={{ fontSize: 9, fontWeight: '800', color: colors.bg }}>⭐ BEST</Text>
+                </View>
+              )}
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12, marginBottom: 12 }}>
+                <View style={{ width: 48, height: 48, borderRadius: radius.lg, backgroundColor: t.color + '22', alignItems: 'center', justifyContent: 'center' }}>
+                  <Text style={{ fontSize: 24 }}>{t.icon}</Text>
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text style={{ fontSize: 16, fontWeight: '800', color: t.color }}>{t.name}</Text>
+                  <Text style={{ fontSize: 12, color: colors.sub }}>{t.range}</Text>
+                </View>
+                <Text style={{ fontSize: 20, fontWeight: '900', color: t.available ? t.color : colors.textMuted }}>
+                  {t.available ? `₹${t.cost.toFixed(0)}` : 'N/A'}
+                </Text>
+              </View>
+              {t.available ? (
+                <View style={{ flexDirection: 'row', backgroundColor: colors.surface2, borderRadius: 8, padding: 10 }}>
+                  <View style={{ flex: 1, alignItems: 'center' }}>
+                    <Text style={{ fontSize: 13, fontWeight: '700', color: colors.text }}>{h}h {m}m</Text>
+                    <Text style={{ fontSize: 10, color: colors.sub }}>Time</Text>
+                  </View>
+                  <View style={{ width: 1, backgroundColor: colors.border }} />
+                  <View style={{ flex: 1, alignItems: 'center' }}>
+                    <Text style={{ fontSize: 13, fontWeight: '700', color: colors.text }}>{t.speed} km/h</Text>
+                    <Text style={{ fontSize: 10, color: colors.sub }}>Speed</Text>
+                  </View>
+                  <View style={{ width: 1, backgroundColor: colors.border }} />
+                  <View style={{ flex: 1, alignItems: 'center' }}>
+                    <Text style={{ fontSize: 13, fontWeight: '700', color: colors.text }}>₹{t.pkm}/ton-km</Text>
+                    <Text style={{ fontSize: 10, color: colors.sub }}>Rate</Text>
+                  </View>
+                </View>
+              ) : (
+                <View style={{ backgroundColor: colors.surface2, borderRadius: 8, padding: 12, alignItems: 'center' }}>
+                  <Text style={{ color: colors.sub, fontSize: 13 }}>🚫 No sea route between these cities</Text>
+                  <Text style={{ color: colors.textMuted, fontSize: 11, marginTop: 4, textAlign: 'center' }}>Ship freight requires both cities to be major ports</Text>
+                </View>
+              )}
+            </Card>
+          );
+        })}
+      </ScrollView>
+    </SafeAreaView>
+  );
+}
+
+// S29 — Route History
+export function RouteHistoryScreen({ navigation }) {
+  const history = [
+    { icon: '🚂', from: 'Mumbai', to: 'Delhi', material: 'Steel', date: 'Today', cost: 14200 },
+    { icon: '🚛', from: 'Chennai', to: 'Bangalore', material: 'Cement', date: 'Yesterday', cost: 2076 },
+    { icon: '🚢', from: 'Kolkata', to: 'Mumbai', material: 'Coal', date: '2 days ago', cost: 9900 },
+    { icon: '🚂', from: 'Delhi', to: 'Hyderabad', material: 'Aluminium', date: '3 days ago', cost: 18000 },
+    { icon: '🚛', from: 'Pune', to: 'Surat', material: 'Wood', date: '5 days ago', cost: 1680 },
+  ];
+  return (
+    <SafeAreaView style={{ flex: 1, backgroundColor: colors.bg }}>
+      <ScrollView contentContainerStyle={screen()}>
+        <BackBtn onPress={() => navigation.goBack()} />
+        <Text style={h1}>Route History</Text>
+        <Text style={sub}>Your past optimizations</Text>
+        {history.map((r, i) => (
+          <TouchableOpacity key={i} onPress={() => navigation.navigate('Result')}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: colors.border }}>
+              <Text style={{ fontSize: 22, marginRight: 10 }}>{r.icon}</Text>
+              <View style={{ flex: 1 }}>
+                <Text style={{ fontSize: 14, fontWeight: '600', color: colors.text }}>{r.from} → {r.to}</Text>
+                <Text style={{ fontSize: 12, color: colors.sub }}>{r.material} · {r.date}</Text>
+              </View>
+              <View style={{ alignItems: 'flex-end' }}>
+                <Text style={{ fontSize: 14, color: colors.accent, fontWeight: '700' }}>₹{r.cost.toLocaleString()}</Text>
+                <Text style={{ fontSize: 12, color: colors.blue }}>Re-optimize</Text>
+              </View>
+            </View>
+          </TouchableOpacity>
+        ))}
+      </ScrollView>
+    </SafeAreaView>
+  );
+}
+
+// S30 — Saved Routes
+export function SavedRoutesScreen({ navigation }) {
+  const saved = [
+    { from: 'Mumbai', to: 'Delhi', material: 'Steel', avg: 14200, last: 'Today', icon: '🚂' },
+    { from: 'Chennai', to: 'Bangalore', material: 'Cement', avg: 2076, last: 'Yesterday', icon: '🚛' },
+    { from: 'Kolkata', to: 'Mumbai', material: 'Coal', avg: 9900, last: 'Last week', icon: '🚢' },
+  ];
+  return (
+    <SafeAreaView style={{ flex: 1, backgroundColor: colors.bg }}>
+      <ScrollView contentContainerStyle={screen()}>
+        <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
+            <BackBtn onPress={() => navigation.goBack()} style={{ marginBottom: 0 }} />
+            <Text style={h1}>Saved Routes</Text>
+          </View>
+          <Text style={{ fontSize: 13, color: colors.accent }}>+ Save</Text>
+        </View>
+        {saved.map((r, i) => (
+          <Card key={i} style={{ borderColor: colors.accent + '22' }}>
+            <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 10 }}>
+              <View>
+                <Text style={{ fontSize: 15, fontWeight: '700', color: colors.text }}>⭐ {r.icon} {r.from} → {r.to}</Text>
+                <Text style={{ fontSize: 12, color: colors.sub }}>{r.material} · Avg ₹{r.avg.toLocaleString()}</Text>
+                <Text style={{ fontSize: 11, color: colors.muted, marginTop: 2 }}>Last used: {r.last}</Text>
+              </View>
+              <Text style={{ fontSize: 20, color: colors.sub }}>🗑</Text>
+            </View>
+            <Btn label="⚡ Optimize Again" onPress={() => navigation.navigate('Result')} style={{ paddingVertical: 10, marginBottom: 0 }} />
+          </Card>
+        ))}
+      </ScrollView>
+    </SafeAreaView>
+  );
+}
+
+const sug = StyleSheet.create({
+  wrap: { backgroundColor: colors.surface2, borderWidth: 1, borderColor: colors.border, borderRadius: 8, marginTop: 4, zIndex: 100 },
+  item: { padding: 12, borderBottomWidth: 1, borderBottomColor: colors.border },
+  text: { fontSize: 13, color: colors.text },
+});

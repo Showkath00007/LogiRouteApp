@@ -1,0 +1,25 @@
+{
+  "expo": {
+    "name": "LogiRoute",
+    "slug": "logiroute",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "userInterfaceStyle": "light",
+    "splash": {
+      "backgroundColor": "#4361EE"
+    },
+    "ios": {
+      "supportsTablet": false,
+      "bundleIdentifier": "com.logiroute.app"
+    },
+    "android": {
+      "adaptiveIcon": {
+        "backgroundColor": "#4361EE"
+      },
+      "package": "com.logiroute.app"
+    },
+    "plugins": [
+      "@react-native-community/datetimepicker"
+    ]
+  }
+}

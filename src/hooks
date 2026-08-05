@@ -1,0 +1,68 @@
+// ============================================================
+// usePushNotifications — Hook for Expo push notifications
+// Use in DriverDashboard to receive real booking requests
+// ============================================================
+
+import { useState, useEffect, useRef } from 'react';
+import { Platform, Alert } from 'react-native';
+import { auth } from '../config/firebase';
+import { updateDriverPushToken, listenDriverNotifications } from '../config/DriverService';
+
+export function useDriverNotifications() {
+  const [notifications, setNotifications] = useState([]);
+  const [expoPushToken, setExpoPushToken] = useState('');
+
+  useEffect(() => {
+    registerForPushNotifications();
+  }, []);
+
+  useEffect(() => {
+    const user = auth.currentUser;
+    if (!user) return;
+    const unsub = listenDriverNotifications(user.uid, setNotifications);
+    return unsub;
+  }, []);
+
+  const registerForPushNotifications = async () => {
+    try {
+      const { default: Constants } = await import('expo-constants');
+      const Notifications = await import('expo-notifications');
+
+      await Notifications.setNotificationHandler({
+        handleNotification: async () => ({
+          shouldShowAlert: true,
+          shouldPlaySound: true,
+          shouldSetBadge: true,
+        }),
+      });
+
+      const { status: existingStatus } = await Notifications.getPermissionsAsync();
+      let finalStatus = existingStatus;
+
+      if (existingStatus !== 'granted') {
+        const { status } = await Notifications.requestPermissionsAsync();
+        finalStatus = status;
+      }
+
+      if (finalStatus !== 'granted') return;
+
+      const tokenData = await Notifications.getExpoPushTokenAsync({
+        projectId: Constants.expoConfig?.extra?.eas?.projectId,
+      });
+
+      const token = tokenData.data;
+      setExpoPushToken(token);
+
+      // Save token to Firebase
+      const user = auth.currentUser;
+      if (user && token) {
+        await updateDriverPushToken(token);
+      }
+
+    } catch (e) {
+      console.warn('Push notification setup error:', e);
+    }
+  };
+
+  return { notifications, expoPushToken };
+}

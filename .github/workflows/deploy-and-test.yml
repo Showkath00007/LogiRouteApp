@@ -1,0 +1,105 @@
+name: Phase 7 - Deploy to GitHub Pages & Run Live Selenium E2E Tests
+
+on:
+  push:
+    branches: [ main, master ]
+  pull_request:
+    branches: [ main, master ]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: "pages"
+  cancel-in-progress: false
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Stage 1 - Repository Checkout
+        uses: actions/checkout@v4
+
+      - name: Stage 2 - Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 18
+          cache: 'npm'
+
+      - name: Stage 3 - Dependency Installation
+        run: npm ci
+
+      - name: Stage 4 - Build Application for Web
+        run: npx expo export --platform web
+
+      - name: Stage 5 - Static Analysis
+        run: npx eslint . || true
+
+      - name: Setup Pages
+        uses: actions/configure-pages@v5
+
+      - name: Upload Pages Artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: 'dist'
+
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
+
+  verify-and-test:
+    needs: build-and-deploy
+    runs-on: ubuntu-latest
+    steps:
+      - name: Stage 1 - Repository Checkout
+        uses: actions/checkout@v4
+
+      - name: Stage 2 - Setup Python Environment
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install Selenium & Reporting Dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install selenium pytest openpyxl requests jinja2
+
+      - name: Stage 6 & 7 - Wait & Verify Live Deployment
+        run: |
+          export BASE_URL="https://${{ github.repository_owner }}.github.io/${{ github.event.repository.name }}/"
+          echo "BASE_URL=${BASE_URL}" >> $GITHUB_ENV
+          echo "Verifying live deployment at ${BASE_URL}..."
+          for i in {1..12}; do
+            STATUS=$(curl -s -o /dev/null -w "%{http_code}" "$BASE_URL" || echo "000")
+            if [ "$STATUS" = "200" ]; then
+              echo "LIVE Deployment is UP (HTTP 200)"
+              exit 0
+            fi
+            echo "Waiting for GitHub Pages propagation... attempt $i"
+            sleep 5
+          done
+          echo "Deployment verification timed out!"
+          exit 1
+
+      - name: Stage 8 - Run Selenium E2E Tests
+        run: |
+          python -m automation.tests.test_suite_400
+
+      - name: Stage 11 - Upload Artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: Selenium_E2E_Test_Results
+          path: |
+            automation/reports/
+            automation/screenshots/
+            automation/logs/
+          retention-days: 30
+
+      - name: Stage 12 - Publish GitHub Action Summary
+        if: always()
+        run: |
+          cat automation/reports/Summary/summary.md >> $GITHUB_STEP_SUMMARY

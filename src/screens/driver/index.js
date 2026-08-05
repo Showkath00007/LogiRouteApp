@@ -1,0 +1,777 @@
+import React, { useState, useEffect } from 'react';
+import {
+  View, Text, ScrollView, SafeAreaView, TouchableOpacity,
+  ActivityIndicator, Alert, TextInput, RefreshControl
+} from 'react-native';
+import { colors, radius, fonts, spacing } from '../../theme';
+import { Btn, Card, StatCard, Badge, SectionLabel, BackBtn, BottomNav, Input } from '../../components';
+import { db, auth } from '../../config/firebase';
+import { ref, set, get, push, update, onValue, off } from 'firebase/database';
+import { onAuthStateChanged } from 'firebase/auth';
+
+const screen = (pt = 60) => ({ padding: 20, paddingTop: pt, flexGrow: 1 });
+const h1 = { fontSize: 22, fontWeight: '900', color: colors.text, letterSpacing: -0.5, marginBottom: 4 };
+const sub = { fontSize: 13, color: colors.textSub, marginBottom: 20 };
+
+// ── Helper: resolve a stable driver id even without real Firebase Auth ──
+// If your login/register flow doesn't call Firebase Auth sign-in yet,
+// auth.currentUser will always be null. Falling back to a fixed id lets
+// you test save/status/jobs end-to-end while you wire up real auth.
+function getDriverUid() {
+  return auth.currentUser?.uid || 'demo_driver';
+}
+
+// ── Helper: get/save driver profile from Firebase ─────────────
+async function getDriverProfile() {
+  const uid = getDriverUid();
+  try {
+    const snap = await get(ref(db, `drivers/${uid}`));
+    return snap.exists() ? snap.val() : null;
+  } catch (e) {
+    console.warn('getDriverProfile error:', e);
+    return null;
+  }
+}
+
+async function saveDriverProfile(data) {
+  const uid = getDriverUid();
+  try {
+    await update(ref(db, `drivers/${uid}`), { ...data, uid, updatedAt: Date.now() });
+    return true;
+  } catch (e) {
+    console.warn('saveDriverProfile error:', e);
+    return false;
+  }
+}
+
+// ── Listen to booking requests for this driver ────────────────
+function listenBookingRequests(driverUid, callback) {
+  if (!driverUid) return () => {};
+  const r = ref(db, `driverNotifications/${driverUid}`);
+  const handler = (snap) => {
+    if (!snap.exists()) { callback([]); return; }
+    const list = Object.values(snap.val())
+      .filter(n => n.type === 'booking_request')
+      .sort((a, b) => b.createdAt - a.createdAt);
+    callback(list);
+  };
+  onValue(r, handler, (err) => console.warn('listenBookingRequests error:', err));
+  return () => off(r);
+}
+
+async function respondToBooking(bookingId, driverUid, accepted) {
+  try {
+    await update(ref(db, `bookings/${bookingId}`), {
+      status: accepted ? 'confirmed' : 'rejected',
+      respondedAt: Date.now(),
+    });
+    await update(ref(db, `drivers/${driverUid}`), {
+      status: accepted ? 'busy' : 'available',
+    });
+    return true;
+  } catch (e) {
+    console.warn('respondToBooking error:', e);
+    return false;
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════
+// S19 — Driver Dashboard
+// ═══════════════════════════════════════════════════════════════
+export function DriverDashboard({ navigation }) {
+  const [driver, setDriver] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [bookingRequests, setBookingRequests] = useState([]);
+  const [activeTab, setActiveTab] = useState('home');
+
+  const tabs = [
+    { id: 'home', icon: '🏠', label: 'Home' },
+    { id: 'trips', icon: '📦', label: 'Trips' },
+    { id: 'jobs', icon: '🔔', label: 'Jobs' },
+    { id: 'earn', icon: '💰', label: 'Earn' },
+    { id: 'profile', icon: '👤', label: 'Profile' },
+  ];
+
+  const mockDriver = {
+    name: 'Driver', phone: '', vehicle: '', vehicleType: 'Heavy',
+    city: '', status: 'available', trips: 0, rating: 5.0, earnings: 0,
+  };
+
+  const loadDriver = async () => {
+    const uid = getDriverUid();
+    const profile = await getDriverProfile();
+    setDriver(profile || { ...mockDriver, uid });
+    setLoading(false);
+  };
+
+  useEffect(() => {
+    // Initial load — works whether or not a real Firebase Auth user exists
+    loadDriver();
+
+    const uid = getDriverUid();
+    const unsubBookings = listenBookingRequests(uid, setBookingRequests);
+
+    // Re-fetch every time this screen comes back into focus
+    // (e.g. returning from DriverProfileSetup after saving)
+    const unsubFocus = navigation.addListener('focus', loadDriver);
+
+    return () => {
+      unsubBookings();
+      unsubFocus();
+    };
+  }, [navigation]);
+
+  const handleTab = (id) => {
+    const routes = { trips: 'MyTrips', jobs: 'Jobs', earn: 'Earnings' };
+    if (routes[id]) navigation.navigate(routes[id]);
+    else setActiveTab(id);
+  };
+
+  const handleAcceptBooking = async (booking) => {
+    const uid = getDriverUid();
+    Alert.alert(
+      'Accept Booking?',
+      `${booking.from} → ${booking.to}\n${booking.material}\nCost: ₹${booking.cost?.toLocaleString()}`,
+      [
+        { text: 'Decline', style: 'destructive', onPress: async () => {
+          const ok = await respondToBooking(booking.bookingId, uid, false);
+          Alert.alert(ok ? 'Declined' : 'Error', ok ? 'Booking request declined.' : 'Could not update booking. Check your connection.');
+        }},
+        { text: 'Accept ✓', onPress: async () => {
+          const ok = await respondToBooking(booking.bookingId, uid, true);
+          Alert.alert(ok ? '✅ Accepted!' : 'Error', ok ? 'You have accepted the booking. Get ready to depart!' : 'Could not update booking. Check your connection.');
+          if (ok) loadDriver();
+        }},
+      ]
+    );
+  };
+
+  if (loading) return (
+    <SafeAreaView style={{ flex: 1, backgroundColor: colors.bg, alignItems: 'center', justifyContent: 'center' }}>
+      <ActivityIndicator size="large" color={colors.accent} />
+      <Text style={{ color: colors.textSub, marginTop: 12 }}>Loading dashboard...</Text>
+    </SafeAreaView>
+  );
+
+  const pendingRequests = bookingRequests.filter(b => !b.responded);
+  const statusColor = { available: colors.green, busy: colors.orange, pending: colors.yellow, offline: colors.textMuted };
+
+  return (
+    <SafeAreaView style={{ flex: 1, backgroundColor: colors.bg }}>
+      <ScrollView contentContainerStyle={screen(60)}>
+        {/* Header */}
+        <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
+          <View>
+            <Text style={{ fontSize: fonts.sm, color: colors.textSub }}>Good {new Date().getHours() < 12 ? 'Morning' : 'Evening'} 🙏</Text>
+            <Text style={h1}>{driver?.name || 'Driver'}</Text>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+              <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: statusColor[driver?.status] || colors.green }} />
+              <Text style={{ fontSize: fonts.sm, color: statusColor[driver?.status] || colors.green, fontWeight: '700', textTransform: 'capitalize' }}>{driver?.status || 'Available'}</Text>
+            </View>
+          </View>
+          <TouchableOpacity onPress={() => navigation.navigate('DriverProfileSetup')}
+            style={{ width: 52, height: 52, borderRadius: 16, backgroundColor: colors.accent + '18', alignItems: 'center', justifyContent: 'center', borderWidth: 2, borderColor: colors.accent + '30' }}>
+            <Text style={{ fontSize: 26 }}>🧑‍✈️</Text>
+          </TouchableOpacity>
+        </View>
+
+        {/* Pending booking requests */}
+        {pendingRequests.length > 0 && (
+          <>
+            <View style={{ backgroundColor: colors.orange + '15', borderRadius: 14, borderWidth: 1.5, borderColor: colors.orange + '40', padding: 4, marginBottom: 16 }}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', padding: 12, gap: 8 }}>
+                <Text style={{ fontSize: 20 }}>🔔</Text>
+                <Text style={{ fontSize: fonts.base, fontWeight: '800', color: colors.orange, flex: 1 }}>{pendingRequests.length} New Booking Request{pendingRequests.length > 1 ? 's' : ''}!</Text>
+              </View>
+              {pendingRequests.slice(0, 2).map((req, i) => (
+                <View key={req.id || i} style={{ backgroundColor: colors.surface, borderRadius: 10, margin: 8, marginTop: 0, padding: 14 }}>
+                  <Text style={{ fontSize: fonts.base, fontWeight: '800', color: colors.text, marginBottom: 4 }}>{req.from} → {req.to}</Text>
+                  <Text style={{ fontSize: fonts.sm, color: colors.textSub, marginBottom: 4 }}>{req.material} · ₹{req.cost?.toLocaleString()}</Text>
+                  <Text style={{ fontSize: fonts.xs, color: colors.textMuted, marginBottom: 10 }}>From: {req.companyName || 'A Company'}</Text>
+                  <View style={{ flexDirection: 'row', gap: 8 }}>
+                    <Btn label="✓ Accept" onPress={async () => {
+                      const uid = getDriverUid();
+                      const bookingId = req.bookingId || req.id;
+                      await respondToBooking(bookingId, uid, true);
+                      try { await update(ref(db, `driverNotifications/${uid}/${req.id}`), { responded: true, accepted: true }); } catch(e) {}
+                      setBookingRequests(prev => prev.filter(b => b.id !== req.id));
+                      Alert.alert('✅ Accepted!', 'Booking accepted. Get ready to depart!');
+                    }} style={{ flex: 1 }} />
+                    <Btn label="✗ Decline" onPress={async () => {
+                      const uid = getDriverUid();
+                      const bookingId = req.bookingId || req.id;
+                      await respondToBooking(bookingId, uid, false);
+                      try { await update(ref(db, `driverNotifications/${uid}/${req.id}`), { responded: true, accepted: false }); } catch(e) {}
+                      setBookingRequests(prev => prev.filter(b => b.id !== req.id));
+                      Alert.alert('Declined', 'Booking request declined.');
+                    }} variant="ghost" style={{ flex: 1 }} />
+                  </View>
+                </View>
+              ))}
+            </View>
+          </>
+        )}
+
+        {/* Stats */}
+        <View style={{ flexDirection: 'row', gap: 10, marginBottom: 16 }}>
+          <StatCard icon="🛣️" value={driver?.trips || 0} label="Total Trips" color={colors.blue} style={{ flex: 1 }} />
+          <StatCard icon="⭐" value={(driver?.rating || 5.0).toFixed(1)} label="Rating" color={colors.yellow} style={{ flex: 1 }} />
+          <StatCard icon="💰" value={`₹${((driver?.earnings || 0) / 1000).toFixed(0)}K`} label="Earned" color={colors.green} style={{ flex: 1 }} />
+        </View>
+
+        {/* Vehicle info */}
+        <Card style={{ marginBottom: 16 }}>
+          <SectionLabel label="My Vehicle" />
+          {driver?.vehicle ? (
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
+              <Text style={{ fontSize: 36 }}>🚛</Text>
+              <View>
+                <Text style={{ fontSize: fonts.md, fontWeight: '800', color: colors.text }}>{driver.vehicle}</Text>
+                <Text style={{ fontSize: fonts.sm, color: colors.textSub }}>{driver.vehicleType} · {driver.city}</Text>
+                <Text style={{ fontSize: fonts.sm, color: colors.textSub }}>License: {driver.license || 'Not added'}</Text>
+              </View>
+            </View>
+          ) : (
+            <View style={{ alignItems: 'center', padding: 16 }}>
+              <Text style={{ color: colors.textMuted, marginBottom: 10 }}>No vehicle details added yet</Text>
+              <Btn label="Add Vehicle Details" onPress={() => navigation.navigate('DriverProfileSetup')} variant="outline" />
+            </View>
+          )}
+        </Card>
+
+        {/* Status toggle */}
+        <Card style={{ marginBottom: 16 }}>
+          <SectionLabel label="Availability" />
+          <View style={{ flexDirection: 'row', gap: 8 }}>
+            {['available', 'offline'].map(s => (
+              <TouchableOpacity key={s} onPress={async () => {
+                // Update UI immediately, then persist
+                setDriver(prev => ({ ...prev, status: s }));
+                const ok = await saveDriverProfile({ status: s });
+                if (!ok) {
+                  Alert.alert('Not saved', 'Status changed locally but failed to save to the server. Check your connection.');
+                }
+              }}
+                style={{ flex: 1, padding: 12, borderRadius: radius.md, alignItems: 'center', backgroundColor: driver?.status === s ? (s === 'available' ? colors.green : colors.textMuted) + '22' : colors.surface2, borderWidth: 2, borderColor: driver?.status === s ? (s === 'available' ? colors.green : colors.textMuted) : colors.border }}>
+                <Text style={{ fontSize: fonts.sm, fontWeight: '800', color: driver?.status === s ? (s === 'available' ? colors.green : colors.textMuted) : colors.textSub, textTransform: 'capitalize' }}>
+                  {s === 'available' ? '✓ Available' : '✗ Offline'}
+                </Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+        </Card>
+
+        {/* Quick actions */}
+        <SectionLabel label="Quick Actions" />
+        <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 10 }}>
+          {[
+            ['📋', 'My Trips', () => navigation.navigate('MyTrips')],
+            ['🔔', 'Jobs', () => navigation.navigate('Jobs')],
+            ['💰', 'Earnings', () => navigation.navigate('Earnings')],
+            ['🚛', 'Vehicle', () => navigation.navigate('Vehicle')],
+          ].map(([icon, label, onPress]) => (
+            <TouchableOpacity key={label} onPress={onPress}
+              style={{ width: '47%', backgroundColor: colors.surface, borderRadius: radius.lg, padding: 16, alignItems: 'center', gap: 8, borderWidth: 1.5, borderColor: colors.border }}>
+              <Text style={{ fontSize: 28 }}>{icon}</Text>
+              <Text style={{ fontSize: fonts.sm, fontWeight: '700', color: colors.text }}>{label}</Text>
+            </TouchableOpacity>
+          ))}
+        </View>
+      </ScrollView>
+      <BottomNav tabs={tabs} activeTab={activeTab} onTabPress={handleTab} />
+    </SafeAreaView>
+  );
+}
+
+// ═══════════════════════════════════════════════════════════════
+// Driver Profile Setup — fill details after registration
+// ═══════════════════════════════════════════════════════════════
+export function DriverProfileSetup({ navigation }) {
+  const [form, setForm] = useState({
+    name: '', phone: '', license: '', vehicle: '',
+    vehicleType: 'Heavy', experience: '', city: '', address: '',
+  });
+  const [saving, setSaving] = useState(false);
+  const vehicleTypes = ['Light', 'Medium', 'Heavy', 'Container'];
+
+  const set_ = (key, val) => setForm(prev => ({ ...prev, [key]: val }));
+
+  useEffect(() => {
+    // Pre-fill if profile exists
+    getDriverProfile().then(p => {
+      if (p) setForm(f => ({
+        ...f,
+        name: p.name || '',
+        phone: p.phone || '',
+        license: p.license || '',
+        vehicle: p.vehicle || '',
+        vehicleType: p.vehicleType || 'Heavy',
+        experience: p.experience || '',
+        city: p.city || '',
+        address: p.address || '',
+      }));
+    });
+  }, []);
+
+  const handleSave = async () => {
+    if (!form.name || !form.phone || !form.vehicle || !form.license) {
+      Alert.alert('Missing', 'Please fill name, phone, vehicle number and license.');
+      return;
+    }
+    setSaving(true);
+    const uid = getDriverUid();
+    const profileData = {
+      ...form,
+      uid,
+      status: 'pending',
+      type: 'driver',
+      rating: 5.0,
+      trips: 0,
+      earnings: 0,
+      registeredAt: Date.now(),
+      updatedAt: Date.now(),
+    };
+    try {
+      await set(ref(db, `drivers/${uid}`), profileData);
+      Alert.alert(
+        '✅ Profile Saved!',
+        'Your details have been submitted for admin approval. You will be notified once approved.',
+        [{ text: 'OK', onPress: () => navigation.navigate('DriverDashboard') }]
+      );
+    } catch (e) {
+      console.warn('DriverProfileSetup save error:', e);
+      Alert.alert(
+        '❌ Save Failed',
+        'Could not save your profile. Please check your internet connection and try again.\n\n' + (e?.message || ''),
+      );
+    }
+    setSaving(false);
+  };
+
+  return (
+    <SafeAreaView style={{ flex: 1, backgroundColor: colors.bg }}>
+      <ScrollView contentContainerStyle={screen()} keyboardShouldPersistTaps="handled">
+        <BackBtn onPress={() => navigation.goBack()} />
+        <Text style={h1}>Driver Profile</Text>
+        <Text style={sub}>Fill your details to appear in the driver marketplace</Text>
+
+        <SectionLabel label="Personal Details" />
+        <Input label="Full Name *" placeholder="Your full name" value={form.name} onChangeText={v => set_('name', v)} />
+        <Input label="Phone Number *" placeholder="+91 XXXXX XXXXX" value={form.phone} onChangeText={v => set_('phone', v)} keyboardType="phone-pad" />
+        <Input label="City / Base Location *" placeholder="e.g. Chennai, Hyderabad" value={form.city} onChangeText={v => set_('city', v)} />
+        <Input label="Full Address" placeholder="House no, Street, Area, City" value={form.address} onChangeText={v => set_('address', v)} multiline />
+
+        <SectionLabel label="Vehicle & License" style={{ marginTop: 8 }} />
+        <Input label="Driving License Number *" placeholder="e.g. TN01 20210012345" value={form.license} onChangeText={v => set_('license', v)} autoCapitalize="characters" />
+        <Input label="Vehicle Number *" placeholder="e.g. TN 01 AB 1234" value={form.vehicle} onChangeText={v => set_('vehicle', v)} autoCapitalize="characters" />
+        <Input label="Years of Experience" placeholder="e.g. 5" value={form.experience} onChangeText={v => set_('experience', v)} keyboardType="numeric" />
+
+        <Text style={{ fontSize: fonts.xs, fontWeight: '800', color: colors.textMuted, letterSpacing: 1.5, marginBottom: 10 }}>VEHICLE TYPE</Text>
+        <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 20 }}>
+          {vehicleTypes.map(t => (
+            <TouchableOpacity key={t} onPress={() => set_('vehicleType', t)}
+              style={{ paddingHorizontal: 16, paddingVertical: 9, borderRadius: radius.full, borderWidth: 2, borderColor: form.vehicleType === t ? colors.accent : colors.border, backgroundColor: form.vehicleType === t ? colors.accent + '15' : colors.surface2 }}>
+              <Text style={{ fontSize: fonts.sm, fontWeight: '700', color: form.vehicleType === t ? colors.accent : colors.textSub }}>{t}</Text>
+            </TouchableOpacity>
+          ))}
+        </View>
+
+        <View style={{ backgroundColor: colors.blue + '12', borderRadius: 12, padding: 14, marginBottom: 20, borderWidth: 1, borderColor: colors.blue + '30' }}>
+          <Text style={{ fontSize: fonts.sm, fontWeight: '700', color: colors.blue, marginBottom: 4 }}>📋 What happens next?</Text>
+          <Text style={{ fontSize: fonts.xs, color: colors.textSub, lineHeight: 18 }}>
+            1. You submit your details{'\n'}
+            2. Admin reviews and approves your profile{'\n'}
+            3. You appear in the driver marketplace{'\n'}
+            4. Companies can find and book you{'\n'}
+            5. You get real-time notifications for bookings
+          </Text>
+        </View>
+
+        <Btn label="Save & Submit Profile 🚀" onPress={handleSave} loading={saving} />
+      </ScrollView>
+    </SafeAreaView>
+  );
+}
+
+// ═══════════════════════════════════════════════════════════════
+// S20 — My Trips
+// ═══════════════════════════════════════════════════════════════
+export function MyTripsScreen({ navigation }) {
+  const [trips, setTrips] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const uid = getDriverUid();
+    try {
+      const r = ref(db, `driverNotifications/${uid}`);
+      onValue(r, snap => {
+        if (!snap.exists()) { setTrips([]); setLoading(false); return; }
+        const accepted = Object.values(snap.val())
+          .filter(n => n.type === 'booking_request' && n.accepted === true)
+          .map(n => ({
+            id: n.id,
+            from: n.from,
+            to: n.to,
+            date: new Date(n.createdAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' }),
+            status: 'Completed',
+            earnings: n.cost || 0,
+            km: n.distKm || 0,
+            material: n.material || 'Cargo',
+          }));
+        setTrips(accepted);
+        setLoading(false);
+      }, () => { setTrips([]); setLoading(false); });
+    } catch (e) { setTrips([]); setLoading(false); }
+  }, []);
+
+  const statusColor = { Completed: colors.green, Cancelled: colors.red, 'In Progress': colors.blue, Pending: colors.yellow };
+
+  return (
+    <SafeAreaView style={{ flex: 1, backgroundColor: colors.bg }}>
+      <ScrollView contentContainerStyle={screen()}>
+        <BackBtn onPress={() => navigation.goBack()} />
+        <Text style={h1}>My Trips</Text>
+        {loading ? <ActivityIndicator color={colors.accent} style={{ marginTop: 40 }} /> : trips.length === 0 ? (
+          <View style={{ alignItems: 'center', marginTop: 60 }}>
+            <Text style={{ fontSize: 48, marginBottom: 16 }}>🛣️</Text>
+            <Text style={{ fontSize: fonts.lg, fontWeight: '800', color: colors.text }}>No Trips Yet</Text>
+            <Text style={{ fontSize: fonts.sm, color: colors.textSub, textAlign: 'center', marginTop: 8 }}>
+              Your completed trips will appear here after you accept and complete bookings.
+            </Text>
+          </View>
+        ) : (
+          trips.map(t => (
+            <Card key={t.id} style={{ marginBottom: 12 }} onPress={() => navigation.navigate('TripDetail', { trip: t })}>
+              <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 8 }}>
+                <View style={{ flex: 1 }}>
+                  <Text style={{ fontSize: fonts.md, fontWeight: '800', color: colors.text }}>{t.from} → {t.to}</Text>
+                  <Text style={{ fontSize: fonts.sm, color: colors.textSub }}>{t.material} · {t.date}</Text>
+                </View>
+                <Badge label={t.status} color={statusColor[t.status] || colors.textMuted} />
+              </View>
+              <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
+                <Text style={{ fontSize: fonts.sm, color: colors.textSub }}>🛣️ {t.km} km</Text>
+                <Text style={{ fontSize: fonts.base, fontWeight: '800', color: colors.green }}>₹{t.earnings?.toLocaleString()}</Text>
+              </View>
+            </Card>
+          ))
+        )}
+      </ScrollView>
+    </SafeAreaView>
+  );
+}
+
+// ═══════════════════════════════════════════════════════════════
+// S21 — Trip Detail
+// ═══════════════════════════════════════════════════════════════
+export function TripDetailScreen({ navigation, route }) {
+  const trip = route?.params?.trip || {};
+  return (
+    <SafeAreaView style={{ flex: 1, backgroundColor: colors.bg }}>
+      <ScrollView contentContainerStyle={screen()}>
+        <BackBtn onPress={() => navigation.goBack()} />
+        <Text style={h1}>Trip Detail</Text>
+        <Card style={{ marginBottom: 16 }}>
+          <Text style={{ fontSize: fonts.xl, fontWeight: '900', color: colors.text, marginBottom: 4 }}>{trip.from} → {trip.to}</Text>
+          <Badge label={trip.status || 'Completed'} color={trip.status === 'Completed' ? colors.green : colors.red} />
+          {[['Material', trip.material], ['Date', trip.date], ['Distance', `${trip.km} km`], ['Earnings', `₹${trip.earnings?.toLocaleString()}`]].map(([k, v]) => (
+            <View key={k} style={{ flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 8, borderBottomWidth: 1, borderColor: colors.border }}>
+              <Text style={{ color: colors.textSub }}>{k}</Text>
+              <Text style={{ color: colors.text, fontWeight: '700' }}>{v}</Text>
+            </View>
+          ))}
+        </Card>
+      </ScrollView>
+    </SafeAreaView>
+  );
+}
+
+// ═══════════════════════════════════════════════════════════════
+// S22 — Jobs (Requests + GPS Job Board)
+// ═══════════════════════════════════════════════════════════════
+export function JobsScreen({ navigation }) {
+  const [activeTab, setActiveTab] = useState('requests');
+  const [requests, setRequests] = useState([]);
+  const [jobBoard, setJobBoard] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [location, setLocation] = useState(null);
+  const [locLoading, setLocLoading] = useState(false);
+
+  const haversine = (lat1, lon1, lat2, lon2) => {
+    const R = 6371;
+    const dLat = (lat2-lat1)*Math.PI/180;
+    const dLon = (lon2-lon1)*Math.PI/180;
+    const a = Math.sin(dLat/2)**2 + Math.cos(lat1*Math.PI/180)*Math.cos(lat2*Math.PI/180)*Math.sin(dLon/2)**2;
+    return R*2*Math.atan2(Math.sqrt(a),Math.sqrt(1-a));
+  };
+
+  const getLocation = async () => {
+    setLocLoading(true);
+    try {
+      const Location = await import('expo-location');
+      const { status } = await Location.requestForegroundPermissionsAsync();
+      if (status !== 'granted') { Alert.alert('Permission Denied', 'Location needed to filter nearby jobs.'); setLocLoading(false); return; }
+      const loc = await Location.getCurrentPositionAsync({ accuracy: 3 });
+      setLocation({ lat: loc.coords.latitude, lon: loc.coords.longitude });
+    } catch(e) { Alert.alert('Error', 'Could not get location.'); }
+    setLocLoading(false);
+  };
+
+  useEffect(() => {
+    getLocation();
+    const uid = getDriverUid();
+    // Listen to direct booking requests
+    const r1 = ref(db, `driverNotifications/${uid}`);
+    onValue(r1, snap => {
+      if (!snap.exists()) { setRequests([]); setLoading(false); return; }
+      const list = Object.values(snap.val()).filter(n => n.type === 'booking_request').sort((a,b) => b.createdAt - a.createdAt);
+      setRequests(list); setLoading(false);
+    }, () => { setRequests([]); setLoading(false); });
+    // Listen to job board
+    const r2 = ref(db, 'jobs');
+    onValue(r2, snap => {
+      if (!snap.exists()) { setJobBoard([]); return; }
+      setJobBoard(Object.values(snap.val()).filter(j => j.status === 'open').sort((a,b) => b.createdAt - a.createdAt));
+    });
+    setTimeout(() => setLoading(false), 3000);
+    return () => { off(r1); off(r2); };
+  }, []);
+
+  const nearbyJobs = jobBoard.filter(job => {
+    if (!location || !job.originLat || !job.originLon) return true;
+    return haversine(location.lat, location.lon, job.originLat, job.originLon) <= 200;
+  });
+
+  const handleRespond = async (job, accepted) => {
+    const uid = getDriverUid();
+    await respondToBooking(job.bookingId || job.id, uid, accepted);
+    await update(ref(db, `driverNotifications/${uid}/${job.id}`), { responded: true, accepted });
+    setRequests(prev => prev.map(r => r.id === job.id ? {...r, responded: true, accepted} : r));
+    Alert.alert(accepted ? '✅ Accepted!' : '❌ Declined', accepted ? 'Booking confirmed. Get ready!' : 'Booking declined.');
+  };
+
+  const handleApply = async (job) => {
+    const uid = getDriverUid();
+    if (!uid) { Alert.alert('Error', 'Please login first.'); return; }
+    try {
+      await update(ref(db, `jobs/${job.id}/applicants/${uid}`), { uid, appliedAt: Date.now(), status: 'pending' });
+      const profile = await getDriverProfile();
+      const notifRef = push(ref(db, `driverNotifications/${job.companyUid}`));
+      await set(notifRef, {
+        id: notifRef.key, type: 'job_application', jobId: job.id,
+        title: '🙋 Driver Applied for Your Load!',
+        message: `${profile?.name || 'A driver'} applied for ${job.origin} → ${job.destination}`,
+        driverUid: uid, driverName: profile?.name || 'Driver',
+        driverPhone: profile?.phone || '', driverVehicle: profile?.vehicle || '',
+        from: job.origin, to: job.destination, read: false, createdAt: Date.now(),
+      });
+      Alert.alert('✅ Applied!', 'Your application sent to the company!');
+    } catch(e) { Alert.alert('Error', 'Could not apply. Try again.'); }
+  };
+
+  return (
+    <SafeAreaView style={{ flex: 1, backgroundColor: colors.bg }}>
+      <View style={{ backgroundColor: colors.surface, borderBottomWidth: 1, borderBottomColor: colors.border, paddingHorizontal: 20, paddingTop: 52, paddingBottom: 14 }}>
+        <BackBtn onPress={() => navigation.goBack()} style={{ marginBottom: 8 }} />
+        <Text style={h1}>Jobs</Text>
+        <TouchableOpacity onPress={getLocation}>
+          <Text style={{ fontSize: fonts.xs, color: location ? colors.green : colors.orange, fontWeight: '700' }}>
+            {locLoading ? '📍 Getting location...' : location ? '📍 GPS Active · Showing jobs within 200km' : '📍 Tap to enable GPS for nearby jobs'}
+          </Text>
+        </TouchableOpacity>
+      </View>
+      <View style={{ flexDirection: 'row', backgroundColor: colors.surface, borderBottomWidth: 1, borderBottomColor: colors.border }}>
+        {[['requests','🔔 Requests', requests.filter(r=>!r.responded).length], ['board','📋 Job Board', nearbyJobs.length]].map(([id,label,count]) => (
+          <TouchableOpacity key={id} onPress={() => setActiveTab(id)}
+            style={{ flex: 1, paddingVertical: 12, alignItems: 'center', borderBottomWidth: 2, borderBottomColor: activeTab===id ? colors.accent : 'transparent' }}>
+            <Text style={{ fontSize: fonts.sm, fontWeight: '800', color: activeTab===id ? colors.accent : colors.textSub }}>
+              {label}{count > 0 ? ` (${count})` : ''}
+            </Text>
+          </TouchableOpacity>
+        ))}
+      </View>
+      <ScrollView contentContainerStyle={{ padding: 16, paddingBottom: 32 }}>
+        {loading ? (
+          <View style={{ alignItems: 'center', marginTop: 40 }}><ActivityIndicator color={colors.accent} size="large" /><Text style={{ color: colors.textSub, marginTop: 12 }}>Loading...</Text></View>
+        ) : activeTab === 'requests' ? (
+          requests.length === 0 ? (
+            <View style={{ alignItems: 'center', marginTop: 60 }}>
+              <Text style={{ fontSize: 48, marginBottom: 16 }}>📭</Text>
+              <Text style={{ fontSize: fonts.lg, fontWeight: '800', color: colors.text }}>No Requests Yet</Text>
+              <Text style={{ fontSize: fonts.sm, color: colors.textSub, textAlign: 'center', marginTop: 8 }}>Direct booking requests from companies appear here.</Text>
+            </View>
+          ) : requests.map((job, i) => (
+            <Card key={job.id||i} style={{ marginBottom: 14, borderColor: job.responded ? colors.border : colors.orange+'44', borderWidth: job.responded ? 1.5 : 2 }}>
+              {!job.responded && <View style={{ backgroundColor: colors.orange+'18', borderRadius: 8, padding: 6, marginBottom: 10, alignItems: 'center' }}><Text style={{ fontSize: fonts.xs, fontWeight: '800', color: colors.orange }}>🔔 ACTION REQUIRED</Text></View>}
+              <Text style={{ fontSize: fonts.md, fontWeight: '900', color: colors.text, marginBottom: 4 }}>{job.from} → {job.to}</Text>
+              <Text style={{ fontSize: fonts.sm, color: colors.textSub, marginBottom: 8 }}>{job.material} · From: {job.companyName || 'Company'}</Text>
+              <View style={{ backgroundColor: colors.accent+'10', borderRadius: 8, padding: 10, marginBottom: 10, flexDirection: 'row', justifyContent: 'space-between' }}>
+                <Text style={{ fontSize: fonts.sm, color: colors.textSub }}>💰 Booking Value</Text>
+                <Text style={{ fontSize: fonts.md, fontWeight: '900', color: colors.accent }}>₹{(job.cost||job.estimatedCost||0).toLocaleString()}</Text>
+              </View>
+              <Text style={{ fontSize: fonts.xs, color: colors.textMuted, marginBottom: 10 }}>{new Date(job.createdAt).toLocaleString('en-IN')}</Text>
+              {job.responded ? (
+                <View style={{ padding: 10, alignItems: 'center', backgroundColor: job.accepted ? colors.green+'15' : colors.red+'15', borderRadius: 8 }}>
+                  <Text style={{ fontWeight: '700', color: job.accepted ? colors.green : colors.red }}>{job.accepted ? '✅ Accepted' : '❌ Declined'}</Text>
+                </View>
+              ) : (
+                <View style={{ flexDirection: 'row', gap: 8 }}>
+                  <Btn label="✓ Accept" onPress={() => handleRespond(job, true)} style={{ flex: 1 }} />
+                  <Btn label="✗ Decline" onPress={() => handleRespond(job, false)} variant="ghost" style={{ flex: 1 }} />
+                </View>
+              )}
+            </Card>
+          ))
+        ) : (
+          nearbyJobs.length === 0 ? (
+            <View style={{ alignItems: 'center', marginTop: 60 }}>
+              <Text style={{ fontSize: 48, marginBottom: 16 }}>🗺️</Text>
+              <Text style={{ fontSize: fonts.lg, fontWeight: '800', color: colors.text }}>No Jobs Nearby</Text>
+              <Text style={{ fontSize: fonts.sm, color: colors.textSub, textAlign: 'center', marginTop: 8 }}>{location ? 'No open loads within 200km of your location.' : 'Enable GPS to see jobs near you.'}</Text>
+              {!location && <Btn label="📍 Enable GPS" onPress={getLocation} loading={locLoading} style={{ marginTop: 16 }} variant="outline" />}
+            </View>
+          ) : nearbyJobs.map((job, i) => {
+            const distAway = location && job.originLat ? Math.round(haversine(location.lat, location.lon, job.originLat, job.originLon)) : null;
+            return (
+              <Card key={job.id||i} style={{ marginBottom: 14, borderColor: colors.purple+'33' }}>
+                <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 10 }}>
+                  <View style={{ flex: 1 }}>
+                    <Text style={{ fontSize: fonts.md, fontWeight: '900', color: colors.text }}>{job.origin} → {job.destination}</Text>
+                    <Text style={{ fontSize: fonts.sm, color: colors.textSub, marginTop: 2 }}>{job.materialIcon} {job.material} · {job.weight}T · 📅 {job.pickupDate}</Text>
+                  </View>
+                  {distAway !== null && <View style={{ backgroundColor: colors.green+'18', borderRadius: 8, paddingHorizontal: 8, paddingVertical: 4 }}><Text style={{ fontSize: fonts.xs, color: colors.green, fontWeight: '800' }}>{distAway}km away</Text></View>}
+                </View>
+                <View style={{ backgroundColor: colors.purple+'10', borderRadius: 10, padding: 12, marginBottom: 10, flexDirection: 'row', justifyContent: 'space-between' }}>
+                  <View>
+                    <Text style={{ fontSize: fonts.xs, color: colors.textMuted }}>ESTIMATED PAYOUT</Text>
+                    <Text style={{ fontSize: 22, fontWeight: '900', color: colors.purple }}>₹{(job.estimatedCost||0).toLocaleString()}</Text>
+                    <Text style={{ fontSize: fonts.xs, color: colors.textMuted }}>🛣️ {job.distKm}km · 🏢 {job.companyName}</Text>
+                  </View>
+                </View>
+                {job.notes ? <Text style={{ fontSize: fonts.xs, color: colors.textSub, marginBottom: 10, fontStyle: 'italic' }}>📝 {job.notes}</Text> : null}
+                <Btn label="Apply for This Job →" onPress={() => handleApply(job)} />
+              </Card>
+            );
+          })
+        )}
+      </ScrollView>
+    </SafeAreaView>
+  );
+}
+
+// ═══════════════════════════════════════════════════════════════
+// S23 — Earnings
+// ═══════════════════════════════════════════════════════════════
+export function EarningsScreen({ navigation }) {
+  const [driver, setDriver] = useState(null);
+  const [trips, setTrips] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    getDriverProfile().then(setDriver);
+    const uid = getDriverUid();
+    try {
+      const r = ref(db, `driverNotifications/${uid}`);
+      onValue(r, snap => {
+        if (!snap.exists()) { setTrips([]); setLoading(false); return; }
+        const accepted = Object.values(snap.val())
+          .filter(n => n.type === 'booking_request' && n.accepted === true);
+        setTrips(accepted);
+        setLoading(false);
+      }, () => { setTrips([]); setLoading(false); });
+    } catch(e) { setTrips([]); setLoading(false); }
+  }, []);
+
+  const totalEarned = trips.reduce((sum, t) => sum + (t.cost || 0), 0);
+  const totalTrips = trips.length;
+
+  const days = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+  const weekly = days.map((_, i) => {
+    const dayTrips = trips.filter(t => {
+      const d = new Date(t.createdAt);
+      return d.getDay() === (i + 1) % 7;
+    });
+    return dayTrips.reduce((sum, t) => sum + (t.cost || 0), 0);
+  });
+  const maxVal = Math.max(...weekly, 1);
+
+  return (
+    <SafeAreaView style={{ flex: 1, backgroundColor: colors.bg }}>
+      <ScrollView contentContainerStyle={screen()}>
+        <BackBtn onPress={() => navigation.goBack()} />
+        <Text style={h1}>Earnings</Text>
+
+        <Card style={{ backgroundColor: colors.accent, marginBottom: 16 }}>
+          <Text style={{ fontSize: fonts.xs, color: colors.white + 'BB', fontWeight: '700', letterSpacing: 1.5 }}>TOTAL EARNED</Text>
+          <Text style={{ fontSize: 38, fontWeight: '900', color: colors.white, marginVertical: 4 }}>₹{totalEarned.toLocaleString()}</Text>
+          <Text style={{ fontSize: fonts.sm, color: colors.white + 'CC' }}>
+            {totalTrips === 0 ? 'No trips completed yet' : `From ${totalTrips} completed trip${totalTrips > 1 ? 's' : ''}`}
+          </Text>
+        </Card>
+
+        <View style={{ flexDirection: 'row', gap: 10, marginBottom: 16 }}>
+          <StatCard icon="📅" value={`₹${(weekly.reduce((a,b)=>a+b,0)/1000).toFixed(1)}K`} label="This Week" color={colors.purple} style={{ flex: 1 }} />
+          <StatCard icon="🛣️" value={totalTrips} label="Total Trips" color={colors.blue} style={{ flex: 1 }} />
+        </View>
+
+        <Card style={{ marginBottom: 16 }}>
+          <SectionLabel label="This Week" />
+          {totalTrips === 0 ? (
+            <View style={{ alignItems: 'center', padding: 20 }}>
+              <Text style={{ fontSize: 32, marginBottom: 8 }}>📊</Text>
+              <Text style={{ color: colors.textMuted, fontSize: fonts.sm, textAlign: 'center' }}>
+                Earnings chart will appear after your first completed trip
+              </Text>
+            </View>
+          ) : (
+            <View style={{ flexDirection: 'row', alignItems: 'flex-end', height: 80, gap: 6 }}>
+              {weekly.map((v, i) => (
+                <View key={i} style={{ flex: 1, alignItems: 'center', gap: 4 }}>
+                  <View style={{ width: '100%', height: Math.max((v / maxVal) * 64, v > 0 ? 4 : 0), backgroundColor: colors.accent + (v > 0 ? 'FF' : '30'), borderRadius: 4 }} />
+                  <Text style={{ fontSize: 9, color: colors.textMuted }}>{days[i]}</Text>
+                </View>
+              ))}
+            </View>
+          )}
+        </Card>
+      </ScrollView>
+    </SafeAreaView>
+  );
+}
+
+// ═══════════════════════════════════════════════════════════════
+// S24 — Vehicle Status
+// ═══════════════════════════════════════════════════════════════
+export function VehicleScreen({ navigation }) {
+  const [driver, setDriver] = useState(null);
+
+  useEffect(() => {
+    getDriverProfile().then(setDriver);
+    // Refresh whenever we return to this screen too
+    const unsubFocus = navigation.addListener('focus', () => {
+      getDriverProfile().then(setDriver);
+    });
+    return unsubFocus;
+  }, [navigation]);
+
+  return (
+    <SafeAreaView style={{ flex: 1, backgroundColor: colors.bg }}>
+      <ScrollView contentContainerStyle={screen()}>
+        <BackBtn onPress={() => navigation.goBack()} />
+        <Text style={h1}>Vehicle Status</Text>
+        <Card style={{ alignItems: 'center', padding: 24, marginBottom: 16 }}>
+          <Text style={{ fontSize: 64 }}>🚛</Text>
+          <Text style={{ fontSize: fonts.xl, fontWeight: '900', color: colors.text, marginTop: 8 }}>{driver?.vehicle || 'No vehicle added'}</Text>
+          <Text style={{ fontSize: fonts.sm, color: colors.textSub }}>{driver?.vehicleType || 'Heavy'} · {driver?.city || 'N/A'}</Text>
+        </Card>
+        {[['🪪 License', driver?.license || 'Not added'], ['📍 Base City', driver?.city || 'Not added'], ['⏱ Experience', driver?.experience ? `${driver.experience} years` : 'Not added'], ['📋 Status', driver?.status || 'Pending']].map(([k, v]) => (
+          <View key={k} style={{ flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 12, borderBottomWidth: 1, borderColor: colors.border }}>
+            <Text style={{ fontSize: fonts.base, color: colors.textSub }}>{k}</Text>
+            <Text style={{ fontSize: fonts.base, fontWeight: '700', color: colors.text }}>{v}</Text>
+          </View>
+        ))}
+        <Btn label="Update Vehicle Details" onPress={() => navigation.navigate('DriverProfileSetup')} style={{ marginTop: 20 }} variant="outline" />
+      </ScrollView>
+    </SafeAreaView>
+  );
+}
