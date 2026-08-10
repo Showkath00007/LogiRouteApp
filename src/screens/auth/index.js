@@ -20,9 +20,12 @@ export function LoginScreen({ navigation }) {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
 
   const handleLogin = async () => {
+    setError('');
     if (!email.trim() || !password.trim()) {
+      setError('Please enter your email and password.');
       Alert.alert('Missing Fields', 'Please enter your email and password.');
       return;
     }
@@ -30,19 +33,22 @@ export function LoginScreen({ navigation }) {
     try {
       await signInWithEmailAndPassword(auth, email.trim(), password);
       navigation.replace('CompanyDashboard');
-    } catch (error) {
-      if (error.code === 'auth/user-not-found' || error.code === 'auth/invalid-credential') {
-        Alert.alert('Account Not Found', 'No account found with this email. Please register first.', [
-          { text: 'Register', onPress: () => navigation.navigate('Register') },
-          { text: 'Try Again', style: 'cancel' },
-        ]);
-      } else if (error.code === 'auth/wrong-password') {
-        Alert.alert('Wrong Password', 'The password you entered is incorrect. Try again.');
-      } else if (error.code === 'auth/invalid-email') {
-        Alert.alert('Invalid Email', 'Please enter a valid email address.');
+    } catch (err) {
+      const code = err.code || '';
+      let msg = '';
+      if (code === 'auth/user-not-found' || code === 'auth/invalid-credential') {
+        msg = 'No account found with this email. Please register first.';
+      } else if (code === 'auth/wrong-password') {
+        msg = 'Wrong password. Please try again.';
+      } else if (code === 'auth/invalid-email') {
+        msg = 'Please enter a valid email address.';
+      } else if (code === 'auth/too-many-requests') {
+        msg = 'Too many attempts. Please try again later.';
       } else {
-        Alert.alert('Login Failed', error.message);
+        msg = err.message || 'Login failed. Please try again.';
       }
+      setError(msg);
+      Alert.alert('Login Failed', msg);
     } finally {
       setLoading(false);
     }
@@ -88,6 +94,11 @@ export function LoginScreen({ navigation }) {
           style={{ alignSelf: 'flex-end', marginBottom: 20, marginTop: -4 }}>
           <Text style={{ color: colors.accent, fontSize: 13 }}>Forgot Password?</Text>
         </TouchableOpacity>
+        {error ? (
+          <View style={{ backgroundColor: colors.red + '18', borderRadius: 10, padding: 12, marginBottom: 12, borderWidth: 1, borderColor: colors.red + '44' }}>
+            <Text style={{ color: colors.red, fontSize: 13, fontWeight: '600', textAlign: 'center' }}>⚠ {error}</Text>
+          </View>
+        ) : null}
         {loading ? (
           <ActivityIndicator size="large" color={colors.accent} style={{ marginVertical: 16 }} />
         ) : (
