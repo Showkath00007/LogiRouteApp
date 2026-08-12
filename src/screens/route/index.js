@@ -298,6 +298,7 @@ export function RouteMapScreen({ navigation, route }) {
           // 3. Generate Google Maps Styled Leaflet HTML
           const centerLat = (srcLat + dstLat) / 2;
           const centerLng = (srcLon + dstLon) / 2;
+          const gmapsUrl = `https://www.google.com/maps/dir/?api=1&origin=${encodeURIComponent(source)}&destination=${encodeURIComponent(destination)}&travelmode=driving`;
 
           const html = `
             <!DOCTYPE html>
@@ -323,7 +324,7 @@ export function RouteMapScreen({ navigation, route }) {
                   right: 14px;
                   background: #FFFFFF;
                   border-radius: 12px;
-                  box-shadow: 0 2px 10px rgba(0,0,0,0.22);
+                  box-shadow: 0 2px 12px rgba(0,0,0,0.25);
                   z-index: 1000;
                   padding: 12px 16px;
                   display: flex;
@@ -331,40 +332,54 @@ export function RouteMapScreen({ navigation, route }) {
                   justify-content: space-between;
                 }
                 .gmap-nav-main { display: flex; align-items: center; gap: 12px; }
-                .gmap-nav-icon { width: 36px; height: 36px; border-radius: 18px; background: #1A73E8; color: white; display: flex; align-items: center; justify-content: center; font-size: 18px; }
+                .gmap-nav-icon { width: 40px; height: 40px; border-radius: 20px; background: #1A73E8; color: white; display: flex; align-items: center; justify-content: center; font-size: 20px; box-shadow: 0 2px 6px rgba(26,115,232,0.4); }
                 .gmap-nav-time { font-size: 18px; font-weight: 700; color: #188038; }
-                .gmap-nav-dist { font-size: 13px; color: #5F6368; font-weight: 500; margin-left: 6px; }
+                .gmap-nav-dist { font-size: 14px; color: #5F6368; font-weight: 500; margin-left: 6px; }
                 .gmap-nav-via { font-size: 12px; color: #70757A; margin-top: 2px; }
-                .gmap-nav-btn { background: #1A73E8; color: white; border: none; border-radius: 20px; padding: 8px 16px; font-size: 13px; font-weight: 600; cursor: pointer; display: flex; align-items: center; gap: 6px; }
+                .gmap-launch-btn {
+                  background: #1A73E8;
+                  color: #FFFFFF !important;
+                  text-decoration: none;
+                  padding: 8px 14px;
+                  border-radius: 20px;
+                  font-size: 12px;
+                  font-weight: 700;
+                  display: flex;
+                  align-items: center;
+                  gap: 6px;
+                  box-shadow: 0 2px 6px rgba(26,115,232,0.3);
+                  transition: background 0.2s;
+                }
+                .gmap-launch-btn:hover { background: #1557B0; }
 
                 /* Google Markers */
                 .origin-pin {
                   background: #188038;
-                  width: 28px;
-                  height: 28px;
+                  width: 30px;
+                  height: 30px;
                   border-radius: 50% 50% 50% 0;
                   transform: rotate(-45deg);
                   border: 2px solid #FFFFFF;
-                  box-shadow: 0 3px 8px rgba(0,0,0,0.35);
+                  box-shadow: 0 3px 8px rgba(0,0,0,0.4);
                   display: flex;
                   align-items: center;
                   justify-content: center;
                 }
-                .origin-pin span { transform: rotate(45deg); color: white; font-weight: 900; font-size: 12px; }
+                .origin-pin span { transform: rotate(45deg); color: white; font-weight: 900; font-size: 13px; }
 
                 .dest-pin {
                   background: #EA4335;
-                  width: 28px;
-                  height: 28px;
+                  width: 30px;
+                  height: 30px;
                   border-radius: 50% 50% 50% 0;
                   transform: rotate(-45deg);
                   border: 2px solid #FFFFFF;
-                  box-shadow: 0 3px 8px rgba(0,0,0,0.35);
+                  box-shadow: 0 3px 8px rgba(0,0,0,0.4);
                   display: flex;
                   align-items: center;
                   justify-content: center;
                 }
-                .dest-pin span { transform: rotate(45deg); color: white; font-weight: 900; font-size: 12px; }
+                .dest-pin span { transform: rotate(45deg); color: white; font-weight: 900; font-size: 13px; }
 
                 /* Map Controls */
                 .leaflet-bar { border: none !important; box-shadow: 0 2px 6px rgba(0,0,0,0.3) !important; border-radius: 8px !important; overflow: hidden; }
@@ -383,6 +398,9 @@ export function RouteMapScreen({ navigation, route }) {
                     <div class="gmap-nav-via">Fastest route • via ${summary}</div>
                   </div>
                 </div>
+                <a class="gmap-launch-btn" href="${gmapsUrl}" target="_blank">
+                  Open Google Maps ↗
+                </a>
               </div>
 
               <div id="map"></div>
@@ -394,39 +412,58 @@ export function RouteMapScreen({ navigation, route }) {
 
                 L.control.zoom({ position: 'bottomright' }).addTo(map);
 
-                // Google Maps style crisp vector raster tiles
-                L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', {
-                  attribution: '© Google / OpenStreetMap contributors',
+                // Google Maps Official Vector & Raster Tiles with OpenStreetMap fallback
+                const googleRoads = L.tileLayer('https://mt1.google.com/vt/lyrs=m&hl=en&x={x}&y={y}&z={z}', {
+                  attribution: '© Google Maps',
+                  maxZoom: 20
+                });
+
+                const googleSatellite = L.tileLayer('https://mt1.google.com/vt/lyrs=y&hl=en&x={x}&y={y}&z={z}', {
+                  attribution: '© Google Satellite',
+                  maxZoom: 20
+                });
+
+                const osmLayer = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                  attribution: '© OpenStreetMap',
                   maxZoom: 19
-                }).addTo(map);
+                });
+
+                googleRoads.addTo(map);
+
+                // Layer control (Roadmap vs Satellite)
+                L.control.layers({
+                  "Google Map": googleRoads,
+                  "Google Satellite": googleSatellite,
+                  "OpenStreetMap": osmLayer
+                }, null, { position: 'bottomleft' }).addTo(map);
 
                 const srcIcon = L.divIcon({
                   className: '',
                   html: '<div class="origin-pin"><span>A</span></div>',
-                  iconSize: [28, 28],
-                  iconAnchor: [14, 28]
+                  iconSize: [30, 30],
+                  iconAnchor: [15, 30]
                 });
 
                 const dstIcon = L.divIcon({
                   className: '',
                   html: '<div class="dest-pin"><span>B</span></div>',
-                  iconSize: [28, 28],
-                  iconAnchor: [14, 28]
+                  iconSize: [30, 30],
+                  iconAnchor: [15, 30]
                 });
 
                 const originMarker = L.marker([${srcLat}, ${srcLon}], { icon: srcIcon }).addTo(map);
-                originMarker.bindPopup('<b style="color:#188038">Origin (A):</b><br/>${source}').openPopup();
+                originMarker.bindPopup('<b style="color:#188038;font-size:14px;">Origin (A):</b><br/><b>${source}</b>').openPopup();
 
                 const destMarker = L.marker([${dstLat}, ${dstLon}], { icon: dstIcon }).addTo(map);
-                destMarker.bindPopup('<b style="color:#EA4335">Destination (B):</b><br/>${destination}');
+                destMarker.bindPopup('<b style="color:#EA4335;font-size:14px;">Destination (B):</b><br/><b>${destination}</b>');
 
                 const coords = ${JSON.stringify(coords)};
 
                 // Outer border stroke (Google Maps dark blue outline)
                 L.polyline(coords, {
                   color: '#1A73E8',
-                  weight: 7,
-                  opacity: 0.6,
+                  weight: 8,
+                  opacity: 0.8,
                   lineCap: 'round',
                   lineJoin: 'round'
                 }).addTo(map);
