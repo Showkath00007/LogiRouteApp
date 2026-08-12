@@ -90,7 +90,46 @@ export function CompanyDashboard({ navigation }) {
           <Btn label="+ New Shipment" onPress={() => navigation.navigate('NewShipment')} style={{ flex: 1, marginBottom: 0, paddingVertical: 12 }} />
           <Btn label="⚡ Optimize" onPress={() => navigation.navigate('Optimizer')} variant="outline" style={{ flex: 1, marginBottom: 0, paddingVertical: 12 }} />
         </View>
-        <Btn label="📢 Post Job for Any Driver" onPress={() => navigation.navigate('PostJob')} variant="outline" style={{ marginBottom: 16 }} />
+        <Btn label="📢 Post Job for Any Driver" onPress={() => navigation.navigate('PostJob')} variant="outline" style={{ marginBottom: 14 }} />
+
+        {/* Dedicated Route Feasibility & Road Safety Card for Companies */}
+        <TouchableOpacity
+          onPress={() => navigation.navigate('RoadAlerts')}
+          style={{
+            backgroundColor: '#FFFFFF',
+            borderRadius: radius.lg,
+            padding: 16,
+            marginBottom: 16,
+            borderWidth: 1.5,
+            borderColor: colors.accent,
+            shadowColor: colors.accent,
+            shadowOffset: { width: 0, height: 4 },
+            shadowOpacity: 0.1,
+            shadowRadius: 10,
+            elevation: 3
+          }}
+          activeOpacity={0.8}
+        >
+          <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12, flex: 1 }}>
+              <View style={{ width: 44, height: 44, borderRadius: 22, backgroundColor: '#EEF2FF', alignItems: 'center', justifyContent: 'center' }}>
+                <Text style={{ fontSize: 22 }}>🛣️</Text>
+              </View>
+              <View style={{ flex: 1 }}>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                  <Text style={{ fontSize: 15, fontWeight: '900', color: colors.text }}>Route Safety & Weather Checker</Text>
+                  <View style={{ backgroundColor: '#ECFDF5', paddingHorizontal: 6, paddingVertical: 2, borderRadius: 4 }}>
+                    <Text style={{ fontSize: 10, fontWeight: '800', color: '#059669' }}>FEASIBILITY</Text>
+                  </View>
+                </View>
+                <Text style={{ fontSize: 12, color: colors.sub, marginTop: 2 }}>
+                  Enter source & destination to verify highway weather, road alerts & safety
+                </Text>
+              </View>
+            </View>
+            <Text style={{ fontSize: 18, color: colors.accent, fontWeight: '900', marginLeft: 8 }}>→</Text>
+          </View>
+        </TouchableOpacity>
 
         <SectionLabel label="Recent Shipments" />
         {loading ? (
@@ -122,7 +161,7 @@ export function CompanyDashboard({ navigation }) {
 
         <SectionLabel label="Quick Access" style={{ marginTop: 8 }} />
         <View style={{ flexDirection: 'row', gap: 10 }}>
-          {[['🌦', 'Weather', 'Weather', colors.blue], ['👥', 'Drivers', 'Optimizer', colors.green], ['🚛', 'Fleet', 'Fleet', colors.orange], ['🕐', 'History', 'History', colors.accent], ['🤝', 'Team', 'Team', colors.purple]].map(([icon, label, route, color]) => (
+          {[['🛣️', 'Route Alerts', 'RoadAlerts', colors.orange], ['🌦', 'Weather', 'Weather', colors.blue], ['👥', 'Drivers', 'Optimizer', colors.green], ['🚛', 'Fleet', 'Fleet', colors.orange], ['🤝', 'Team', 'Team', colors.purple]].map(([icon, label, route, color]) => (
             <TouchableOpacity key={label} onPress={() => navigation.navigate(route)} style={{ flex: 1, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border, borderRadius: radius.lg, padding: 12, alignItems: 'center', gap: 6 }}>
               <Text style={{ fontSize: 24 }}>{icon}</Text>
               <Text style={{ fontSize: 10, color, fontWeight: '700' }}>{label}</Text>
