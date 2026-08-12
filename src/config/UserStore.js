@@ -8,11 +8,14 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 const KEY = 'logiroute_user_profile';
 
 const DEFAULT_PROFILE = {
-  name: 'Kadiyala Logistics',
+  name: 'Kadiyala Showkathali',
   company: 'Kadiyala Transport Co.',
   phone: '+91 93928 59818',
   email: 'admin@logiroute.in',
   city: 'Chennai',
+  pan: 'AABCK1234M',
+  aadhaar: 'XXXX XXXX 4321',
+  vehicleNumber: 'AP 02 AX 1234',
   gst: '33ABCDE1234F1Z5',
   type: 'company',
   verified: true,

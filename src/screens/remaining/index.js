@@ -1101,7 +1101,7 @@ export function ProfileScreen({ navigation }) {
   const menuItems = [
     { icon: '✏️', label: 'Edit Profile', sub: 'Update name, photo, contact', route: 'EditProfile' },
     { icon: '🏢', label: 'Company Details', sub: 'GST, address, registration', route: 'CompanyDetails' },
-    { icon: '📄', label: 'KYC Documents', sub: 'Verified ✓', color: colors.green, route: 'KYCDocuments' },
+    { icon: '🪪', label: 'KYC & Vehicle Documents', sub: 'Official PAN, Aadhaar, Vehicle RC • Verified ✓', color: colors.green, route: 'KYCDocuments' },
     { icon: '💳', label: 'Payment Methods', sub: 'UPI, bank accounts', route: 'PaymentMethods' },
     { icon: '🔔', label: 'Notification Preferences', sub: '', route: 'Notifications' },
     { icon: '⚙️', label: 'Settings', sub: '', route: 'Settings' },
