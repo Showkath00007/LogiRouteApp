@@ -1,13 +1,7 @@
 name: Android Appium E2E Automation Pipeline
 
 on:
-  push:
-    branches: [ main, master ]
-  pull_request:
-    branches: [ main, master ]
   workflow_dispatch:
-  schedule:
-    - cron: '0 0 * * *'
 
 permissions:
   contents: write

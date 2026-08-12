@@ -1,4 +1,4 @@
-name: DevSecOps Backend SAST DAST & Performance Security Review
+name: Master Test Suite
 
 on:
   push:
@@ -8,12 +8,12 @@ on:
   workflow_dispatch:
 
 concurrency:
-  group: "security-review-${{ github.ref }}"
+  group: "master-test-suite-${{ github.ref }}"
   cancel-in-progress: true
 
 jobs:
   selenium-tests:
-    name: Selenium — Website Tests (400)
+    name: Selenium — Website Tests (300)
     runs-on: ubuntu-latest
     steps:
       - name: Stage 1 - Repository Checkout
@@ -29,7 +29,7 @@ jobs:
           python -m pip install --upgrade pip
           pip install openpyxl requests jinja2 pytest selenium
 
-      - name: Stage 3 - Execute 400 Selenium Web Tests
+      - name: Stage 3 - Execute 300 Selenium Web Tests
         run: |
           python automation/utils/generate_exact_400_web.py
 
@@ -165,7 +165,7 @@ jobs:
           retention-days: 30
 
   load-testing:
-    name: Load Testing — Performance (400)
+    name: Load Testing — Performance (300)
     runs-on: ubuntu-latest
     steps:
       - name: Stage 1 - Repository Checkout

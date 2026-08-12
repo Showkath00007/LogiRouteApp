@@ -1,10 +1,6 @@
 name: Phase 7 - Deploy to GitHub Pages & Run Live Selenium E2E Tests
 
 on:
-  push:
-    branches: [ main, master ]
-  pull_request:
-    branches: [ main, master ]
   workflow_dispatch:
 
 permissions:
