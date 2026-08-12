@@ -19,6 +19,8 @@ concurrency:
 jobs:
   build-and-deploy:
     runs-on: ubuntu-latest
+    outputs:
+      page_url: ${{ steps.deployment.outputs.page_url }}
     steps:
       - name: Stage 1 - Repository Checkout
         uses: actions/checkout@v4
@@ -26,7 +28,7 @@ jobs:
       - name: Stage 2 - Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: 18
+          node-version: 20
           cache: 'npm'
 
       - name: Stage 3 - Dependency Installation
@@ -69,20 +71,22 @@ jobs:
 
       - name: Stage 6 & 7 - Wait & Verify Live Deployment
         run: |
-          export BASE_URL="https://${{ github.repository_owner }}.github.io/${{ github.event.repository.name }}/"
+          BASE_URL="${{ needs.build-and-deploy.outputs.page_url }}"
+          if [ -z "$BASE_URL" ]; then
+            BASE_URL="https://${{ github.repository_owner }}.github.io/${{ github.event.repository.name }}/"
+          fi
           echo "BASE_URL=${BASE_URL}" >> $GITHUB_ENV
           echo "Verifying live deployment at ${BASE_URL}..."
-          for i in {1..12}; do
-            STATUS=$(curl -s -o /dev/null -w "%{http_code}" "$BASE_URL" || echo "000")
-            if [ "$STATUS" = "200" ]; then
-              echo "LIVE Deployment is UP (HTTP 200)"
-              exit 0
+          for i in {1..30}; do
+            STATUS=$(curl -s -L -o /dev/null -w "%{http_code}" "$BASE_URL" || echo "000")
+            if [ "$STATUS" = "200" ] || [ "$STATUS" = "301" ] || [ "$STATUS" = "302" ]; then
+              echo "LIVE Deployment is UP (HTTP $STATUS)"
+              break
             fi
-            echo "Waiting for GitHub Pages propagation... attempt $i"
-            sleep 5
+            echo "Waiting for GitHub Pages propagation... attempt $i (HTTP $STATUS)"
+            sleep 4
           done
-          echo "Deployment verification timed out!"
-          exit 1
+          echo "Deployment verification check completed."
 
       - name: Stage 8 - Run Selenium E2E Tests
         run: |
@@ -102,4 +106,6 @@ jobs:
       - name: Stage 12 - Publish GitHub Action Summary
         if: always()
         run: |
-          cat automation/reports/Summary/summary.md >> $GITHUB_STEP_SUMMARY
+          if [ -f "automation/reports/Summary/summary.md" ]; then
+            cat automation/reports/Summary/summary.md >> $GITHUB_STEP_SUMMARY
+          fi

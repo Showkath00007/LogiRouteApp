@@ -1,15 +1,15 @@
 # Android Appium E2E Execution Summary
 
-- **Execution Date**: 2026-07-29 08:50:03
+- **Execution Date**: 2026-08-12 08:49:12
 - **Device**: Android Emulator (API 34)
 - **App Package**: `com.logiroute.app`
 
 ## Execution Metrics
-- **Total Test Cases**: 510
-- **Passed**: 499
-- **Failed**: 11
+- **Total Test Cases**: 400
+- **Passed**: 390
+- **Failed**: 10
 - **Skipped**: 0
-- **Pass Percentage**: 97.84%
+- **Pass Percentage**: 97.50%
 
 ### Executed Tests Overview
 - ✓ **TC_MOB_001** - Android Appium Authentication Spec #01 (Authentication)

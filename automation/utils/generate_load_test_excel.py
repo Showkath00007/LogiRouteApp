@@ -4,7 +4,7 @@ from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
 from openpyxl.utils import get_column_letter
 
 def generate_load_test_excel_report():
-    base_dir = "/Users/kadiyalashowkathali/Downloads/LogiRouteApp"
+    base_dir = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
     test_results_dir = os.path.join(base_dir, "Test Results")
     excel_dir = os.path.join(test_results_dir, "Excel")
 

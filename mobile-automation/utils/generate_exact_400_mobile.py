@@ -1,11 +1,19 @@
 import os
 import sys
 
-sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
+current_dir = os.path.dirname(os.path.abspath(__file__))
+parent_dir = os.path.dirname(current_dir)
+root_dir = os.path.dirname(parent_dir)
+if root_dir not in sys.path:
+    sys.path.insert(0, root_dir)
+if parent_dir not in sys.path:
+    sys.path.insert(0, parent_dir)
+
 from automation.utils.excel_reporter import ExcelReporter
+from utils.mobile_html_reporter import MobileHTMLReporter
 
 def generate_exact_400_mobile_test_cases():
-    base_dir = "/Users/kadiyalashowkathali/Downloads/LogiRouteApp"
+    base_dir = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
     mobile_dir = os.path.join(base_dir, "mobile-automation")
     reports_dir = os.path.join(mobile_dir, "reports")
     excel_dir = os.path.join(reports_dir, "Excel")
@@ -64,6 +72,7 @@ def generate_exact_400_mobile_test_cases():
         end_time="2026-06-09T16:46:55.377983Z",
         output_path=main_excel_file
     )
+    MobileHTMLReporter.generate_mobile_html_reports(test_cases)
 
     pass_cnt = sum(1 for tc in test_cases if tc["status"] == "PASS")
     fail_cnt = sum(1 for tc in test_cases if tc["status"] == "FAIL")

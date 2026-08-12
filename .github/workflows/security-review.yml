@@ -7,6 +7,10 @@ on:
     branches: [ main, master ]
   workflow_dispatch:
 
+concurrency:
+  group: "security-review-${{ github.ref }}"
+  cancel-in-progress: true
+
 jobs:
   security-audit:
     runs-on: ubuntu-latest
@@ -21,10 +25,12 @@ jobs:
 
       - name: Install Audit Dependencies
         run: |
-          python -m pip install openpyxl requests jinja2 pytest
+          python -m pip install --upgrade pip
+          pip install openpyxl requests jinja2 pytest
 
       - name: Stage 3 - Run SAST & Dependency Audit
         run: |
+          mkdir -p "Vulnerability Test Results"
           npm audit --json > "Vulnerability Test Results/npm-audit.json" || true
 
       - name: Stage 4 - Run Security Excel Generator
@@ -43,4 +49,6 @@ jobs:
       - name: Stage 6 - Publish GitHub Step Summary
         if: always()
         run: |
-          cat "Vulnerability Test Results/executive-summary.md" >> $GITHUB_STEP_SUMMARY
+          if [ -f "Vulnerability Test Results/executive-summary.md" ]; then
+            cat "Vulnerability Test Results/executive-summary.md" >> $GITHUB_STEP_SUMMARY
+          fi

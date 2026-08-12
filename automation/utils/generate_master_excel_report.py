@@ -5,7 +5,7 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspa
 from automation.utils.excel_reporter import ExcelReporter
 
 def generate_master_combined_excel_report():
-    base_dir = "/Users/kadiyalashowkathali/Downloads/LogiRouteApp"
+    base_dir = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
     test_results_dir = os.path.join(base_dir, "Test Results")
     excel_dir = os.path.join(test_results_dir, "Excel")
     
