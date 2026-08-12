@@ -150,7 +150,9 @@ async function fetchOriginalCityWeather(cityName, geoData = null) {
     const daily = wData.daily || {};
     const wmo = getWmoMeta(current.weather_code);
 
-    const temp = Math.round(current.temperature_2m);
+    const rawTemp = current.temperature_2m;
+    const temp = Math.round(rawTemp);
+    const exactTemp = rawTemp.toFixed(1);
     const feelsLike = Math.round(current.apparent_temperature);
     const humidity = Math.round(current.relative_humidity_2m);
     const windSpeed = Math.round(current.wind_speed_10m);
