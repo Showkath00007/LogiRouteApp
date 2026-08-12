@@ -52,15 +52,16 @@ export function OptimizerScreen({ navigation }) {
 
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: colors.bg }}>
-      <ScrollView contentContainerStyle={screen(60)} keyboardShouldPersistTaps="handled">
-        {/* Header */}
+      <ScrollView contentContainerStyle={screen(50)} keyboardShouldPersistTaps="handled">
+        {/* Header with Back Button */}
+        <BackBtn onPress={() => navigation.goBack()} style={{ marginBottom: 12 }} />
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12, marginBottom: 24 }}>
           <View style={{ width: 44, height: 44, backgroundColor: colors.accent, borderRadius: radius.lg, alignItems: 'center', justifyContent: 'center' }}>
             <Text style={{ fontSize: 22 }}>🚚</Text>
           </View>
           <View>
-            <Text style={{ fontSize: 20, fontWeight: '900', color: colors.text }}>LogiRoute</Text>
-            <Text style={{ fontSize: 12, color: colors.sub }}>Find the best route & cost</Text>
+            <Text style={{ fontSize: 20, fontWeight: '900', color: colors.text }}>Route Optimizer</Text>
+            <Text style={{ fontSize: 12, color: colors.sub }}>Find the best route & freight cost</Text>
           </View>
         </View>
 
@@ -133,7 +134,7 @@ export function OptimizerScreen({ navigation }) {
 
         {/* Quick Features */}
         <View style={{ flexDirection: 'row', gap: 10, marginTop: 4 }}>
-          {[['🌦', 'Weather', 'Weather', colors.blue], ['📊', 'Compare', 'Compare', colors.purple], ['👤', 'Drivers', 'SelectDriver', colors.green], ['🕐', 'History', 'RouteHistory', colors.accent]].map(([icon, label, route, color]) => (
+          {[['📊', 'Compare', 'Compare', colors.purple], ['👤', 'Drivers', 'SelectDriver', colors.green], ['🚛', 'Fleet', 'Fleet', colors.orange], ['🕐', 'History', 'RouteHistory', colors.accent]].map(([icon, label, route, color]) => (
             <TouchableOpacity key={label} onPress={() => navigation.navigate(route)} style={{ flex: 1, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border, borderRadius: radius.lg, padding: 12, alignItems: 'center', gap: 6 }}>
               <Text style={{ fontSize: 22 }}>{icon}</Text>
               <Text style={{ fontSize: 10, color, fontWeight: '700' }}>{label}</Text>

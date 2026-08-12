@@ -161,10 +161,10 @@ export function CompanyDashboard({ navigation }) {
 
         <SectionLabel label="Quick Access" style={{ marginTop: 8 }} />
         <View style={{ flexDirection: 'row', gap: 10 }}>
-          {[['🛣️', 'Route Alerts', 'RoadAlerts', colors.orange], ['🌦', 'Weather', 'Weather', colors.blue], ['👥', 'Drivers', 'Optimizer', colors.green], ['🚛', 'Fleet', 'Fleet', colors.orange], ['🤝', 'Team', 'Team', colors.purple]].map(([icon, label, route, color]) => (
+          {[['🛣️', 'Route Safety', 'RoadAlerts', colors.orange], ['👥', 'Drivers', 'SelectDriver', colors.green], ['🚛', 'Fleet', 'Fleet', colors.blue], ['🤝', 'Team', 'Team', colors.purple]].map(([icon, label, route, color]) => (
             <TouchableOpacity key={label} onPress={() => navigation.navigate(route)} style={{ flex: 1, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border, borderRadius: radius.lg, padding: 12, alignItems: 'center', gap: 6 }}>
               <Text style={{ fontSize: 24 }}>{icon}</Text>
-              <Text style={{ fontSize: 10, color, fontWeight: '700' }}>{label}</Text>
+              <Text style={{ fontSize: 11, color, fontWeight: '800' }}>{label}</Text>
             </TouchableOpacity>
           ))}
         </View>

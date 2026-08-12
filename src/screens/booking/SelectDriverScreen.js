@@ -251,7 +251,7 @@ export default function SelectDriverScreen({ navigation, route }) {
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: colors.bg }}>
       <View style={{ backgroundColor: colors.surface, borderBottomWidth: 1, borderBottomColor: colors.border, paddingHorizontal: 20, paddingTop: 52, paddingBottom: 14 }}>
-        <BackBtn onPress={() => setStep(1)} style={{ marginBottom: 8 }} />
+        <BackBtn onPress={() => params.source ? navigation.goBack() : setStep(1)} style={{ marginBottom: 8 }} />
         <Text style={{ fontSize: fonts.xl, fontWeight: '900', color: colors.text }}>Available Drivers</Text>
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 4, flexWrap: 'wrap' }}>
           <Text style={{ fontSize: fonts.sm, color: colors.green, fontWeight: '700' }}>📍 {origin}</Text>
