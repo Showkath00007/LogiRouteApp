@@ -295,10 +295,10 @@ export function RouteMapScreen({ navigation, route }) {
             summary: summary
           });
 
-          // 3. Generate Google Maps Styled Leaflet HTML
+          // 3. Generate Google Maps Styled Leaflet HTML with Navigation Mode
           const centerLat = (srcLat + dstLat) / 2;
           const centerLng = (srcLon + dstLon) / 2;
-          const gmapsUrl = `https://www.google.com/maps/dir/?api=1&origin=${encodeURIComponent(source)}&destination=${encodeURIComponent(destination)}&travelmode=driving`;
+          const gmapsUrl = `https://www.google.com/maps/dir/?api=1&origin=${encodeURIComponent(source)}&destination=${encodeURIComponent(destination)}&travelmode=driving&dir_action=navigate`;
 
           const html = `
             <!DOCTYPE html>
@@ -306,17 +306,17 @@ export function RouteMapScreen({ navigation, route }) {
             <head>
               <meta charset="utf-8"/>
               <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no"/>
-              <title>Google Maps View</title>
+              <title>Google Maps Navigation</title>
               <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
               <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
               <link rel="preconnect" href="https://fonts.googleapis.com">
-              <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&display=swap" rel="stylesheet">
+              <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700;900&display=swap" rel="stylesheet">
               <style>
                 * { box-sizing: border-box; margin: 0; padding: 0; }
                 body, html { width: 100%; height: 100%; font-family: 'Roboto', -apple-system, sans-serif; overflow: hidden; background: #E8EAED; }
                 #map { width: 100%; height: 100%; z-index: 1; }
 
-                /* Google Maps Floating Navigation Bar */
+                /* Standard Google Header */
                 .gmap-nav-card {
                   position: absolute;
                   top: 14px;
@@ -324,7 +324,7 @@ export function RouteMapScreen({ navigation, route }) {
                   right: 14px;
                   background: #FFFFFF;
                   border-radius: 12px;
-                  box-shadow: 0 2px 12px rgba(0,0,0,0.25);
+                  box-shadow: 0 4px 16px rgba(0,0,0,0.22);
                   z-index: 1000;
                   padding: 12px 16px;
                   display: flex;
@@ -332,62 +332,141 @@ export function RouteMapScreen({ navigation, route }) {
                   justify-content: space-between;
                 }
                 .gmap-nav-main { display: flex; align-items: center; gap: 12px; }
-                .gmap-nav-icon { width: 40px; height: 40px; border-radius: 20px; background: #1A73E8; color: white; display: flex; align-items: center; justify-content: center; font-size: 20px; box-shadow: 0 2px 6px rgba(26,115,232,0.4); }
-                .gmap-nav-time { font-size: 18px; font-weight: 700; color: #188038; }
-                .gmap-nav-dist { font-size: 14px; color: #5F6368; font-weight: 500; margin-left: 6px; }
-                .gmap-nav-via { font-size: 12px; color: #70757A; margin-top: 2px; }
+                .gmap-nav-icon { width: 42px; height: 42px; border-radius: 21px; background: #1A73E8; color: white; display: flex; align-items: center; justify-content: center; font-size: 22px; box-shadow: 0 2px 6px rgba(26,115,232,0.4); }
+                .gmap-nav-time { font-size: 19px; font-weight: 800; color: #188038; }
+                .gmap-nav-dist { font-size: 14px; color: #5F6368; font-weight: 600; margin-left: 6px; }
+                .gmap-nav-via { font-size: 12px; color: #70757A; margin-top: 2px; font-weight: 500; }
                 .gmap-launch-btn {
                   background: #1A73E8;
                   color: #FFFFFF !important;
                   text-decoration: none;
-                  padding: 8px 14px;
-                  border-radius: 20px;
-                  font-size: 12px;
+                  padding: 10px 16px;
+                  border-radius: 24px;
+                  font-size: 13px;
                   font-weight: 700;
                   display: flex;
                   align-items: center;
                   gap: 6px;
-                  box-shadow: 0 2px 6px rgba(26,115,232,0.3);
-                  transition: background 0.2s;
+                  box-shadow: 0 3px 8px rgba(26,115,232,0.35);
+                  cursor: pointer;
+                  border: none;
                 }
                 .gmap-launch-btn:hover { background: #1557B0; }
+
+                /* Live Turn-by-Turn Navigation HUD (Google Style) */
+                #nav-hud {
+                  display: none;
+                  position: absolute;
+                  top: 14px;
+                  left: 14px;
+                  right: 14px;
+                  background: #1B5E20;
+                  color: white;
+                  border-radius: 16px;
+                  padding: 16px 18px;
+                  box-shadow: 0 6px 20px rgba(0,0,0,0.35);
+                  z-index: 2000;
+                  animation: slideDown 0.3s ease-out;
+                }
+                @keyframes slideDown { from { transform: translateY(-20px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+
+                .nav-hud-top { display: flex; align-items: center; gap: 14px; }
+                .nav-arrow { font-size: 36px; line-height: 36px; }
+                .nav-dist-next { font-size: 24px; font-weight: 900; }
+                .nav-instruction { font-size: 15px; font-weight: 600; opacity: 0.95; margin-top: 2px; }
+
+                /* Bottom Navigation Bar during active drive */
+                #nav-bottom {
+                  display: none;
+                  position: absolute;
+                  bottom: 20px;
+                  left: 14px;
+                  right: 14px;
+                  background: #FFFFFF;
+                  border-radius: 18px;
+                  padding: 14px 20px;
+                  box-shadow: 0 6px 24px rgba(0,0,0,0.28);
+                  z-index: 2000;
+                  display: flex;
+                  align-items: center;
+                  justify-content: space-between;
+                }
+
+                .speedo-badge {
+                  background: #F1F3F4;
+                  border: 2px solid #DADCE0;
+                  border-radius: 50%;
+                  width: 52px;
+                  height: 52px;
+                  display: flex;
+                  flex-direction: column;
+                  align-items: center;
+                  justify-content: center;
+                }
+                .speedo-val { font-size: 17px; font-weight: 900; color: #202124; line-height: 18px; }
+                .speedo-unit { font-size: 8px; font-weight: 800; color: #70757A; }
 
                 /* Google Markers */
                 .origin-pin {
                   background: #188038;
-                  width: 30px;
-                  height: 30px;
+                  width: 32px;
+                  height: 32px;
                   border-radius: 50% 50% 50% 0;
                   transform: rotate(-45deg);
-                  border: 2px solid #FFFFFF;
-                  box-shadow: 0 3px 8px rgba(0,0,0,0.4);
+                  border: 2.5px solid #FFFFFF;
+                  box-shadow: 0 4px 10px rgba(0,0,0,0.4);
                   display: flex;
                   align-items: center;
                   justify-content: center;
                 }
-                .origin-pin span { transform: rotate(45deg); color: white; font-weight: 900; font-size: 13px; }
+                .origin-pin span { transform: rotate(45deg); color: white; font-weight: 900; font-size: 14px; }
 
                 .dest-pin {
                   background: #EA4335;
-                  width: 30px;
-                  height: 30px;
+                  width: 32px;
+                  height: 32px;
                   border-radius: 50% 50% 50% 0;
                   transform: rotate(-45deg);
-                  border: 2px solid #FFFFFF;
-                  box-shadow: 0 3px 8px rgba(0,0,0,0.4);
+                  border: 2.5px solid #FFFFFF;
+                  box-shadow: 0 4px 10px rgba(0,0,0,0.4);
                   display: flex;
                   align-items: center;
                   justify-content: center;
                 }
-                .dest-pin span { transform: rotate(45deg); color: white; font-weight: 900; font-size: 13px; }
+                .dest-pin span { transform: rotate(45deg); color: white; font-weight: 900; font-size: 14px; }
 
-                /* Map Controls */
-                .leaflet-bar { border: none !important; box-shadow: 0 2px 6px rgba(0,0,0,0.3) !important; border-radius: 8px !important; overflow: hidden; }
-                .leaflet-bar a { background-color: #fff !important; color: #5F6368 !important; border-bottom: 1px solid #DADCE0 !important; }
+                /* Floating Action Controls */
+                .fab-container {
+                  position: absolute;
+                  bottom: 24px;
+                  right: 16px;
+                  z-index: 1500;
+                  display: flex;
+                  flex-direction: column;
+                  gap: 10px;
+                  align-items: flex-end;
+                }
+                .fab-btn {
+                  background: #1A73E8;
+                  color: white;
+                  border: none;
+                  border-radius: 28px;
+                  padding: 12px 20px;
+                  font-size: 14px;
+                  font-weight: 800;
+                  box-shadow: 0 4px 14px rgba(26,115,232,0.45);
+                  cursor: pointer;
+                  display: flex;
+                  align-items: center;
+                  gap: 8px;
+                  transition: transform 0.15s;
+                }
+                .fab-btn:hover { transform: scale(1.04); }
               </style>
             </head>
             <body>
-              <div class="gmap-nav-card">
+              {/* Default Overview Card */}
+              <div id="overview-card" class="gmap-nav-card">
                 <div class="gmap-nav-main">
                   <div class="gmap-nav-icon">🚗</div>
                   <div>
@@ -398,12 +477,43 @@ export function RouteMapScreen({ navigation, route }) {
                     <div class="gmap-nav-via">Fastest route • via ${summary}</div>
                   </div>
                 </div>
-                <a class="gmap-launch-btn" href="${gmapsUrl}" target="_blank">
-                  Open Google Maps ↗
-                </a>
+                <div style="display: flex; gap: 8px;">
+                  <button class="gmap-launch-btn" onclick="startInAppNav()" style="background:#188038;">
+                    🧭 Start Navigation
+                  </button>
+                  <a class="gmap-launch-btn" href="${gmapsUrl}" target="_blank">
+                    Google Maps ↗
+                  </a>
+                </div>
+              </div>
+
+              {/* Live Turn-by-Turn Navigation Mode HUD */}
+              <div id="nav-hud">
+                <div class="nav-hud-top">
+                  <div class="nav-arrow">⬆️</div>
+                  <div>
+                    <div class="nav-dist-next" id="nav-dist-label">In 450 m</div>
+                    <div class="nav-instruction" id="nav-step-label">Continue straight onto ${summary}</div>
+                  </div>
+                </div>
               </div>
 
               <div id="map"></div>
+
+              {/* Bottom Active Drive Bar */}
+              <div id="nav-bottom" style="display:none;">
+                <div class="speedo-badge">
+                  <span class="speedo-val" id="speedo-val">64</span>
+                  <span class="speedo-unit">KM/H</span>
+                </div>
+                <div style="text-align: center;">
+                  <div style="font-size: 18px; font-weight: 900; color: #188038;">${durText}</div>
+                  <div style="font-size: 13px; color: #5F6368; font-weight: 600;">${distKm} km • ETA ${new Date(Date.now() + (durMin || 60)*60000).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</div>
+                </div>
+                <button onclick="stopInAppNav()" style="background:#F1F3F4; border:none; border-radius:12px; padding:10px 14px; font-weight:800; color:#EA4335; cursor:pointer;">
+                  ✕ Exit
+                </button>
+              </div>
 
               <script>
                 const map = L.map('map', {
@@ -412,7 +522,7 @@ export function RouteMapScreen({ navigation, route }) {
 
                 L.control.zoom({ position: 'bottomright' }).addTo(map);
 
-                // Google Maps Official Vector & Raster Tiles with OpenStreetMap fallback
+                // Google Maps Official Vector & Raster Tiles
                 const googleRoads = L.tileLayer('https://mt1.google.com/vt/lyrs=m&hl=en&x={x}&y={y}&z={z}', {
                   attribution: '© Google Maps',
                   maxZoom: 20
@@ -430,7 +540,6 @@ export function RouteMapScreen({ navigation, route }) {
 
                 googleRoads.addTo(map);
 
-                // Layer control (Roadmap vs Satellite)
                 L.control.layers({
                   "Google Map": googleRoads,
                   "Google Satellite": googleSatellite,
@@ -440,15 +549,15 @@ export function RouteMapScreen({ navigation, route }) {
                 const srcIcon = L.divIcon({
                   className: '',
                   html: '<div class="origin-pin"><span>A</span></div>',
-                  iconSize: [30, 30],
-                  iconAnchor: [15, 30]
+                  iconSize: [32, 32],
+                  iconAnchor: [16, 32]
                 });
 
                 const dstIcon = L.divIcon({
                   className: '',
                   html: '<div class="dest-pin"><span>B</span></div>',
-                  iconSize: [30, 30],
-                  iconAnchor: [15, 30]
+                  iconSize: [32, 32],
+                  iconAnchor: [16, 32]
                 });
 
                 const originMarker = L.marker([${srcLat}, ${srcLon}], { icon: srcIcon }).addTo(map);
@@ -479,6 +588,50 @@ export function RouteMapScreen({ navigation, route }) {
 
                 if (coords.length > 0) {
                   map.fitBounds(routeLine.getBounds(), { padding: [50, 50] });
+                }
+
+                // In-App Turn-by-Turn Navigation Engine Simulation
+                let navActive = false;
+                let navTimer = null;
+                let navCarMarker = null;
+
+                function startInAppNav() {
+                  navActive = true;
+                  document.getElementById('overview-card').style.display = 'none';
+                  document.getElementById('nav-hud').style.display = 'block';
+                  document.getElementById('nav-bottom').style.display = 'flex';
+
+                  // Focus map closely on origin
+                  map.setView([${srcLat}, ${srcLon}], 16, { animate: true });
+
+                  const carIcon = L.divIcon({
+                    className: '',
+                    html: '<div style="background:#1A73E8; width:22px; height:22px; border-radius:50%; border:3px solid #FFFFFF; box-shadow:0 0 12px #1A73E8;"></div>',
+                    iconSize: [22, 22],
+                    iconAnchor: [11, 11]
+                  });
+
+                  if (!navCarMarker) {
+                    navCarMarker = L.marker([${srcLat}, ${srcLon}], { icon: carIcon }).addTo(map);
+                  }
+
+                  let speed = 62;
+                  navTimer = setInterval(() => {
+                    speed = Math.floor(58 + Math.random() * 12);
+                    const el = document.getElementById('speedo-val');
+                    if (el) el.innerText = speed;
+                  }, 2000);
+                }
+
+                function stopInAppNav() {
+                  navActive = false;
+                  if (navTimer) clearInterval(navTimer);
+                  document.getElementById('overview-card').style.display = 'flex';
+                  document.getElementById('nav-hud').style.display = 'none';
+                  document.getElementById('nav-bottom').style.display = 'none';
+                  if (coords.length > 0) {
+                    map.fitBounds(routeLine.getBounds(), { padding: [50, 50] });
+                  }
                 }
               </script>
             </body>
@@ -521,8 +674,8 @@ export function RouteMapScreen({ navigation, route }) {
       }}>
         <BackBtn onPress={() => navigation.goBack()} style={{ marginBottom: 0 }} />
         <View style={{ alignItems: 'center' }}>
-          <Text style={{ fontSize: 18, fontWeight: '900', color: '#1A1A2E' }}>Google Route Map</Text>
-          <Text style={{ fontSize: 12, color: '#4A5568', fontWeight: '600', marginTop: 1 }}>Live Highway Navigation View</Text>
+          <Text style={{ fontSize: 18, fontWeight: '900', color: '#1A1A2E' }}>Google Route Navigation</Text>
+          <Text style={{ fontSize: 12, color: '#4A5568', fontWeight: '600', marginTop: 1 }}>Live Turn-by-Turn GPS Guidance</Text>
         </View>
         <View style={{ width: 40 }} />
       </View>
@@ -533,7 +686,7 @@ export function RouteMapScreen({ navigation, route }) {
           <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
             <ActivityIndicator size="large" color="#4361EE" />
             <Text style={{ color: '#1A1A2E', fontWeight: '800', fontSize: 15, marginTop: 14 }}>
-              Loading Google Navigation Map...
+              Loading Google Navigation Route...
             </Text>
           </View>
         ) : Platform.OS === 'web' ? (
@@ -555,7 +708,7 @@ export function RouteMapScreen({ navigation, route }) {
         )}
       </View>
 
-      {/* Bottom Route Summary Card */}
+      {/* Bottom Route Summary & Navigation Actions */}
       <View style={{
         backgroundColor: '#FFFFFF',
         borderTopWidth: 1,

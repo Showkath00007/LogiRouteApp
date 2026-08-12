@@ -854,6 +854,39 @@ export default function RoadAlertsScreen({ navigation, route: navRoute }) {
                   ? `Live highway telemetry on ${currentRoute.name} confirms favorable driving conditions across all checkpoints.`
                   : `Precipitation or elevated crosswinds observed along intermediate segments. Ensure drivers observe safe follow distances.`}
               </Text>
+
+              {/* Action Button: View Google Navigation Map */}
+              <TouchableOpacity
+                onPress={() => navigation.navigate('RouteMap', {
+                  source: analyzedData.source,
+                  destination: analyzedData.destination,
+                  data: {
+                    distance: parseFloat(currentRoute.distance),
+                    time_text: currentRoute.duration
+                  }
+                })}
+                style={{
+                  marginTop: 14,
+                  backgroundColor: '#1A73E8',
+                  borderRadius: 12,
+                  paddingVertical: 12,
+                  paddingHorizontal: 16,
+                  flexDirection: 'row',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: 8,
+                  shadowColor: '#1A73E8',
+                  shadowOffset: { width: 0, height: 3 },
+                  shadowOpacity: 0.25,
+                  shadowRadius: 6,
+                  elevation: 3
+                }}
+              >
+                <Text style={{ fontSize: 18 }}>🗺️</Text>
+                <Text style={{ color: '#FFFFFF', fontWeight: '900', fontSize: 14 }}>
+                  Open Google Route Navigation
+                </Text>
+              </TouchableOpacity>
             </View>
 
             {/* Sequential Corridor Waypoints with Real Live Weather */}
