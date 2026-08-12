@@ -1209,9 +1209,19 @@ export function NotificationsScreen({ navigation }) {
     return unsub;
   }, []);
 
+  // Automatically mark all notifications as read upon opening screen
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      markAllNotificationsReadUnified().catch(() => {});
+      setNotifications(prev => prev.map(n => ({ ...n, unread: false })));
+    }, 600);
+    return () => clearTimeout(timer);
+  }, []);
+
   const unreadCount = notifications.filter(n => n.unread).length;
 
   const handleMarkAllRead = async () => {
+    setNotifications(prev => prev.map(n => ({ ...n, unread: false })));
     try {
       await markAllNotificationsReadUnified();
     } catch (e) {
@@ -1221,6 +1231,7 @@ export function NotificationsScreen({ navigation }) {
 
   const handleTapNotification = async (n) => {
     if (!n.unread) return;
+    setNotifications(prev => prev.map(item => item.id === n.id ? { ...item, unread: false } : item));
     try {
       await markAnyNotificationRead(n);
     } catch (e) {

@@ -35,7 +35,7 @@ export function CompanyDashboard({ navigation }) {
   }, []);
 
   const activeCount = shipments.filter(s => s.status !== 'Delivered').length;
-  const unreadAlerts = alerts.filter(a => !a.read).length;
+  const unreadAlerts = alerts.filter(a => a.unread === true).length;
 
   // Real spend for the current calendar month
   const now = new Date();
