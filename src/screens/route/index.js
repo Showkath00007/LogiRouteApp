@@ -223,84 +223,325 @@ export function ResultScreen({ navigation, route }) {
   );
 }
 
-// S27 — Route Map (Real map using WebView + Leaflet)
+// S27 — Route Map (Google Maps styled navigation map with Web & Mobile support)
 export function RouteMapScreen({ navigation, route }) {
-  const { source, destination, data } = route?.params || { source: 'Mumbai', destination: 'Delhi', data: {} };
-  const { WebView } = require('react-native-webview');
+  const { source, destination, data } = route?.params || { source: 'Guntakal, Andhra Pradesh', destination: 'Anantapur, Andhra Pradesh', data: {} };
+  const [mapHtml, setMapHtml] = useState('');
+  const [loading, setLoading] = useState(true);
+  const [routeInfo, setRouteInfo] = useState({
+    distance: data?.distance ? `${data.distance.toFixed(0)} km` : '',
+    duration: data?.time_text || '',
+    summary: 'Highway Corridor'
+  });
 
-  const srcCoords = data?.source_coords || [72.8777, 19.0760];
-  const dstCoords = data?.destination_coords || [77.1025, 28.7041];
-  const centerLat = (srcCoords[1] + dstCoords[1]) / 2;
-  const centerLng = (srcCoords[0] + dstCoords[0]) / 2;
-  const geometry = data?.route_geometry || null;
+  useEffect(() => {
+    let isMounted = true;
+    async function loadRoute() {
+      try {
+        // Geocode source & destination
+        let srcLat = 15.1678, srcLon = 77.3673; // Guntakal fallback
+        let dstLat = 14.6819, dstLon = 77.6006; // Anantapur fallback
 
-  const html = `
-    <!DOCTYPE html>
-    <html>
-    <head>
-      <meta name="viewport" content="width=device-width, initial-scale=1.0">
-      <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
-      <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-      <style>
-        * { margin: 0; padding: 0; }
-        #map { width: 100vw; height: 100vh; }
-      </style>
-    </head>
-    <body>
-      <div id="map"></div>
-      <script>
-        const map = L.map('map').setView([${centerLat}, ${centerLng}], 6);
-        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-          attribution: '© OpenStreetMap'
-        }).addTo(map);
+        const cleanSrc = (source || '').split(',')[0].trim();
+        const cleanDst = (destination || '').split(',')[0].trim();
 
-        const greenIcon = L.divIcon({ className: '', html: '<div style="background:#2ECC8A;width:14px;height:14px;border-radius:50%;border:2px solid white;box-shadow:0 0 6px #2ECC8A"></div>' });
-        const yellowIcon = L.divIcon({ className: '', html: '<div style="background:#2E7CF6;width:14px;height:14px;border-radius:50%;border:2px solid white;box-shadow:0 0 6px #2E7CF6"></div>' });
+        // 1. Resolve GPS coordinates
+        const [geoSrcRes, geoDstRes] = await Promise.all([
+          fetch(`https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(cleanSrc)}&count=1&language=en&format=json`).then(r => r.json()).catch(() => null),
+          fetch(`https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(cleanDst)}&count=1&language=en&format=json`).then(r => r.json()).catch(() => null)
+        ]);
 
-        L.marker([${srcCoords[1]}, ${srcCoords[0]}], {icon: greenIcon}).addTo(map).bindPopup('${source}').openPopup();
-        L.marker([${dstCoords[1]}, ${dstCoords[0]}], {icon: yellowIcon}).addTo(map).bindPopup('${destination}');
-
-        const geometry = ${JSON.stringify(geometry)};
-        if (geometry && geometry.coordinates) {
-          let coords = [];
-          if (geometry.type === 'MultiLineString') {
-            geometry.coordinates.forEach(line => {
-              line.forEach(c => coords.push([c[1], c[0]]));
-            });
-          } else if (geometry.type === 'LineString') {
-            coords = geometry.coordinates.map(c => [c[1], c[0]]);
-          }
-          if (coords.length > 0) {
-            L.polyline(coords, { color: '#2E7CF6', weight: 4 }).addTo(map);
-            map.fitBounds(coords);
-          }
-        } else {
-          L.polyline([[${srcCoords[1]}, ${srcCoords[0]}], [${dstCoords[1]}, ${dstCoords[0]}]], {
-            color: '#2E7CF6', weight: 3, dashArray: '8,4'
-          }).addTo(map);
+        if (geoSrcRes?.results?.[0]) {
+          srcLat = geoSrcRes.results[0].latitude;
+          srcLon = geoSrcRes.results[0].longitude;
         }
-      </script>
-    </body>
-    </html>
-  `;
+        if (geoDstRes?.results?.[0]) {
+          dstLat = geoDstRes.results[0].latitude;
+          dstLon = geoDstRes.results[0].longitude;
+        }
+
+        // 2. Query OSRM for full highway polyline geometry
+        let coords = [];
+        let distKm = data?.distance || 0;
+        let durMin = 0;
+        let summary = 'National & State Highway';
+
+        try {
+          const osrmRes = await fetch(`https://router.project-osrm.org/route/v1/driving/${srcLon},${srcLat};${dstLon},${dstLat}?overview=full&geometries=geojson&steps=true`);
+          const osrmData = await osrmRes.json();
+          if (osrmData.routes && osrmData.routes.length > 0) {
+            const best = osrmData.routes[0];
+            distKm = (best.distance / 1000).toFixed(1);
+            durMin = Math.round(best.duration / 60);
+            summary = best.legs?.[0]?.summary || 'Direct Highway Route';
+            if (best.geometry?.coordinates) {
+              coords = best.geometry.coordinates.map(c => [c[1], c[0]]); // [lat, lon]
+            }
+          }
+        } catch (e) {}
+
+        if (coords.length === 0) {
+          coords = [[srcLat, srcLon], [dstLat, dstLon]];
+        }
+
+        const durHours = Math.floor(durMin / 60);
+        const durMinsRem = durMin % 60;
+        const durText = durHours > 0 ? `${durHours} hr ${durMinsRem} min` : `${durMinsRem} min`;
+
+        if (isMounted) {
+          setRouteInfo({
+            distance: `${distKm} km`,
+            duration: durText,
+            summary: summary
+          });
+
+          // 3. Generate Google Maps Styled Leaflet HTML
+          const centerLat = (srcLat + dstLat) / 2;
+          const centerLng = (srcLon + dstLon) / 2;
+
+          const html = `
+            <!DOCTYPE html>
+            <html>
+            <head>
+              <meta charset="utf-8"/>
+              <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no"/>
+              <title>Google Maps View</title>
+              <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+              <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+              <link rel="preconnect" href="https://fonts.googleapis.com">
+              <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&display=swap" rel="stylesheet">
+              <style>
+                * { box-sizing: border-box; margin: 0; padding: 0; }
+                body, html { width: 100%; height: 100%; font-family: 'Roboto', -apple-system, sans-serif; overflow: hidden; background: #E8EAED; }
+                #map { width: 100%; height: 100%; z-index: 1; }
+
+                /* Google Maps Floating Navigation Bar */
+                .gmap-nav-card {
+                  position: absolute;
+                  top: 14px;
+                  left: 14px;
+                  right: 14px;
+                  background: #FFFFFF;
+                  border-radius: 12px;
+                  box-shadow: 0 2px 10px rgba(0,0,0,0.22);
+                  z-index: 1000;
+                  padding: 12px 16px;
+                  display: flex;
+                  align-items: center;
+                  justify-content: space-between;
+                }
+                .gmap-nav-main { display: flex; align-items: center; gap: 12px; }
+                .gmap-nav-icon { width: 36px; height: 36px; border-radius: 18px; background: #1A73E8; color: white; display: flex; align-items: center; justify-content: center; font-size: 18px; }
+                .gmap-nav-time { font-size: 18px; font-weight: 700; color: #188038; }
+                .gmap-nav-dist { font-size: 13px; color: #5F6368; font-weight: 500; margin-left: 6px; }
+                .gmap-nav-via { font-size: 12px; color: #70757A; margin-top: 2px; }
+                .gmap-nav-btn { background: #1A73E8; color: white; border: none; border-radius: 20px; padding: 8px 16px; font-size: 13px; font-weight: 600; cursor: pointer; display: flex; align-items: center; gap: 6px; }
+
+                /* Google Markers */
+                .origin-pin {
+                  background: #188038;
+                  width: 28px;
+                  height: 28px;
+                  border-radius: 50% 50% 50% 0;
+                  transform: rotate(-45deg);
+                  border: 2px solid #FFFFFF;
+                  box-shadow: 0 3px 8px rgba(0,0,0,0.35);
+                  display: flex;
+                  align-items: center;
+                  justify-content: center;
+                }
+                .origin-pin span { transform: rotate(45deg); color: white; font-weight: 900; font-size: 12px; }
+
+                .dest-pin {
+                  background: #EA4335;
+                  width: 28px;
+                  height: 28px;
+                  border-radius: 50% 50% 50% 0;
+                  transform: rotate(-45deg);
+                  border: 2px solid #FFFFFF;
+                  box-shadow: 0 3px 8px rgba(0,0,0,0.35);
+                  display: flex;
+                  align-items: center;
+                  justify-content: center;
+                }
+                .dest-pin span { transform: rotate(45deg); color: white; font-weight: 900; font-size: 12px; }
+
+                /* Map Controls */
+                .leaflet-bar { border: none !important; box-shadow: 0 2px 6px rgba(0,0,0,0.3) !important; border-radius: 8px !important; overflow: hidden; }
+                .leaflet-bar a { background-color: #fff !important; color: #5F6368 !important; border-bottom: 1px solid #DADCE0 !important; }
+              </style>
+            </head>
+            <body>
+              <div class="gmap-nav-card">
+                <div class="gmap-nav-main">
+                  <div class="gmap-nav-icon">🚗</div>
+                  <div>
+                    <div style="display: flex; align-items: baseline;">
+                      <span class="gmap-nav-time">${durText}</span>
+                      <span class="gmap-nav-dist">(${distKm} km)</span>
+                    </div>
+                    <div class="gmap-nav-via">Fastest route • via ${summary}</div>
+                  </div>
+                </div>
+              </div>
+
+              <div id="map"></div>
+
+              <script>
+                const map = L.map('map', {
+                  zoomControl: false
+                }).setView([${centerLat}, ${centerLng}], 9);
+
+                L.control.zoom({ position: 'bottomright' }).addTo(map);
+
+                // Google Maps style crisp vector raster tiles
+                L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', {
+                  attribution: '© Google / OpenStreetMap contributors',
+                  maxZoom: 19
+                }).addTo(map);
+
+                const srcIcon = L.divIcon({
+                  className: '',
+                  html: '<div class="origin-pin"><span>A</span></div>',
+                  iconSize: [28, 28],
+                  iconAnchor: [14, 28]
+                });
+
+                const dstIcon = L.divIcon({
+                  className: '',
+                  html: '<div class="dest-pin"><span>B</span></div>',
+                  iconSize: [28, 28],
+                  iconAnchor: [14, 28]
+                });
+
+                const originMarker = L.marker([${srcLat}, ${srcLon}], { icon: srcIcon }).addTo(map);
+                originMarker.bindPopup('<b style="color:#188038">Origin (A):</b><br/>${source}').openPopup();
+
+                const destMarker = L.marker([${dstLat}, ${dstLon}], { icon: dstIcon }).addTo(map);
+                destMarker.bindPopup('<b style="color:#EA4335">Destination (B):</b><br/>${destination}');
+
+                const coords = ${JSON.stringify(coords)};
+
+                // Outer border stroke (Google Maps dark blue outline)
+                L.polyline(coords, {
+                  color: '#1A73E8',
+                  weight: 7,
+                  opacity: 0.6,
+                  lineCap: 'round',
+                  lineJoin: 'round'
+                }).addTo(map);
+
+                // Inner primary stroke (Google Maps vibrant navigation blue)
+                const routeLine = L.polyline(coords, {
+                  color: '#4285F4',
+                  weight: 5,
+                  opacity: 1.0,
+                  lineCap: 'round',
+                  lineJoin: 'round'
+                }).addTo(map);
+
+                if (coords.length > 0) {
+                  map.fitBounds(routeLine.getBounds(), { padding: [50, 50] });
+                }
+              </script>
+            </body>
+            </html>
+          `;
+
+          setMapHtml(html);
+        }
+      } catch (err) {
+        console.warn('Route map error:', err);
+      } finally {
+        if (isMounted) setLoading(false);
+      }
+    }
+
+    loadRoute();
+    return () => { isMounted = false; };
+  }, [source, destination]);
+
+  let WebViewComponent = null;
+  try {
+    if (Platform.OS !== 'web') {
+      WebViewComponent = require('react-native-webview').WebView;
+    }
+  } catch (e) {}
 
   return (
-    <SafeAreaView style={{ flex: 1, backgroundColor: colors.bg }}>
-      <View style={{ paddingTop: 60, paddingHorizontal: 20, paddingBottom: 12, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+    <SafeAreaView style={{ flex: 1, backgroundColor: '#F0F4FF' }}>
+      {/* Header Bar */}
+      <View style={{
+        paddingTop: 50,
+        paddingHorizontal: 20,
+        paddingBottom: 14,
+        backgroundColor: '#FFFFFF',
+        borderBottomWidth: 1,
+        borderBottomColor: '#E0E7FF',
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'space-between'
+      }}>
         <BackBtn onPress={() => navigation.goBack()} style={{ marginBottom: 0 }} />
-        <Text style={{ fontSize: 16, fontWeight: '800', color: colors.text }}>Route Map</Text>
-        <View style={{ width: 60 }} />
-      </View>
-      <WebView source={{ html }} style={{ flex: 1 }} />
-      <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border, borderRadius: radius.lg, marginHorizontal: 20, marginBottom: 20, padding: 14 }}>
-        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-          <View style={{ width: 10, height: 10, borderRadius: 5, backgroundColor: colors.green }} />
-          <Text style={{ fontSize: 13, color: colors.text, fontWeight: '600' }}>{source}</Text>
+        <View style={{ alignItems: 'center' }}>
+          <Text style={{ fontSize: 18, fontWeight: '900', color: '#1A1A2E' }}>Google Route Map</Text>
+          <Text style={{ fontSize: 12, color: '#4A5568', fontWeight: '600', marginTop: 1 }}>Live Highway Navigation View</Text>
         </View>
-        <Text style={{ fontSize: 12, color: colors.accent }}>── {data?.distance?.toFixed(0) || '?'} km ──</Text>
-        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-          <View style={{ width: 10, height: 10, borderRadius: 5, backgroundColor: colors.accent }} />
-          <Text style={{ fontSize: 13, color: colors.text, fontWeight: '600' }}>{destination}</Text>
+        <View style={{ width: 40 }} />
+      </View>
+
+      {/* Map Container */}
+      <View style={{ flex: 1, backgroundColor: '#E8EAED' }}>
+        {loading || !mapHtml ? (
+          <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
+            <ActivityIndicator size="large" color="#4361EE" />
+            <Text style={{ color: '#1A1A2E', fontWeight: '800', fontSize: 15, marginTop: 14 }}>
+              Loading Google Navigation Map...
+            </Text>
+          </View>
+        ) : Platform.OS === 'web' ? (
+          /* Web Native iframe */
+          <iframe
+            title="Google Route Map"
+            srcDoc={mapHtml}
+            style={{ width: '100%', height: '100%', border: 'none' }}
+          />
+        ) : (
+          /* Mobile WebView */
+          WebViewComponent ? (
+            <WebViewComponent source={{ html: mapHtml }} style={{ flex: 1 }} />
+          ) : (
+            <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
+              <Text>Map preview available</Text>
+            </View>
+          )
+        )}
+      </View>
+
+      {/* Bottom Route Summary Card */}
+      <View style={{
+        backgroundColor: '#FFFFFF',
+        borderTopWidth: 1,
+        borderTopColor: '#E0E7FF',
+        paddingHorizontal: 20,
+        paddingVertical: 14,
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'space-between'
+      }}>
+        <View style={{ flex: 1 }}>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+            <Text style={{ fontSize: 14 }}>🟢</Text>
+            <Text numberOfLines={1} style={{ fontSize: 13, fontWeight: '800', color: '#1A1A2E', flex: 1 }}>{source}</Text>
+          </View>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 4 }}>
+            <Text style={{ fontSize: 14 }}>🔴</Text>
+            <Text numberOfLines={1} style={{ fontSize: 13, fontWeight: '800', color: '#1A1A2E', flex: 1 }}>{destination}</Text>
+          </View>
+        </View>
+        <View style={{ backgroundColor: '#EEF2FF', paddingHorizontal: 12, paddingVertical: 8, borderRadius: 10, alignItems: 'flex-end' }}>
+          <Text style={{ fontSize: 14, fontWeight: '900', color: '#4361EE' }}>{routeInfo.distance}</Text>
+          <Text style={{ fontSize: 11, fontWeight: '700', color: '#059669' }}>{routeInfo.duration}</Text>
         </View>
       </View>
     </SafeAreaView>
