@@ -6,6 +6,34 @@ import {
 import { radius } from '../../theme';
 import { BackBtn } from '../../components';
 
+const GEO_KEY = 'bd32dbcd6016403e9d5a828f643d4cdb';
+
+// City alias normalizer for common alternate/historical Indian city spellings
+const CITY_ALIASES = {
+  bangalore: 'Bengaluru',
+  banglore: 'Bengaluru',
+  bengaluru: 'Bengaluru',
+  bombay: 'Mumbai',
+  mumbai: 'Mumbai',
+  madras: 'Chennai',
+  chennai: 'Chennai',
+  calcutta: 'Kolkata',
+  kolkata: 'Kolkata',
+  cochin: 'Kochi',
+  kochi: 'Kochi',
+  trivandrum: 'Thiruvananthapuram',
+  poona: 'Pune',
+  pune: 'Pune',
+  baroda: 'Vadodara',
+  vadodara: 'Vadodara',
+  pondicherry: 'Puducherry',
+  puducherry: 'Puducherry',
+  gurgaon: 'Gurugram',
+  gurugram: 'Gurugram',
+  vizag: 'Visakhapatnam',
+  visakhapatnam: 'Visakhapatnam'
+};
+
 // WMO Standard Weather Code Translation Table
 const WMO_CODE_MAP = {
   0: { cond: 'Clear Sky', icon: '☀️', safe: true },
@@ -34,19 +62,82 @@ const getWmoMeta = (code) => {
   return WMO_CODE_MAP[code] || { cond: 'Partly Cloudy', icon: '⛅', safe: true };
 };
 
-// Geocode city dynamically using live Open-Meteo Geocoding API
-async function geocodeLocation(name) {
-  if (!name || !name.trim()) return null;
+// Dynamic Geocoder using Geoapify + Open-Meteo with India-first prioritization
+async function searchGeocodedLocations(query) {
+  if (!query || query.trim().length < 2) return [];
+  const trimmed = query.trim();
+  const normalized = CITY_ALIASES[trimmed.toLowerCase()] || trimmed;
+
+  const results = [];
+
+  // Primary: Geoapify with countrycode:in filter
   try {
-    const res = await fetch(
-      `https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(name.trim())}&count=5&language=en&format=json`
-    );
+    const geoUrl = `https://api.geoapify.com/v1/geocode/autocomplete?text=${encodeURIComponent(normalized)}&filter=countrycode:in&limit=8&apiKey=${GEO_KEY}`;
+    const res = await fetch(geoUrl);
     const data = await res.json();
-    if (data.results && data.results.length > 0) {
-      return data.results[0];
+    if (data.features && data.features.length > 0) {
+      data.features.forEach(f => {
+        const p = f.properties;
+        const cityName = p.city || p.town || p.village || p.county || p.name;
+        if (cityName) {
+          results.push({
+            id: p.place_id || `${p.lat}-${p.lon}`,
+            name: cityName,
+            admin1: p.state || '',
+            district: p.county || p.state_district || '',
+            country: 'India',
+            latitude: p.lat,
+            longitude: p.lon,
+            display: p.formatted || `${cityName}, ${p.state || 'India'}`
+          });
+        }
+      });
     }
   } catch (e) {}
-  return null;
+
+  // Fallback: Open-Meteo Geocoding
+  if (results.length === 0) {
+    try {
+      const openRes = await fetch(
+        `https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(normalized)}&count=8&language=en&format=json`
+      );
+      const openData = await openRes.json();
+      if (openData.results && openData.results.length > 0) {
+        // Prioritize India results
+        const inResults = openData.results.filter(r => (r.country_code === 'IN' || r.country === 'India'));
+        const finalResults = inResults.length > 0 ? inResults : openData.results;
+        finalResults.forEach(r => {
+          results.push({
+            id: r.id,
+            name: r.name,
+            admin1: r.admin1 || '',
+            district: r.admin2 || '',
+            country: r.country || 'India',
+            latitude: r.latitude,
+            longitude: r.longitude,
+            display: `${r.name}${r.admin2 ? ', ' + r.admin2 : ''}${r.admin1 ? ', ' + r.admin1 : ''}`
+          });
+        });
+      }
+    } catch (e) {}
+  }
+
+  // Deduplicate by name & state
+  const unique = [];
+  results.forEach(item => {
+    if (!unique.some(u => u.name.toLowerCase() === item.name.toLowerCase() && u.admin1.toLowerCase() === item.admin1.toLowerCase())) {
+      unique.push(item);
+    }
+  });
+
+  return unique.slice(0, 6);
+}
+
+// Single coordinate resolution
+async function geocodeLocation(name) {
+  if (!name || !name.trim()) return null;
+  const list = await searchGeocodedLocations(name);
+  return list.length > 0 ? list[0] : null;
 }
 
 // Fetch live weather for specific coordinates
@@ -86,7 +177,6 @@ async function fetchCoordsWeather(lat, lon) {
 
 // Compute real road routing using OSRM routing engine + live meteorological segment observation
 async function computeRealRouteAnalysis(sourceCity, destCity, srcGeo = null, dstGeo = null) {
-  // 1. Resolve coordinates dynamically from API
   const origin = srcGeo || await geocodeLocation(sourceCity);
   const destination = dstGeo || await geocodeLocation(destCity);
 
@@ -99,7 +189,7 @@ async function computeRealRouteAnalysis(sourceCity, destCity, srcGeo = null, dst
   const lat2 = destination.latitude;
   const lon2 = destination.longitude;
 
-  // 2. Fetch real driving distance & duration from OSRM (Open Source Routing Machine) API
+  // Real driving distance & duration from OSRM engine
   let roadKm = 0;
   let durationSec = 0;
 
@@ -115,7 +205,7 @@ async function computeRealRouteAnalysis(sourceCity, destCity, srcGeo = null, dst
     }
   } catch (e) {}
 
-  // Fallback Haversine if OSRM is busy
+  // Fallback Haversine if OSRM endpoint is busy
   if (!roadKm || roadKm <= 0) {
     const R = 6371;
     const dLat = (lat2 - lat1) * Math.PI / 180;
@@ -124,21 +214,21 @@ async function computeRealRouteAnalysis(sourceCity, destCity, srcGeo = null, dst
       Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
       Math.sin(dLon / 2) * Math.sin(dLon / 2);
     const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-    roadKm = Math.round((R * c) * 1.25); // 25% road winding factor
+    roadKm = Math.round((R * c) * 1.25);
     durationSec = Math.round((roadKm / 60) * 3600);
   }
 
   const hours = Math.floor(durationSec / 3600);
   const minutes = Math.round((durationSec % 3600) / 60);
 
-  // 3. Compute 4 real geographic waypoint coordinates along the corridor
+  // Compute 2 intermediate waypoints along the geographic route
   const mid1Lat = lat1 + (lat2 - lat1) * 0.35;
   const mid1Lon = lon1 + (lon2 - lon1) * 0.35;
 
   const mid2Lat = lat1 + (lat2 - lat1) * 0.70;
   const mid2Lon = lon1 + (lon2 - lon1) * 0.70;
 
-  // 4. Fetch 100% Real Live Meteorological Station Data concurrently for all 4 points
+  // Concurrently fetch real meteorological data for all 4 checkpoints
   const [wOrigin, wMid1, wMid2, wDest] = await Promise.all([
     fetchCoordsWeather(lat1, lon1),
     fetchCoordsWeather(mid1Lat, mid1Lon),
@@ -146,7 +236,6 @@ async function computeRealRouteAnalysis(sourceCity, destCity, srcGeo = null, dst
     fetchCoordsWeather(lat2, lon2)
   ]);
 
-  // Compute live safety score based on actual live meteorological readings
   let safetyScore = 100;
   const alerts = [];
 
@@ -155,8 +244,8 @@ async function computeRealRouteAnalysis(sourceCity, destCity, srcGeo = null, dst
     alerts.push({
       icon: '🌧',
       title: `${origin.name} Weather Alert`,
-      location: `KM 0 (Origin Terminal)`,
-      desc: wOrigin.alertMsg || `Precipitation of ${wOrigin.precipitation} mm detected. Reduce departure speed.`,
+      location: `KM 0 (${origin.name} Origin)`,
+      desc: wOrigin.alertMsg || `Precipitation detected. Exercise caution at origin terminal departure.`,
       level: 'warning'
     });
   }
@@ -166,8 +255,8 @@ async function computeRealRouteAnalysis(sourceCity, destCity, srcGeo = null, dst
     alerts.push({
       icon: wMid1.wind > 30 ? '💨' : '🌧',
       title: `Mid-Corridor Sector 1 Warning`,
-      location: `KM ${Math.round(roadKm * 0.35)} (Intermediate Highway Segment)`,
-      desc: wMid1.wind > 30 ? `High wind gusts of ${wMid1.wind} km/h recorded. Secure cargo straps.` : (wMid1.alertMsg || `Wet highway conditions.`),
+      location: `KM ${Math.round(roadKm * 0.35)} (Intermediate Highway Stretch)`,
+      desc: wMid1.wind > 30 ? `High crosswinds of ${wMid1.wind} km/h recorded. Ensure cargo tie-downs are secure.` : (wMid1.alertMsg || `Wet highway conditions.`),
       level: 'warning'
     });
   }
@@ -188,13 +277,12 @@ async function computeRealRouteAnalysis(sourceCity, destCity, srcGeo = null, dst
     alerts.push({
       icon: '📍',
       title: `${destination.name} Destination Arrival Alert`,
-      location: `KM ${roadKm} (${destination.name} Unloading Dock)`,
+      location: `KM ${roadKm} (${destination.name} Unloading Terminal)`,
       desc: wDest.alertMsg || `Arrival weather: ${wDest.condition} with ${wDest.temp}°C.`,
       level: 'info'
     });
   }
 
-  // Standard logistics alerts if all weather is pristine
   if (alerts.length === 0) {
     alerts.push({
       icon: '✅',
@@ -205,7 +293,6 @@ async function computeRealRouteAnalysis(sourceCity, destCity, srcGeo = null, dst
     });
   }
 
-  // Always provide fuel and FASTag checkpoint data based on actual road distance
   alerts.push({
     icon: '⛽',
     title: 'Fuel Stops & Rest Plazas Available',
@@ -292,7 +379,6 @@ async function computeRealRouteAnalysis(sourceCity, destCity, srcGeo = null, dst
 }
 
 export default function RoadAlertsScreen({ navigation, route: navRoute }) {
-  // Purely dynamic - no hardcoded prefilled default cities!
   const [source, setSource] = useState(navRoute?.params?.source || '');
   const [destination, setDestination] = useState(navRoute?.params?.destination || '');
   const [analyzedData, setAnalyzedData] = useState(null);
@@ -306,7 +392,7 @@ export default function RoadAlertsScreen({ navigation, route: navRoute }) {
   const srcDebounce = useRef(null);
   const dstDebounce = useRef(null);
 
-  // Dynamic Geocoding Autocomplete for Source Input
+  // Dynamic India-first Geocoding Autocomplete for Source Input
   const handleSourceChange = (text) => {
     setSource(text);
     if (srcDebounce.current) clearTimeout(srcDebounce.current);
@@ -318,24 +404,17 @@ export default function RoadAlertsScreen({ navigation, route: navRoute }) {
     setSearchingSource(true);
     srcDebounce.current = setTimeout(async () => {
       try {
-        const res = await fetch(
-          `https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(text.trim())}&count=6&language=en&format=json`
-        );
-        const data = await res.json();
-        if (data.results && data.results.length > 0) {
-          setSourceSuggestions(data.results);
-        } else {
-          setSourceSuggestions([]);
-        }
+        const list = await searchGeocodedLocations(text);
+        setSourceSuggestions(list);
       } catch (e) {
         setSourceSuggestions([]);
       } finally {
         setSearchingSource(false);
       }
-    }, 250);
+    }, 200);
   };
 
-  // Dynamic Geocoding Autocomplete for Destination Input
+  // Dynamic India-first Geocoding Autocomplete for Destination Input
   const handleDestChange = (text) => {
     setDestination(text);
     if (dstDebounce.current) clearTimeout(dstDebounce.current);
@@ -347,21 +426,14 @@ export default function RoadAlertsScreen({ navigation, route: navRoute }) {
     setSearchingDest(true);
     dstDebounce.current = setTimeout(async () => {
       try {
-        const res = await fetch(
-          `https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(text.trim())}&count=6&language=en&format=json`
-        );
-        const data = await res.json();
-        if (data.results && data.results.length > 0) {
-          setDestSuggestions(data.results);
-        } else {
-          setDestSuggestions([]);
-        }
+        const list = await searchGeocodedLocations(text);
+        setDestSuggestions(list);
       } catch (e) {
         setDestSuggestions([]);
       } finally {
         setSearchingDest(false);
       }
-    }, 250);
+    }, 200);
   };
 
   const handleSwap = () => {
@@ -411,7 +483,7 @@ export default function RoadAlertsScreen({ navigation, route: navRoute }) {
 
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: '#F0F4FF' }}>
-      {/* Top Navigation Header */}
+      {/* Top Header */}
       <View style={{
         paddingHorizontal: 20,
         paddingTop: 50,
@@ -464,7 +536,7 @@ export default function RoadAlertsScreen({ navigation, route: navRoute }) {
                 <TextInput
                   value={source}
                   onChangeText={handleSourceChange}
-                  placeholder="Type any source city (e.g. Guntakal, Hyderabad)..."
+                  placeholder="Type any source city (e.g. Bangalore, Hyderabad, Guntakal)..."
                   placeholderTextColor="#94A3B8"
                   style={{ fontSize: 15, fontWeight: '800', color: '#1A1A2E', paddingVertical: 4 }}
                   autoCapitalize="words"
@@ -495,7 +567,7 @@ export default function RoadAlertsScreen({ navigation, route: navRoute }) {
                     <Text style={{ fontSize: 16, marginRight: 8 }}>📍</Text>
                     <View style={{ flex: 1 }}>
                       <Text style={{ fontSize: 14, fontWeight: '800', color: '#1A1A2E' }}>{item.name}</Text>
-                      <Text style={{ fontSize: 11, color: '#64748B' }}>{item.admin1 ? `${item.admin1}, ` : ''}{item.country || 'India'}</Text>
+                      <Text style={{ fontSize: 11, color: '#64748B' }}>{item.display || `${item.admin1}, India`}</Text>
                     </View>
                     <Text style={{ fontSize: 11, fontWeight: '700', color: '#4361EE' }}>Select →</Text>
                   </TouchableOpacity>
@@ -534,7 +606,7 @@ export default function RoadAlertsScreen({ navigation, route: navRoute }) {
                 <TextInput
                   value={destination}
                   onChangeText={handleDestChange}
-                  placeholder="Type destination city (e.g. Bengaluru, Mumbai)..."
+                  placeholder="Type destination city (e.g. Bangalore, Mumbai, Chennai)..."
                   placeholderTextColor="#94A3B8"
                   style={{ fontSize: 15, fontWeight: '800', color: '#1A1A2E', paddingVertical: 4 }}
                   autoCapitalize="words"
@@ -565,7 +637,7 @@ export default function RoadAlertsScreen({ navigation, route: navRoute }) {
                     <Text style={{ fontSize: 16, marginRight: 8 }}>📍</Text>
                     <View style={{ flex: 1 }}>
                       <Text style={{ fontSize: 14, fontWeight: '800', color: '#1A1A2E' }}>{item.name}</Text>
-                      <Text style={{ fontSize: 11, color: '#64748B' }}>{item.admin1 ? `${item.admin1}, ` : ''}{item.country || 'India'}</Text>
+                      <Text style={{ fontSize: 11, color: '#64748B' }}>{item.display || `${item.admin1}, India`}</Text>
                     </View>
                     <Text style={{ fontSize: 11, fontWeight: '700', color: '#4361EE' }}>Select →</Text>
                   </TouchableOpacity>
