@@ -62,7 +62,7 @@ const getWmoMeta = (code) => {
   return WMO_CODE_MAP[code] || { cond: 'Partly Cloudy', icon: '⛅', safe: true };
 };
 
-// Dynamic Geocoder using Geoapify + Open-Meteo with India-first prioritization
+// Dynamic Geocoder strictly filtered for Indian cities & hubs
 async function searchGeocodedLocations(query) {
   if (!query || query.trim().length < 2) return [];
   const trimmed = query.trim();
@@ -70,7 +70,7 @@ async function searchGeocodedLocations(query) {
 
   const results = [];
 
-  // Primary: Geoapify with countrycode:in filter
+  // Primary: Geoapify with filter=countrycode:in
   try {
     const geoUrl = `https://api.geoapify.com/v1/geocode/autocomplete?text=${encodeURIComponent(normalized)}&filter=countrycode:in&limit=8&apiKey=${GEO_KEY}`;
     const res = await fetch(geoUrl);
@@ -79,7 +79,7 @@ async function searchGeocodedLocations(query) {
       data.features.forEach(f => {
         const p = f.properties;
         const cityName = p.city || p.town || p.village || p.county || p.name;
-        if (cityName) {
+        if (cityName && (p.country_code === 'in' || p.country === 'India')) {
           results.push({
             id: p.place_id || `${p.lat}-${p.lon}`,
             name: cityName,
@@ -95,24 +95,22 @@ async function searchGeocodedLocations(query) {
     }
   } catch (e) {}
 
-  // Fallback: Open-Meteo Geocoding
+  // Fallback: Open-Meteo Geocoding strictly filtered to India (country_code = IN)
   if (results.length === 0) {
     try {
       const openRes = await fetch(
-        `https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(normalized)}&count=8&language=en&format=json`
+        `https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(normalized)}&count=10&language=en&format=json`
       );
       const openData = await openRes.json();
       if (openData.results && openData.results.length > 0) {
-        // Prioritize India results
         const inResults = openData.results.filter(r => (r.country_code === 'IN' || r.country === 'India'));
-        const finalResults = inResults.length > 0 ? inResults : openData.results;
-        finalResults.forEach(r => {
+        inResults.forEach(r => {
           results.push({
             id: r.id,
             name: r.name,
             admin1: r.admin1 || '',
             district: r.admin2 || '',
-            country: r.country || 'India',
+            country: 'India',
             latitude: r.latitude,
             longitude: r.longitude,
             display: `${r.name}${r.admin2 ? ', ' + r.admin2 : ''}${r.admin1 ? ', ' + r.admin1 : ''}`
@@ -130,7 +128,7 @@ async function searchGeocodedLocations(query) {
     }
   });
 
-  return unique.slice(0, 6);
+  return unique.slice(0, 5);
 }
 
 // Single coordinate resolution
@@ -487,17 +485,17 @@ export default function RoadAlertsScreen({ navigation, route: navRoute }) {
       <View style={{
         paddingHorizontal: 20,
         paddingTop: 50,
-        paddingBottom: 16,
+        paddingBottom: 14,
         backgroundColor: '#FFFFFF',
         borderBottomWidth: 1,
         borderBottomColor: '#E0E7FF'
       }}>
-        <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 16 }}>
+        <View style={{ flexDirection: 'row', alignItems: 'center' }}>
           <BackBtn onPress={() => navigation.goBack()} style={{ marginBottom: 0, marginRight: 12 }} />
           <View style={{ flex: 1 }}>
             <Text style={{ fontSize: 22, fontWeight: '900', color: '#1A1A2E' }}>Route Safety & Road Alerts</Text>
             <Text style={{ fontSize: 13, color: '#4A5568', marginTop: 2, fontWeight: '600' }}>
-              Live Highway Routing, Weather & Corridor Feasibility
+              Live Highway Routing, Weather & Feasibility
             </Text>
           </View>
           {analyzedData && (
@@ -516,42 +514,75 @@ export default function RoadAlertsScreen({ navigation, route: navRoute }) {
             </TouchableOpacity>
           )}
         </View>
+      </View>
 
-        {/* Dynamic Source & Destination Search Inputs */}
+      {/* Main Content Area in Single ScrollView to prevent any overlap */}
+      <ScrollView
+        contentContainerStyle={{ padding: 20, paddingTop: 16, flexGrow: 1 }}
+        keyboardShouldPersistTaps="always"
+      >
+        {/* Dynamic Source & Destination Search Inputs Card */}
         <View style={{
-          backgroundColor: '#F8FAFC',
-          borderRadius: 16,
-          padding: 14,
+          backgroundColor: '#FFFFFF',
+          borderRadius: 18,
+          padding: 16,
           borderWidth: 1.5,
-          borderColor: '#E2E8F0',
-          position: 'relative',
-          zIndex: 1000
+          borderColor: '#E0E7FF',
+          marginBottom: 18,
+          shadowColor: '#4361EE',
+          shadowOffset: { width: 0, height: 4 },
+          shadowOpacity: 0.08,
+          shadowRadius: 10,
+          elevation: 3
         }}>
           {/* Source Input */}
-          <View style={{ position: 'relative', zIndex: 2000 }}>
-            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+          <View>
+            <View style={{
+              flexDirection: 'row',
+              alignItems: 'center',
+              backgroundColor: '#F8FAFC',
+              borderWidth: 1.5,
+              borderColor: sourceSuggestions.length > 0 ? '#4361EE' : '#E2E8F0',
+              borderRadius: 12,
+              paddingHorizontal: 12,
+              paddingVertical: 10,
+              gap: 10
+            }}>
               <Text style={{ fontSize: 18 }}>🟢</Text>
               <View style={{ flex: 1 }}>
-                <Text style={{ fontSize: 11, fontWeight: '800', color: '#64748B', textTransform: 'uppercase' }}>Source City / Hub</Text>
+                <Text style={{ fontSize: 10, fontWeight: '800', color: '#64748B', textTransform: 'uppercase' }}>Source City / Hub</Text>
                 <TextInput
                   value={source}
                   onChangeText={handleSourceChange}
-                  placeholder="Type any source city (e.g. Bangalore, Hyderabad, Guntakal)..."
+                  placeholder="Type any source city (e.g. Chennai, Bangalore)..."
                   placeholderTextColor="#94A3B8"
-                  style={{ fontSize: 15, fontWeight: '800', color: '#1A1A2E', paddingVertical: 4 }}
+                  style={{ fontSize: 15, fontWeight: '800', color: '#1A1A2E', paddingVertical: 2 }}
                   autoCapitalize="words"
                 />
               </View>
               {searchingSource && <ActivityIndicator size="small" color="#4361EE" />}
+              {source.length > 0 && !searchingSource && (
+                <TouchableOpacity onPress={() => { setSource(''); setSourceSuggestions([]); }}>
+                  <Text style={{ fontSize: 16, color: '#94A3B8', fontWeight: '800', paddingHorizontal: 4 }}>✕</Text>
+                </TouchableOpacity>
+              )}
             </View>
 
-            {/* Dynamic Geocoded Source Suggestions */}
+            {/* In-Flow Source Suggestions (No clipping / No overlap!) */}
             {sourceSuggestions.length > 0 && (
               <View style={{
-                position: 'absolute', top: 52, left: 24, right: 0,
-                backgroundColor: '#FFFFFF', borderWidth: 1.5, borderColor: '#4361EE',
-                borderRadius: 12, zIndex: 99999, elevation: 20, shadowColor: '#4361EE', shadowOpacity: 0.25, shadowRadius: 10
+                marginTop: 8,
+                backgroundColor: '#FFFFFF',
+                borderWidth: 1.5,
+                borderColor: '#4361EE',
+                borderRadius: 12,
+                overflow: 'hidden'
               }}>
+                <View style={{ paddingHorizontal: 12, paddingVertical: 8, backgroundColor: '#EEF2FF', borderBottomWidth: 1, borderBottomColor: '#E0E7FF' }}>
+                  <Text style={{ fontSize: 11, fontWeight: '900', color: '#4361EE', textTransform: 'uppercase', letterSpacing: 0.6 }}>
+                    Matching Indian Hubs
+                  </Text>
+                </View>
                 {sourceSuggestions.map((item, idx) => (
                   <TouchableOpacity
                     key={`${item.id || idx}`}
@@ -563,13 +594,16 @@ export default function RoadAlertsScreen({ navigation, route: navRoute }) {
                       flexDirection: 'row',
                       alignItems: 'center'
                     }}
+                    activeOpacity={0.7}
                   >
                     <Text style={{ fontSize: 16, marginRight: 8 }}>📍</Text>
                     <View style={{ flex: 1 }}>
-                      <Text style={{ fontSize: 14, fontWeight: '800', color: '#1A1A2E' }}>{item.name}</Text>
+                      <Text style={{ fontSize: 14, fontWeight: '900', color: '#1A1A2E' }}>{item.name}</Text>
                       <Text style={{ fontSize: 11, color: '#64748B' }}>{item.display || `${item.admin1}, India`}</Text>
                     </View>
-                    <Text style={{ fontSize: 11, fontWeight: '700', color: '#4361EE' }}>Select →</Text>
+                    <View style={{ backgroundColor: '#EEF2FF', paddingHorizontal: 10, paddingVertical: 4, borderRadius: 6 }}>
+                      <Text style={{ fontSize: 11, fontWeight: '800', color: '#4361EE' }}>Select →</Text>
+                    </View>
                   </TouchableOpacity>
                 ))}
               </View>
@@ -577,51 +611,74 @@ export default function RoadAlertsScreen({ navigation, route: navRoute }) {
           </View>
 
           {/* Swap Divider */}
-          <View style={{ flexDirection: 'row', alignItems: 'center', marginVertical: 6 }}>
+          <View style={{ flexDirection: 'row', alignItems: 'center', marginVertical: 10 }}>
             <View style={{ flex: 1, height: 1, backgroundColor: '#E2E8F0' }} />
             <TouchableOpacity
               onPress={handleSwap}
               style={{
                 backgroundColor: '#EEF2FF',
-                borderWidth: 1,
+                borderWidth: 1.5,
                 borderColor: '#C7D2FE',
                 borderRadius: 20,
-                paddingHorizontal: 12,
-                paddingVertical: 5,
-                marginHorizontal: 8
+                paddingHorizontal: 14,
+                paddingVertical: 6,
+                marginHorizontal: 10
               }}
               activeOpacity={0.7}
             >
-              <Text style={{ fontSize: 12, fontWeight: '800', color: '#4361EE' }}>⇄ Swap</Text>
+              <Text style={{ fontSize: 12, fontWeight: '900', color: '#4361EE' }}>⇄ Swap Route</Text>
             </TouchableOpacity>
             <View style={{ flex: 1, height: 1, backgroundColor: '#E2E8F0' }} />
           </View>
 
           {/* Destination Input */}
-          <View style={{ position: 'relative', zIndex: 1000 }}>
-            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+          <View>
+            <View style={{
+              flexDirection: 'row',
+              alignItems: 'center',
+              backgroundColor: '#F8FAFC',
+              borderWidth: 1.5,
+              borderColor: destSuggestions.length > 0 ? '#4361EE' : '#E2E8F0',
+              borderRadius: 12,
+              paddingHorizontal: 12,
+              paddingVertical: 10,
+              gap: 10
+            }}>
               <Text style={{ fontSize: 18 }}>🔴</Text>
               <View style={{ flex: 1 }}>
-                <Text style={{ fontSize: 11, fontWeight: '800', color: '#64748B', textTransform: 'uppercase' }}>Destination City / Hub</Text>
+                <Text style={{ fontSize: 10, fontWeight: '800', color: '#64748B', textTransform: 'uppercase' }}>Destination City / Hub</Text>
                 <TextInput
                   value={destination}
                   onChangeText={handleDestChange}
-                  placeholder="Type destination city (e.g. Bangalore, Mumbai, Chennai)..."
+                  placeholder="Type destination city (e.g. Bangalore, Hyderabad)..."
                   placeholderTextColor="#94A3B8"
-                  style={{ fontSize: 15, fontWeight: '800', color: '#1A1A2E', paddingVertical: 4 }}
+                  style={{ fontSize: 15, fontWeight: '800', color: '#1A1A2E', paddingVertical: 2 }}
                   autoCapitalize="words"
                 />
               </View>
               {searchingDest && <ActivityIndicator size="small" color="#4361EE" />}
+              {destination.length > 0 && !searchingDest && (
+                <TouchableOpacity onPress={() => { setDestination(''); setDestSuggestions([]); }}>
+                  <Text style={{ fontSize: 16, color: '#94A3B8', fontWeight: '800', paddingHorizontal: 4 }}>✕</Text>
+                </TouchableOpacity>
+              )}
             </View>
 
-            {/* Dynamic Geocoded Destination Suggestions */}
+            {/* In-Flow Destination Suggestions */}
             {destSuggestions.length > 0 && (
               <View style={{
-                position: 'absolute', top: 52, left: 24, right: 0,
-                backgroundColor: '#FFFFFF', borderWidth: 1.5, borderColor: '#4361EE',
-                borderRadius: 12, zIndex: 99999, elevation: 20, shadowColor: '#4361EE', shadowOpacity: 0.25, shadowRadius: 10
+                marginTop: 8,
+                backgroundColor: '#FFFFFF',
+                borderWidth: 1.5,
+                borderColor: '#4361EE',
+                borderRadius: 12,
+                overflow: 'hidden'
               }}>
+                <View style={{ paddingHorizontal: 12, paddingVertical: 8, backgroundColor: '#EEF2FF', borderBottomWidth: 1, borderBottomColor: '#E0E7FF' }}>
+                  <Text style={{ fontSize: 11, fontWeight: '900', color: '#4361EE', textTransform: 'uppercase', letterSpacing: 0.6 }}>
+                    Matching Indian Hubs
+                  </Text>
+                </View>
                 {destSuggestions.map((item, idx) => (
                   <TouchableOpacity
                     key={`${item.id || idx}`}
@@ -633,13 +690,16 @@ export default function RoadAlertsScreen({ navigation, route: navRoute }) {
                       flexDirection: 'row',
                       alignItems: 'center'
                     }}
+                    activeOpacity={0.7}
                   >
                     <Text style={{ fontSize: 16, marginRight: 8 }}>📍</Text>
                     <View style={{ flex: 1 }}>
-                      <Text style={{ fontSize: 14, fontWeight: '800', color: '#1A1A2E' }}>{item.name}</Text>
+                      <Text style={{ fontSize: 14, fontWeight: '900', color: '#1A1A2E' }}>{item.name}</Text>
                       <Text style={{ fontSize: 11, color: '#64748B' }}>{item.display || `${item.admin1}, India`}</Text>
                     </View>
-                    <Text style={{ fontSize: 11, fontWeight: '700', color: '#4361EE' }}>Select →</Text>
+                    <View style={{ backgroundColor: '#EEF2FF', paddingHorizontal: 10, paddingVertical: 4, borderRadius: 6 }}>
+                      <Text style={{ fontSize: 11, fontWeight: '800', color: '#4361EE' }}>Select →</Text>
+                    </View>
                   </TouchableOpacity>
                 ))}
               </View>
@@ -652,7 +712,7 @@ export default function RoadAlertsScreen({ navigation, route: navRoute }) {
             style={{
               backgroundColor: '#4361EE',
               borderRadius: 12,
-              paddingVertical: 13,
+              paddingVertical: 14,
               alignItems: 'center',
               justifyContent: 'center',
               marginTop: 14,
@@ -669,15 +729,9 @@ export default function RoadAlertsScreen({ navigation, route: navRoute }) {
             </Text>
           </TouchableOpacity>
         </View>
-      </View>
 
-      {/* Main Content Area */}
-      <ScrollView
-        contentContainerStyle={{ padding: 20, paddingTop: 16, flexGrow: 1 }}
-        keyboardShouldPersistTaps="always"
-      >
         {loading ? (
-          <View style={{ alignItems: 'center', justifyContent: 'center', paddingVertical: 80 }}>
+          <View style={{ alignItems: 'center', justifyContent: 'center', paddingVertical: 70 }}>
             <ActivityIndicator size="large" color="#4361EE" />
             <Text style={{ color: '#1A1A2E', fontWeight: '900', fontSize: 17, marginTop: 18 }}>
               Connecting to Routing Engines & Weather Stations...
@@ -687,8 +741,8 @@ export default function RoadAlertsScreen({ navigation, route: navRoute }) {
             </Text>
           </View>
         ) : !analyzedData ? (
-          /* Initial Clean Prompt (No hardcoded cities shown) */
-          <View style={{ paddingVertical: 20 }}>
+          /* Initial Clean Prompt */
+          <View style={{ paddingVertical: 10 }}>
             <View style={{
               backgroundColor: '#FFFFFF',
               borderRadius: 18,
