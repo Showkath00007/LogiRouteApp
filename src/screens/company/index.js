@@ -100,13 +100,17 @@ export function CompanyDashboard({ navigation }) {
           </TouchableOpacity>
         </View>
 
-        <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 10, marginBottom: 14 }}>
-          <StatCard icon="📦" value={String(activeCount)} label={t('activeShipments')} color={colors.blue} style={{ width: '47%' }} />
-          <StatCard icon="💰" value={thisMonthLabel} label={t('minCost')} color={colors.green} style={{ width: '47%' }} />
-          <StatCard icon="⏱" value="—" label="On Time" color={colors.accent} style={{ width: '47%' }} />
-          <TouchableOpacity style={{ width: '47%' }} onPress={() => navigation.navigate('Notifications')}>
-            <StatCard icon="🔔" value={String(unreadAlerts)} label={t('notifications')} color={colors.orange} />
-          </TouchableOpacity>
+        <View style={{ flexDirection: 'row', gap: 12, marginBottom: 14 }}>
+          <View style={{ flex: 1, gap: 12 }}>
+            <StatCard icon="📦" value={String(activeCount)} label={t('activeShipments')} color={colors.blue} />
+            <StatCard icon="⏱" value="—" label="On Time" color={colors.accent} />
+          </View>
+          <View style={{ flex: 1, gap: 12 }}>
+            <StatCard icon="💰" value={thisMonthLabel} label={t('minCost')} color={colors.green} />
+            <TouchableOpacity onPress={() => navigation.navigate('Notifications')} activeOpacity={0.8}>
+              <StatCard icon="🔔" value={String(unreadAlerts)} label={t('notifications')} color={colors.orange} />
+            </TouchableOpacity>
+          </View>
         </View>
 
         <View style={{ flexDirection: 'row', gap: 10, marginBottom: 16 }}>
