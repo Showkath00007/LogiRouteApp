@@ -1,12 +1,13 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, ScrollView, SafeAreaView, TouchableOpacity, FlatList, ActivityIndicator, Alert } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, SafeAreaView, TouchableOpacity, FlatList, ActivityIndicator, Alert, Image } from 'react-native';
 import { useLang } from '../../context/LanguageContext';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { colors, radius, shadow } from '../../theme';
 import { Btn, Card, StatCard, Badge, SectionLabel, ProgressBar, BackBtn, BottomNav, ListItem, Divider, TransportIcon, CostHero, Chip, Input } from '../../components';
 import { MOCK_TEAM, MATERIALS, apiAutocomplete } from '../../data';
-import { listenShipments, createShipment, getShipments } from '../../config/firebaseService';
+import { listenShipments, createShipment, getShipments, getUserProfile } from '../../config/firebaseService';
 import { listenCompanyFleet, listenAllNotifications, postOpenJob, listenCompanyJobs, confirmJobApplicant, listenCompanyTeam } from '../../config/DriverService';
+import { getProfile } from '../../config/UserStore';
 
 const screen = (pt = 60) => ({ padding: 20, paddingTop: pt, flexGrow: 1 });
 const h1 = { fontSize: 22, fontWeight: '900', color: colors.text, letterSpacing: -0.5, marginBottom: 4 };
@@ -22,6 +23,22 @@ export function CompanyDashboard({ navigation }) {
   const [shipments, setShipments] = useState([]);
   const [loading, setLoading] = useState(true);
   const [alerts, setAlerts] = useState([]);
+  const [profile, setProfile] = useState(null);
+
+  useEffect(() => {
+    const loadProfile = async () => {
+      try {
+        const local = await getProfile().catch(() => null);
+        const fb = await getUserProfile().catch(() => null);
+        setProfile({ ...local, ...fb, avatar: local?.avatar || fb?.avatar });
+      } catch (e) {
+        // Ignored
+      }
+    };
+    const unsub = navigation.addListener('focus', loadProfile);
+    loadProfile();
+    return unsub;
+  }, [navigation]);
 
   useEffect(() => {
     const unsub = listenShipments(data => {
@@ -74,8 +91,12 @@ export function CompanyDashboard({ navigation }) {
             <Text style={{ fontSize: 13, color: colors.sub }}>{t('goodMorning')}</Text>
             <Text style={{ fontSize: 22, fontWeight: '900', color: colors.text }}>Kadiyala Logistics</Text>
           </View>
-          <TouchableOpacity onPress={() => navigation.navigate('Profile')} style={{ width: 44, height: 44, backgroundColor: colors.accent, borderRadius: radius.full, alignItems: 'center', justifyContent: 'center' }}>
-            <Text style={{ fontSize: 20 }}>🏢</Text>
+          <TouchableOpacity onPress={() => navigation.navigate('Profile')} style={{ width: 44, height: 44, backgroundColor: colors.accent, borderRadius: radius.full, alignItems: 'center', justifyContent: 'center', overflow: 'hidden' }}>
+            {profile?.avatar ? (
+              <Image source={{ uri: profile.avatar }} style={{ width: 44, height: 44 }} />
+            ) : (
+              <Text style={{ fontSize: 20 }}>🏢</Text>
+            )}
           </TouchableOpacity>
         </View>
 
