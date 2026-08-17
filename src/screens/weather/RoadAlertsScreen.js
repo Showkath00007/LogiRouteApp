@@ -3,7 +3,7 @@ import {
   View, Text, ScrollView, SafeAreaView, TouchableOpacity,
   TextInput, ActivityIndicator, Alert
 } from 'react-native';
-import { radius } from '../../theme';
+import { colors, radius, shadow } from '../../theme';
 import { BackBtn } from '../../components';
 
 const GEO_KEY = 'bd32dbcd6016403e9d5a828f643d4cdb';
@@ -511,21 +511,21 @@ export default function RoadAlertsScreen({ navigation, route: navRoute }) {
   const currentRoute = analyzedData?.routes?.[0];
 
   return (
-    <SafeAreaView style={{ flex: 1, backgroundColor: '#F0F4FF' }}>
+    <SafeAreaView style={{ flex: 1, backgroundColor: colors.bg }}>
       {/* Top Header */}
       <View style={{
         paddingHorizontal: 20,
         paddingTop: 50,
         paddingBottom: 14,
-        backgroundColor: '#FFFFFF',
+        backgroundColor: colors.surface,
         borderBottomWidth: 1,
-        borderBottomColor: '#E0E7FF'
+        borderBottomColor: colors.border
       }}>
         <View style={{ flexDirection: 'row', alignItems: 'center' }}>
           <BackBtn onPress={() => navigation.goBack()} style={{ marginBottom: 0, marginRight: 12 }} />
           <View style={{ flex: 1 }}>
-            <Text style={{ fontSize: 22, fontWeight: '900', color: '#1A1A2E' }}>Route Safety & Road Alerts</Text>
-            <Text style={{ fontSize: 13, color: '#4A5568', marginTop: 2, fontWeight: '600' }}>
+            <Text style={{ fontSize: 22, fontWeight: '900', color: colors.text }}>Route Safety & Road Alerts</Text>
+            <Text style={{ fontSize: 13, color: colors.textSub, marginTop: 2, fontWeight: '600' }}>
               Live Highway Routing, Weather & Feasibility
             </Text>
           </View>
@@ -554,26 +554,22 @@ export default function RoadAlertsScreen({ navigation, route: navRoute }) {
       >
         {/* Dynamic Source & Destination Search Inputs Card */}
         <View style={{
-          backgroundColor: '#FFFFFF',
-          borderRadius: 18,
+          backgroundColor: colors.surface,
+          borderRadius: radius.lg,
           padding: 16,
           borderWidth: 1.5,
-          borderColor: '#E0E7FF',
+          borderColor: colors.border,
           marginBottom: 18,
-          shadowColor: '#4361EE',
-          shadowOffset: { width: 0, height: 4 },
-          shadowOpacity: 0.08,
-          shadowRadius: 10,
-          elevation: 3
+          ...shadow.md
         }}>
           {/* Source Input */}
           <View>
             <View style={{
               flexDirection: 'row',
               alignItems: 'center',
-              backgroundColor: '#F8FAFC',
+              backgroundColor: colors.surface2,
               borderWidth: 1.5,
-              borderColor: sourceSuggestions.length > 0 ? '#4361EE' : '#E2E8F0',
+              borderColor: sourceSuggestions.length > 0 ? colors.accent : colors.border,
               borderRadius: 12,
               paddingHorizontal: 12,
               paddingVertical: 10,
@@ -581,20 +577,20 @@ export default function RoadAlertsScreen({ navigation, route: navRoute }) {
             }}>
               <Text style={{ fontSize: 18 }}>🟢</Text>
               <View style={{ flex: 1 }}>
-                <Text style={{ fontSize: 10, fontWeight: '800', color: '#64748B', textTransform: 'uppercase' }}>Source City / Hub</Text>
+                <Text style={{ fontSize: 10, fontWeight: '800', color: colors.muted, textTransform: 'uppercase' }}>Source City / Hub</Text>
                 <TextInput
                   value={source}
                   onChangeText={handleSourceChange}
                   placeholder="Type any source city (e.g. Anantapur, Chennai)..."
-                  placeholderTextColor="#94A3B8"
-                  style={{ fontSize: 15, fontWeight: '800', color: '#1A1A2E', paddingVertical: 2 }}
+                  placeholderTextColor={colors.textMuted}
+                  style={{ fontSize: 15, fontWeight: '800', color: colors.text, paddingVertical: 2 }}
                   autoCapitalize="words"
                 />
               </View>
-              {searchingSource && <ActivityIndicator size="small" color="#4361EE" />}
+              {searchingSource && <ActivityIndicator size="small" color={colors.accent} />}
               {source.length > 0 && !searchingSource && (
                 <TouchableOpacity onPress={() => { setSource(''); setSourceSuggestions([]); }}>
-                  <Text style={{ fontSize: 16, color: '#94A3B8', fontWeight: '800', paddingHorizontal: 4 }}>✕</Text>
+                  <Text style={{ fontSize: 16, color: colors.textMuted, fontWeight: '800', paddingHorizontal: 4 }}>✕</Text>
                 </TouchableOpacity>
               )}
             </View>
@@ -647,9 +643,9 @@ export default function RoadAlertsScreen({ navigation, route: navRoute }) {
             <TouchableOpacity
               onPress={handleSwap}
               style={{
-                backgroundColor: '#EEF2FF',
+                backgroundColor: colors.surface2,
                 borderWidth: 1.5,
-                borderColor: '#C7D2FE',
+                borderColor: colors.border,
                 borderRadius: 20,
                 paddingHorizontal: 14,
                 paddingVertical: 6,
@@ -657,9 +653,9 @@ export default function RoadAlertsScreen({ navigation, route: navRoute }) {
               }}
               activeOpacity={0.7}
             >
-              <Text style={{ fontSize: 12, fontWeight: '900', color: '#4361EE' }}>⇄ Swap Route</Text>
+              <Text style={{ fontSize: 12, fontWeight: '900', color: colors.accent }}>⇄ Swap Route</Text>
             </TouchableOpacity>
-            <View style={{ flex: 1, height: 1, backgroundColor: '#E2E8F0' }} />
+            <View style={{ flex: 1, height: 1, backgroundColor: colors.border }} />
           </View>
 
           {/* Destination Input */}
@@ -667,9 +663,9 @@ export default function RoadAlertsScreen({ navigation, route: navRoute }) {
             <View style={{
               flexDirection: 'row',
               alignItems: 'center',
-              backgroundColor: '#F8FAFC',
+              backgroundColor: colors.surface2,
               borderWidth: 1.5,
-              borderColor: destSuggestions.length > 0 ? '#4361EE' : '#E2E8F0',
+              borderColor: destSuggestions.length > 0 ? colors.accent : colors.border,
               borderRadius: 12,
               paddingHorizontal: 12,
               paddingVertical: 10,
@@ -677,20 +673,20 @@ export default function RoadAlertsScreen({ navigation, route: navRoute }) {
             }}>
               <Text style={{ fontSize: 18 }}>🔴</Text>
               <View style={{ flex: 1 }}>
-                <Text style={{ fontSize: 10, fontWeight: '800', color: '#64748B', textTransform: 'uppercase' }}>Destination City / Hub</Text>
+                <Text style={{ fontSize: 10, fontWeight: '800', color: colors.muted, textTransform: 'uppercase' }}>Destination City / Hub</Text>
                 <TextInput
                   value={destination}
                   onChangeText={handleDestChange}
                   placeholder="Type destination city (e.g. Adoni, Bangalore)..."
-                  placeholderTextColor="#94A3B8"
-                  style={{ fontSize: 15, fontWeight: '800', color: '#1A1A2E', paddingVertical: 2 }}
+                  placeholderTextColor={colors.textMuted}
+                  style={{ fontSize: 15, fontWeight: '800', color: colors.text, paddingVertical: 2 }}
                   autoCapitalize="words"
                 />
               </View>
-              {searchingDest && <ActivityIndicator size="small" color="#4361EE" />}
+              {searchingDest && <ActivityIndicator size="small" color={colors.accent} />}
               {destination.length > 0 && !searchingDest && (
                 <TouchableOpacity onPress={() => { setDestination(''); setDestSuggestions([]); }}>
-                  <Text style={{ fontSize: 16, color: '#94A3B8', fontWeight: '800', paddingHorizontal: 4 }}>✕</Text>
+                  <Text style={{ fontSize: 16, color: colors.textMuted, fontWeight: '800', paddingHorizontal: 4 }}>✕</Text>
                 </TouchableOpacity>
               )}
             </View>
