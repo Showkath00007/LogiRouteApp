@@ -4,7 +4,7 @@ import { useLang } from '../../context/LanguageContext';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { colors, radius, shadow } from '../../theme';
 import { Btn, Card, StatCard, Badge, SectionLabel, ProgressBar, BackBtn, BottomNav, ListItem, Divider, TransportIcon, CostHero, Chip, Input } from '../../components';
-import { MOCK_TEAM, MATERIALS } from '../../data';
+import { MOCK_TEAM, MATERIALS, apiAutocomplete } from '../../data';
 import { listenShipments, createShipment, getShipments } from '../../config/firebaseService';
 import { listenCompanyFleet, listenAllNotifications, postOpenJob, listenCompanyJobs, confirmJobApplicant, listenCompanyTeam } from '../../config/DriverService';
 
@@ -598,11 +598,35 @@ export function PostJobScreen({ navigation }) {
   const [material, setMaterial] = useState('Steel');
   const [from, setFrom] = useState('');
   const [to, setTo] = useState('');
+  const [fromSuggestions, setFromSuggestions] = useState([]);
+  const [toSuggestions, setToSuggestions] = useState([]);
   const [weight, setWeight] = useState('');
   const [distKm, setDistKm] = useState('');
   const [cost, setCost] = useState('');
   const [notes, setNotes] = useState('');
   const [loading, setLoading] = useState(false);
+
+  const fetchFrom = async (q) => {
+    setFrom(q);
+    if (q.length < 2) { setFromSuggestions([]); return; }
+    try {
+      const s = await apiAutocomplete(q);
+      setFromSuggestions(s);
+    } catch (e) {
+      setFromSuggestions([]);
+    }
+  };
+
+  const fetchTo = async (q) => {
+    setTo(q);
+    if (q.length < 2) { setToSuggestions([]); return; }
+    try {
+      const s = await apiAutocomplete(q);
+      setToSuggestions(s);
+    } catch (e) {
+      setToSuggestions([]);
+    }
+  };
 
   const handlePost = async () => {
     if (!from.trim() || !to.trim() || !weight.trim() || !cost.trim()) {
@@ -650,16 +674,40 @@ export function PostJobScreen({ navigation }) {
           {MATERIALS.map(m => <Chip key={m.id} label={m.id} icon={m.icon} selected={material === m.id} color={m.color} onPress={() => setMaterial(m.id)} />)}
         </View>
 
-        <Card>
-          <Input label="From" placeholder="Pickup location" value={from} onChangeText={setFrom} />
-          <Input label="To" placeholder="Drop-off location" value={to} onChangeText={setTo} />
+        <Card style={{ zIndex: 10 }}>
+          <View style={{ zIndex: 50 }}>
+            <Input label="From" placeholder="Pickup location" value={from} onChangeText={fetchFrom} style={{ marginBottom: 0 }} />
+            {fromSuggestions.length > 0 && (
+              <View style={sug.wrap}>
+                {fromSuggestions.map((s, i) => (
+                  <TouchableOpacity key={`from-${i}`} onPress={() => { setFrom(s); setFromSuggestions([]); }} style={sug.item}>
+                    <Text style={sug.text}>📍 {s}</Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+            )}
+          </View>
+          <View style={{ height: 12 }} />
+          <View style={{ zIndex: 40 }}>
+            <Input label="To" placeholder="Drop-off location" value={to} onChangeText={fetchTo} style={{ marginBottom: 0 }} />
+            {toSuggestions.length > 0 && (
+              <View style={sug.wrap}>
+                {toSuggestions.map((s, i) => (
+                  <TouchableOpacity key={`to-${i}`} onPress={() => { setTo(s); setToSuggestions([]); }} style={sug.item}>
+                    <Text style={sug.text}>📍 {s}</Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+            )}
+          </View>
+          <View style={{ height: 12 }} />
           <Input label="Weight" placeholder="e.g. 5 tons" value={weight} onChangeText={setWeight} />
           <Input label="Distance (km, optional)" placeholder="e.g. 450" value={distKm} onChangeText={setDistKm} keyboardType="numeric" />
           <Input label="Estimated Payout (₹)" placeholder="e.g. 12000" value={cost} onChangeText={setCost} keyboardType="numeric" />
           <Input label="Notes (optional)" placeholder="e.g. Fragile, needs tarpaulin" value={notes} onChangeText={setNotes} />
         </Card>
 
-        <Btn label={loading ? 'Posting...' : 'Post Job'} onPress={handlePost} disabled={loading} />
+        <Btn label={loading ? 'Posting...' : 'Post Job'} onPress={handlePost} disabled={loading} style={{ marginTop: 14 }} />
         <Btn label="View My Posted Jobs" onPress={() => navigation.navigate('MyPostedJobs')} variant="outline" />
       </ScrollView>
     </SafeAreaView>
@@ -916,3 +964,9 @@ export function TeamScreen({ navigation }) {
     </SafeAreaView>
   );
 }
+
+const sug = StyleSheet.create({
+  wrap: { backgroundColor: colors.surface2, borderWidth: 1, borderColor: colors.border, borderRadius: 8, marginTop: 4, zIndex: 100 },
+  item: { padding: 12, borderBottomWidth: 1, borderBottomColor: colors.border },
+  text: { fontSize: 13, color: colors.text, fontWeight: '500' }
+});
