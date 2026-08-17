@@ -1116,6 +1116,7 @@ export function ProfileScreen({ navigation }) {
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: colors.bg }}>
       <ScrollView contentContainerStyle={screen()}>
+        <BackBtn onPress={() => navigation.goBack()} style={{ alignSelf: 'flex-start', marginBottom: 8 }} />
         <View style={{ alignItems: 'center', paddingVertical: 20 }}>
           <View style={{ width: 80, height: 80, borderRadius: 40, backgroundColor: colors.accent, alignItems: 'center', justifyContent: 'center', marginBottom: 12 }}>
             <Text style={{ fontSize: 40 }}>👤</Text>
