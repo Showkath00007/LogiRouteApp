@@ -1,26 +1,52 @@
 import React, { createContext, useContext, useState } from 'react';
 
 const darkColors = {
-  bg: '#0A0C12', surface: '#13161F', surface2: '#1C2030', surface3: '#242840',
-  border: '#2E3450', accent: '#F5C842', accentS: 'rgba(245,200,66,0.15)',
-  blue: '#4F8EF7', blueS: 'rgba(79,142,247,0.15)',
-  green: '#2ECC8A', greenS: 'rgba(46,204,138,0.15)',
-  orange: '#FF7A3D', orangeS: 'rgba(255,122,61,0.15)',
-  red: '#FF4F6A', redS: 'rgba(255,79,106,0.15)',
-  purple: '#A78BFA', purpleS: 'rgba(167,139,250,0.15)',
-  text: '#E8EBF5', sub: '#8892A4', muted: '#4A5568', white: '#FFFFFF',
+  bg: '#0B0F19',           // rich space cadet navy bg
+  surface: '#151B2C',      // deep navy cards
+  surface2: '#1E293B',     // lighter slate-navy
+  surface3: '#334155',     // hover/active highlights
+  border: '#2E3A52',       // crisp border line
+  accent: '#6366F1',       // electric indigo (primary brand color)
+  accentS: 'rgba(99,102,241,0.15)',
+  blue: '#3B82F6',         // electric blue
+  blueS: 'rgba(59,130,246,0.15)',
+  green: '#10B981',        // emerald green
+  greenS: 'rgba(16,185,129,0.15)',
+  orange: '#F97316',       // vivid orange
+  orangeS: 'rgba(249,115,22,0.15)',
+  red: '#EF4444',          // neon red
+  redS: 'rgba(239,68,68,0.15)',
+  purple: '#8B5CF6',       // modern violet
+  purpleS: 'rgba(139,92,246,0.15)',
+  text: '#F8FAFC',         // slate-50 white text
+  sub: '#94A3B8',          // slate-400 sub text
+  muted: '#64748B',        // slate-500 muted text
+  white: '#FFFFFF',
   isDark: true,
 };
 
 const lightColors = {
-  bg: '#F5F7FA', surface: '#FFFFFF', surface2: '#F0F2F8', surface3: '#E8EBF5',
-  border: '#D1D5E0', accent: '#E6B800', accentS: 'rgba(230,184,0,0.12)',
-  blue: '#2563EB', blueS: 'rgba(37,99,235,0.1)',
-  green: '#16A34A', greenS: 'rgba(22,163,74,0.1)',
-  orange: '#EA580C', orangeS: 'rgba(234,88,12,0.1)',
-  red: '#DC2626', redS: 'rgba(220,38,38,0.1)',
-  purple: '#7C3AED', purpleS: 'rgba(124,58,237,0.1)',
-  text: '#111827', sub: '#4B5563', muted: '#9CA3AF', white: '#FFFFFF',
+  bg: '#F8FAFC',           // ultra-clean slate bg
+  surface: '#FFFFFF',      // white cards
+  surface2: '#F1F5F9',     // soft slate gray
+  surface3: '#E2E8F0',     // active highlight
+  border: '#E2E8F0',       // soft divider border
+  accent: '#4F46E5',       // rich brand indigo
+  accentS: 'rgba(79,70,229,0.12)',
+  blue: '#2563EB',         // primary royal blue
+  blueS: 'rgba(37,99,235,0.1)',
+  green: '#15803D',        // rich forest green
+  greenS: 'rgba(21,128,61,0.1)',
+  orange: '#EA580C',       // safety orange
+  orangeS: 'rgba(234,88,12,0.1)',
+  red: '#DC2626',          // deep crimson
+  redS: 'rgba(220,38,38,0.1)',
+  purple: '#7C3AED',       // violet purple
+  purpleS: 'rgba(124,58,237,0.1)',
+  text: '#0F172A',         // slate-900 high contrast text
+  sub: '#475569',          // slate-600 secondary text
+  muted: '#94A3B8',        // slate-400 muted text
+  white: '#FFFFFF',
   isDark: false,
 };
 

@@ -1,61 +1,61 @@
 // ============================================================
-// LogiRoute — Vibrant Light Theme
-// Multi-color, energetic, modern logistics palette
+// LogiRoute — Premium Indigo-Slate Theme Tokens
+// Curated, ultra-clean modern logistics aesthetic
 // ============================================================
 
 export const colors = {
   // ── Backgrounds ──────────────────────────────────────────
-  bg: '#F0F4FF',           // soft blue-white background
+  bg: '#F8FAFC',           // ultra-clean slate bg
   surface: '#FFFFFF',      // white cards
   card: '#FFFFFF',
-  surface2: '#F5F7FF',
-  border: '#E0E7FF',
+  surface2: '#F1F5F9',     // soft slate gray
+  border: '#E2E8F0',       // divider lines
 
   // ── Primary Brand Colors ──────────────────────────────────
-  accent: '#4361EE',       // vibrant blue (primary)
-  accentDark: '#2D46C8',
+  accent: '#4F46E5',       // brand indigo
+  accentDark: '#3730A3',
   accentLight: '#EEF2FF',
 
-  // ── Color Palette (5 vibrant colors) ─────────────────────
-  blue: '#4361EE',         // electric blue
-  purple: '#7B2FBE',       // rich purple
-  orange: '#F77F00',       // vivid orange
-  green: '#06D6A0',        // mint green
-  pink: '#EF233C',         // vivid red-pink
-  yellow: '#FFD166',       // golden yellow
-  cyan: '#4CC9F0',         // sky cyan
+  // ── Color Palette ─────────────────────────────────────────
+  blue: '#3B82F6',         // electric blue
+  purple: '#8B5CF6',       // modern violet
+  orange: '#F97316',       // vivid orange
+  green: '#10B981',        // emerald green
+  pink: '#EC4899',         // modern hot pink
+  yellow: '#F59E0B',       // warm amber yellow
+  cyan: '#06B6D4',         // clean cyan
 
   // ── Semantic Colors ───────────────────────────────────────
-  success: '#06D6A0',
-  warning: '#FFD166',
-  danger: '#EF233C',
-  info: '#4CC9F0',
+  success: '#10B981',
+  warning: '#F59E0B',
+  danger: '#EF4444',
+  info: '#06B6D4',
 
   // ── Text ─────────────────────────────────────────────────
-  text: '#1A1A2E',         // deep navy text
-  textSub: '#4A5568',      // secondary text
-  textMuted: '#9AA5B1',    // muted text
+  text: '#0F172A',         // slate-900 high contrast text
+  textSub: '#475569',      // slate-600 secondary text
+  textMuted: '#94A3B8',    // slate-400 muted text
   white: '#FFFFFF',
-  black: '#1A1A2E',
+  black: '#0F172A',
 
   // ── Tints (for backgrounds) ───────────────────────────────
-  blueTint: '#EEF2FF',
-  purpleTint: '#F3EEFF',
-  orangeTint: '#FFF4E6',
-  greenTint: '#E6FFF9',
-  pinkTint: '#FFF0F2',
-  yellowTint: '#FFFBEA',
-  cyanTint: '#E8FAFF',
+  blueTint: '#EFF6FF',
+  purpleTint: '#F5F3FF',
+  orangeTint: '#FFF7ED',
+  greenTint: '#ECFDF5',
+  pinkTint: '#FDF2F8',
+  yellowTint: '#FEF3C7',
+  cyanTint: '#ECFEFF',
 
   // ── Gradients (start/end pairs) ───────────────────────────
-  grad1: ['#4361EE', '#7B2FBE'],   // blue → purple
-  grad2: ['#F77F00', '#FFD166'],   // orange → yellow
-  grad3: ['#06D6A0', '#4CC9F0'],   // green → cyan
-  grad4: ['#EF233C', '#F77F00'],   // pink → orange
-  grad5: ['#4CC9F0', '#4361EE'],   // cyan → blue
+  grad1: ['#4F46E5', '#8B5CF6'],   // indigo → purple
+  grad2: ['#F97316', '#F59E0B'],   // orange → amber
+  grad3: ['#10B981', '#06B6D4'],   // green → cyan
+  grad4: ['#EF4444', '#F97316'],   // red → orange
+  grad5: ['#06B6D4', '#4F46E5'],   // cyan → indigo
 
-  overlay: 'rgba(26,26,46,0.15)',
-  red: '#EF233C',
+  overlay: 'rgba(15,23,42,0.15)',
+  red: '#EF4444',
 };
 
 export const fonts = {
@@ -89,10 +89,10 @@ export const spacing = {
 };
 
 export const shadow = {
-  sm: { shadowColor: '#4361EE', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.08, shadowRadius: 8, elevation: 3 },
-  md: { shadowColor: '#4361EE', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.12, shadowRadius: 12, elevation: 6 },
-  lg: { shadowColor: '#4361EE', shadowOffset: { width: 0, height: 8 }, shadowOpacity: 0.15, shadowRadius: 20, elevation: 10 },
-  colored: (color) => ({ shadowColor: color, shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.25, shadowRadius: 12, elevation: 8 }),
+  sm: { shadowColor: '#4F46E5', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.06, shadowRadius: 8, elevation: 2 },
+  md: { shadowColor: '#4F46E5', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.10, shadowRadius: 12, elevation: 4 },
+  lg: { shadowColor: '#4F46E5', shadowOffset: { width: 0, height: 8 }, shadowOpacity: 0.12, shadowRadius: 20, elevation: 8 },
+  colored: (color) => ({ shadowColor: color, shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.20, shadowRadius: 12, elevation: 6 }),
 };
 
 export default { colors, fonts, radius, spacing, shadow };
