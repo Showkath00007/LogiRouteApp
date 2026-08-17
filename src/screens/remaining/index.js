@@ -1,4 +1,5 @@
 import { getProfile, saveProfile } from '../../config/UserStore';
+import { translate } from '../../config/i18n';
 import * as Print from 'expo-print';
 import * as Sharing from 'expo-sharing';
 import * as FileSystem from 'expo-file-system';
@@ -1188,7 +1189,7 @@ export function SettingsScreen({ navigation }) {
     await saveProfile({ language: code });
     setLangModalVisible(false);
     const selected = languages.find(l => l.code === code);
-    Alert.alert('Language Updated', `System language set to ${selected?.native || selected?.name}.`);
+    Alert.alert(translate('lang_updated', code), translate('lang_changed_to', code));
   };
 
   const handleSelectCurrency = async (code) => {
@@ -1196,7 +1197,7 @@ export function SettingsScreen({ navigation }) {
     await saveProfile({ currency: code });
     setCurrModalVisible(false);
     const selected = currencies.find(c => c.code === code);
-    Alert.alert('Currency Updated', `Default system currency set to ${selected?.code} (${selected?.symbol}).`);
+    Alert.alert(translate('curr_updated', language), translate('curr_changed_to', language));
   };
 
   const Toggle = ({ value, onToggle }) => (
@@ -1206,9 +1207,9 @@ export function SettingsScreen({ navigation }) {
   );
 
   const handleLogout = async () => {
-    Alert.alert('Logout', 'Are you sure?', [
-      { text: 'Cancel', style: 'cancel' },
-      { text: 'Logout', style: 'destructive', onPress: async () => { await signOut(auth); navigation.replace('Login'); } },
+    Alert.alert(translate('logout', language), 'Are you sure?', [
+      { text: translate('cancel', language), style: 'cancel' },
+      { text: translate('logout', language), style: 'destructive', onPress: async () => { await signOut(auth); navigation.replace('Login'); } },
     ]);
   };
 
@@ -1219,9 +1220,13 @@ export function SettingsScreen({ navigation }) {
     <SafeAreaView style={{ flex: 1, backgroundColor: colors.bg }}>
       <ScrollView contentContainerStyle={screen()}>
         <BackBtn onPress={() => navigation.goBack()} />
-        <Text style={h1}>Settings</Text>
-        <SectionLabel label="Notifications" style={{ marginTop: 8 }} />
-        {[['🔔', 'Push Notifications', notifs, setNotifs], ['📧', 'Email Alerts', email, setEmail], ['📱', 'SMS Updates', sms, setSms]].map(([icon, label, val, setter]) => (
+        <Text style={h1}>{translate('settings', language)}</Text>
+        <SectionLabel label={translate('notifications', language)} style={{ marginTop: 8 }} />
+        {[
+          ['🔔', translate('push_notifs', language), notifs, setNotifs],
+          ['📧', translate('email_alerts', language), email, setEmail],
+          ['📱', translate('sms_updates', language), sms, setSms]
+        ].map(([icon, label, val, setter]) => (
           <View key={label} style={{ flexDirection: 'row', alignItems: 'center', paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: colors.border }}>
             <Text style={{ fontSize: 20, marginRight: 12 }}>{icon}</Text>
             <Text style={{ flex: 1, fontSize: 14, fontWeight: '600', color: colors.text }}>{label}</Text>
@@ -1229,28 +1234,28 @@ export function SettingsScreen({ navigation }) {
           </View>
         ))}
 
-        <SectionLabel label="Display" style={{ marginTop: 16 }} />
+        <SectionLabel label={translate('display', language)} style={{ marginTop: 16 }} />
         <ListItem
           left={<Text style={{ fontSize: 20 }}>🌍</Text>}
-          title="Language"
+          title={translate('language', language)}
           right={<Text style={{ fontSize: 13, color: colors.sub }}>{activeLangName} ›</Text>}
           onPress={() => setLangModalVisible(true)}
         />
         <ListItem
           left={<Text style={{ fontSize: 20 }}>💰</Text>}
-          title="Currency"
+          title={translate('currency', language)}
           right={<Text style={{ fontSize: 13, color: colors.sub }}>{activeCurrSymbol} ›</Text>}
           onPress={() => setCurrModalVisible(true)}
         />
 
-        <SectionLabel label="Security" style={{ marginTop: 8 }} />
-        <ListItem left={<Text style={{ fontSize: 20 }}>🔒</Text>} title="Change Password" right={<Text style={{ fontSize: 16, color: colors.muted }}>›</Text>} onPress={() => navigation.navigate('ResetPassword')} />
+        <SectionLabel label={translate('security', language)} style={{ marginTop: 8 }} />
+        <ListItem left={<Text style={{ fontSize: 20 }}>🔒</Text>} title={translate('change_password', language)} right={<Text style={{ fontSize: 16, color: colors.muted }}>›</Text>} onPress={() => navigation.navigate('ResetPassword')} />
         <View style={{ flexDirection: 'row', alignItems: 'center', paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: colors.border }}>
           <Text style={{ fontSize: 20, marginRight: 12 }}>👆</Text>
-          <Text style={{ flex: 1, fontSize: 14, fontWeight: '600', color: colors.text }}>Biometric Login</Text>
+          <Text style={{ flex: 1, fontSize: 14, fontWeight: '600', color: colors.text }}>{translate('biometric_login', language)}</Text>
           <Toggle value={biometric} onToggle={() => setBiometric(!biometric)} />
         </View>
-        <ListItem left={<Text style={{ fontSize: 20 }}>🚪</Text>} title={<Text style={{ color: colors.red, fontSize: 14, fontWeight: '600' }}>Logout</Text>} style={{ marginTop: 8 }} right={<Text style={{ fontSize: 16, color: colors.muted }}>›</Text>} onPress={handleLogout} />
+        <ListItem left={<Text style={{ fontSize: 20 }}>🚪</Text>} title={<Text style={{ color: colors.red, fontSize: 14, fontWeight: '600' }}>{translate('logout', language)}</Text>} style={{ marginTop: 8 }} right={<Text style={{ fontSize: 16, color: colors.muted }}>›</Text>} onPress={handleLogout} />
 
         {/* Language Selection Modal */}
         <Modal visible={langModalVisible} transparent animationType="slide">
