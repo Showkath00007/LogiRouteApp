@@ -176,12 +176,27 @@ export function ResultScreen({ navigation, route }) {
     <SafeAreaView style={{ flex: 1, backgroundColor: colors.bg }}>
       <ScrollView contentContainerStyle={screen()}>
         <BackBtn onPress={() => navigation.goBack()} />
-        {/* Route Badge */}
-        <View style={{ backgroundColor: colors.surface2, borderWidth: 1, borderColor: colors.border, borderRadius: radius.lg, padding: 14, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, marginBottom: 14 }}>
-          <Text numberOfLines={1} style={{ fontSize: 13, fontWeight: '700', color: colors.text, flex: 1, textAlign: 'right' }}>{source}</Text>
-          <Text style={{ color: colors.accent, fontSize: 13, flexShrink: 0 }}> → {t.icon} →</Text>
-          <Text numberOfLines={1} style={{ fontSize: 13, fontWeight: '700', color: colors.text, flex: 1, textAlign: 'left' }}>{destination}</Text>
+        {/* Route Connector Badge */}
+        <View style={{ backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border, borderRadius: radius.lg, padding: 16, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16, ...shadow.sm }}>
+          <View style={{ flex: 1.2 }}>
+            <Text style={{ fontSize: 10, color: colors.textMuted, fontWeight: '700', textTransform: 'uppercase', marginBottom: 4 }}>Pickup</Text>
+            <Text numberOfLines={1} style={{ fontSize: 14, fontWeight: '800', color: colors.text }}>{source.split(',')[0]}</Text>
+          </View>
+          
+          <View style={{ paddingHorizontal: 8, alignItems: 'center', justifyContent: 'center', flexDirection: 'row', gap: 6 }}>
+            <View style={{ width: 6, height: 6, borderRadius: 3, backgroundColor: colors.accent }} />
+            <View style={{ height: 1, width: 30, backgroundColor: colors.border }} />
+            <Text style={{ fontSize: 20 }}>{t.icon}</Text>
+            <View style={{ height: 1, width: 30, backgroundColor: colors.border }} />
+            <View style={{ width: 6, height: 6, borderRadius: 3, backgroundColor: colors.green }} />
+          </View>
+
+          <View style={{ flex: 1.2, alignItems: 'flex-end' }}>
+            <Text style={{ fontSize: 10, color: colors.textMuted, fontWeight: '700', textTransform: 'uppercase', marginBottom: 4, textAlign: 'right' }}>Delivery</Text>
+            <Text numberOfLines={1} style={{ fontSize: 14, fontWeight: '800', color: colors.text, textAlign: 'right' }}>{destination.split(',')[0]}</Text>
+          </View>
         </View>
+
         <CostHero cost={bestCost} sub={`${material} · ${tons || 1} tons via ${bestTransport} · Best rate found`} style={{ marginBottom: 14 }} />
         <View style={{ flexDirection: 'row', gap: 10, marginBottom: 12 }}>
           <StatCard value={`${data.distance?.toFixed(1)} km`} label="Distance" color={colors.blue} style={{ flex: 1 }} />
@@ -198,7 +213,7 @@ export function ResultScreen({ navigation, route }) {
             <Text style={{ fontSize: 12, color: colors.sub, lineHeight: 18 }}>{t.desc}</Text>
           </View>
         </Card>
-        <Card>
+        <Card style={{ marginBottom: 16 }}>
           <SectionLabel label="Cost Breakdown" />
           <View style={{ flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 6 }}>
             <Text style={{ fontSize: 13, color: colors.sub }}>Rate per ton/km</Text>
@@ -213,7 +228,7 @@ export function ResultScreen({ navigation, route }) {
             <Text style={{ fontSize: 13, color: colors.text }}>{data.distance?.toFixed(0)} km</Text>
           </View>
         </Card>
-        <Btn label="🗺 View Route Map" onPress={() => navigation.navigate('RouteMap', { data, source, destination })} variant="blue" />
+        <Btn label="🗺 View Route Map" onPress={() => navigation.navigate('RouteMap', { data, source, destination })} variant="outline" style={{ marginBottom: 10 }} />
         <Btn label="✅ Book This Transport" onPress={() => navigation.navigate('BookTransport', { data, source, destination, material, tons })} />
       </ScrollView>
     </SafeAreaView>
