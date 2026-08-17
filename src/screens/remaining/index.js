@@ -1,5 +1,6 @@
 import { getProfile, saveProfile } from '../../config/UserStore';
 import { translate } from '../../config/i18n';
+import { useLang } from '../../context/LanguageContext';
 import * as Print from 'expo-print';
 import * as Sharing from 'expo-sharing';
 import * as FileSystem from 'expo-file-system';
@@ -1065,6 +1066,7 @@ export function FeedbackScreen({ navigation }) {
 // ════════════════════════════════════════════════════════
 
 export function ProfileScreen({ navigation }) {
+  const { t } = useLang();
   const [profile, setProfile] = useState(null);
   const [loading, setLoading] = useState(true);
 
@@ -1088,10 +1090,10 @@ export function ProfileScreen({ navigation }) {
   }, []);
 
   const handleLogout = async () => {
-    Alert.alert('Logout', 'Are you sure you want to logout?', [
-      { text: 'Cancel', style: 'cancel' },
+    Alert.alert(t('logout'), 'Are you sure you want to logout?', [
+      { text: t('cancel'), style: 'cancel' },
       {
-        text: 'Logout', style: 'destructive', onPress: async () => {
+        text: t('logout'), style: 'destructive', onPress: async () => {
           await signOut(auth);
           navigation.replace('Login');
         }
@@ -1100,15 +1102,15 @@ export function ProfileScreen({ navigation }) {
   };
 
   const menuItems = [
-    { icon: '✏️', label: 'Edit Profile', sub: 'Update name, photo, contact', route: 'EditProfile' },
-    { icon: '🏢', label: 'Company Details', sub: 'GST, address, registration', route: 'CompanyDetails' },
-    { icon: '🪪', label: 'KYC & Vehicle Documents', sub: 'Official PAN, Aadhaar, Vehicle RC • Verified ✓', color: colors.green, route: 'KYCDocuments' },
-    { icon: '💳', label: 'Payment Methods', sub: 'UPI, bank accounts', route: 'PaymentMethods' },
-    { icon: '🔔', label: 'Notification Preferences', sub: '', route: 'Notifications' },
-    { icon: '⚙️', label: 'Settings', sub: '', route: 'Settings' },
-    { icon: '❓', label: 'Help & Support', sub: '', route: null },
-    { icon: 'ℹ️', label: 'About LogiRoute', sub: 'v1.0.0', route: null },
-    { icon: '🚪', label: 'Logout', sub: '', color: colors.red, route: null, action: handleLogout },
+    { icon: '✏️', label: t('editProfile'), sub: t('editProfileSub'), route: 'EditProfile' },
+    { icon: '🏢', label: t('companyDetails'), sub: t('companyDetailsSub'), route: 'CompanyDetails' },
+    { icon: '🪪', label: t('kycDocs'), sub: `${t('kycDocsSub')} • ${profile?.verified ? t('verifiedBadge') + ' ✓' : t('pendingBadge')}`, color: colors.green, route: 'KYCDocuments' },
+    { icon: '💳', label: t('paymentMethods'), sub: t('paymentMethodsSub'), route: 'PaymentMethods' },
+    { icon: '🔔', label: t('notificationPrefs'), sub: '', route: 'Notifications' },
+    { icon: '⚙️', label: t('settings'), sub: '', route: 'Settings' },
+    { icon: '❓', label: t('helpSupport'), sub: '', route: null },
+    { icon: 'ℹ️', label: t('aboutApp'), sub: 'v1.0.0', route: null },
+    { icon: '🚪', label: t('logout'), sub: '', color: colors.red, route: null, action: handleLogout },
   ];
 
   return (
@@ -1123,10 +1125,10 @@ export function ProfileScreen({ navigation }) {
           ) : (
             <>
               <Text style={{ fontSize: 20, fontWeight: '800', color: colors.text }}>{profile?.name || 'User'}</Text>
-              <Text style={{ fontSize: 13, color: colors.sub, marginTop: 4 }}>{profile?.type === 'driver' ? 'Driver' : 'Company Manager'} · {profile?.city || auth.currentUser?.email}</Text>
+              <Text style={{ fontSize: 13, color: colors.sub, marginTop: 4 }}>{profile?.type === 'driver' ? t('driverLabel') : 'Company Manager'} · {profile?.city || auth.currentUser?.email}</Text>
               <View style={{ flexDirection: 'row', gap: 8, marginTop: 10 }}>
-                <Badge label={profile?.type === 'driver' ? '🚛 Driver' : '🏢 Company'} type="yellow" />
-                <Badge label={profile?.verified ? '✓ Verified' : '⏳ Pending'} type={profile?.verified ? 'green' : 'default'} />
+                <Badge label={profile?.type === 'driver' ? '🚛 ' + t('driverLabel') : '🏢 ' + t('companyLabel')} type="yellow" />
+                <Badge label={profile?.verified ? '✓ ' + t('verifiedBadge') : '⏳ ' + t('pendingBadge')} type={profile?.verified ? 'green' : 'default'} />
               </View>
             </>
           )}
@@ -1151,6 +1153,7 @@ export function ProfileScreen({ navigation }) {
 }
 
 export function SettingsScreen({ navigation }) {
+  const { setLang } = useLang();
   const [notifs, setNotifs] = useState(true);
   const [email, setEmail] = useState(true);
   const [sms, setSms] = useState(false);
@@ -1179,13 +1182,17 @@ export function SettingsScreen({ navigation }) {
 
   useEffect(() => {
     getProfile().then(p => {
-      if (p.language) setLanguage(p.language);
+      if (p.language) {
+        setLanguage(p.language);
+        setLang(p.language);
+      }
       if (p.currency) setCurrency(p.currency);
     });
   }, []);
 
   const handleSelectLanguage = async (code) => {
     setLanguage(code);
+    setLang(code);
     await saveProfile({ language: code });
     setLangModalVisible(false);
     const selected = languages.find(l => l.code === code);
