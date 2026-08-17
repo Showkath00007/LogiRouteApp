@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, SafeAreaView, TouchableOpacity, Alert, ActivityIndicator } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, SafeAreaView, TouchableOpacity, Alert, ActivityIndicator, ImageBackground } from 'react-native';
 import { colors, radius, shadow } from '../../theme';
 import { Btn, Input, Card, BackBtn, Chip } from '../../components';
 import { MATERIALS } from '../../data';
@@ -56,61 +56,71 @@ export function LoginScreen({ navigation }) {
 
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: colors.bg }}>
-      <ScrollView contentContainerStyle={screen} keyboardShouldPersistTaps="handled">
-        <View style={{ marginBottom: 32, marginTop: 20 }}>
-          <Text style={h1}>Welcome Back 👋</Text>
-          <Text style={subText}>Login to your account</Text>
-        </View>
+      <ImageBackground
+        source={{ uri: 'https://images.unsplash.com/photo-151900372282fc-91489002c0c7?q=80&w=1200&auto=format&fit=crop' }}
+        style={{ flex: 1 }}
+        resizeMode="cover"
+      >
+        <View style={{ flex: 1, backgroundColor: 'rgba(11, 15, 25, 0.65)' }}>
+          <ScrollView contentContainerStyle={[screen, { justifyContent: 'center', paddingVertical: 40 }]} keyboardShouldPersistTaps="handled">
+            <Card style={{ backgroundColor: 'rgba(21, 27, 44, 0.88)', borderColor: 'rgba(255, 255, 255, 0.08)', borderWidth: 1.5, ...shadow.lg, padding: 24 }}>
+              <View style={{ marginBottom: 20 }}>
+                <Text style={[h1, { color: colors.white }]}>Welcome Back 👋</Text>
+                <Text style={[subText, { color: colors.sub, marginBottom: 0 }]}>Login to your account</Text>
+              </View>
 
-        {/* Company / Driver toggle */}
-        <View style={{ flexDirection: 'row', backgroundColor: colors.surface2, borderRadius: radius.full, padding: 4, marginBottom: 24 }}>
-          <View style={{ flex: 1, backgroundColor: colors.accent, borderRadius: radius.full, paddingVertical: 8, alignItems: 'center' }}>
-            <Text style={{ fontSize: 13, fontWeight: '800', color: colors.bg }}>🏢 Company</Text>
-          </View>
-          <TouchableOpacity
-            style={{ flex: 1, paddingVertical: 8, alignItems: 'center' }}
-            onPress={() => navigation.replace('DriverLogin')}>
-            <Text style={{ fontSize: 13, fontWeight: '700', color: colors.sub }}>🚛 Driver</Text>
-          </TouchableOpacity>
-        </View>
+              {/* Company / Driver toggle */}
+              <View style={{ flexDirection: 'row', backgroundColor: 'rgba(255, 255, 255, 0.08)', borderRadius: radius.full, padding: 4, marginBottom: 24 }}>
+                <View style={{ flex: 1, backgroundColor: colors.accent, borderRadius: radius.full, paddingVertical: 8, alignItems: 'center' }}>
+                  <Text style={{ fontSize: 13, fontWeight: '800', color: colors.white }}>🏢 Company</Text>
+                </View>
+                <TouchableOpacity
+                  style={{ flex: 1, paddingVertical: 8, alignItems: 'center' }}
+                  onPress={() => navigation.replace('DriverLogin')}>
+                  <Text style={{ fontSize: 13, fontWeight: '700', color: 'rgba(255, 255, 255, 0.6)' }}>🚛 Driver</Text>
+                </TouchableOpacity>
+              </View>
 
-        <Text style={s.label}>EMAIL</Text>
-        <Input
-          placeholder="Enter email address"
-          value={email}
-          onChangeText={setEmail}
-          keyboardType="email-address"
-          autoCapitalize="none"
-        />
-        <Text style={s.label}>PASSWORD</Text>
-        <Input
-          placeholder="Enter password"
-          value={password}
-          onChangeText={setPassword}
-          secureTextEntry
-        />
-        <TouchableOpacity
-          onPress={() => navigation.navigate('ForgotPassword')}
-          style={{ alignSelf: 'flex-end', marginBottom: 20, marginTop: -4 }}>
-          <Text style={{ color: colors.accent, fontSize: 13 }}>Forgot Password?</Text>
-        </TouchableOpacity>
-        {error ? (
-          <View style={{ backgroundColor: colors.red + '18', borderRadius: 10, padding: 12, marginBottom: 12, borderWidth: 1, borderColor: colors.red + '44' }}>
-            <Text style={{ color: colors.red, fontSize: 13, fontWeight: '600', textAlign: 'center' }}>⚠ {error}</Text>
-          </View>
-        ) : null}
-        {loading ? (
-          <ActivityIndicator size="large" color={colors.accent} style={{ marginVertical: 16 }} />
-        ) : (
-          <Btn label="Login" onPress={handleLogin} />
-        )}
-        <View style={s.orRow}>
-          <View style={s.line} />
-          <Text style={s.or}>or</Text>
-          <View style={s.line} />
+              <Text style={s.label}>EMAIL</Text>
+              <Input
+                placeholder="Enter email address"
+                value={email}
+                onChangeText={setEmail}
+                keyboardType="email-address"
+                autoCapitalize="none"
+              />
+              <Text style={s.label}>PASSWORD</Text>
+              <Input
+                placeholder="Enter password"
+                value={password}
+                onChangeText={setPassword}
+                secureTextEntry
+              />
+              <TouchableOpacity
+                onPress={() => navigation.navigate('ForgotPassword')}
+                style={{ alignSelf: 'flex-end', marginBottom: 20, marginTop: -4 }}>
+                <Text style={{ color: colors.accent, fontSize: 13 }}>Forgot Password?</Text>
+              </TouchableOpacity>
+              {error ? (
+                <View style={{ backgroundColor: colors.red + '18', borderRadius: 10, padding: 12, marginBottom: 12, borderWidth: 1, borderColor: colors.red + '44' }}>
+                  <Text style={{ color: colors.red, fontSize: 13, fontWeight: '600', textAlign: 'center' }}>⚠ {error}</Text>
+                </View>
+              ) : null}
+              {loading ? (
+                <ActivityIndicator size="large" color={colors.accent} style={{ marginVertical: 16 }} />
+              ) : (
+                <Btn label="Login" onPress={handleLogin} />
+              )}
+              <View style={s.orRow}>
+                <View style={[s.line, { backgroundColor: 'rgba(255, 255, 255, 0.1)' }]} />
+                <Text style={[s.or, { color: colors.muted }]}>or</Text>
+                <View style={[s.line, { backgroundColor: 'rgba(255, 255, 255, 0.1)' }]} />
+              </View>
+              <Btn label="Create New Account" onPress={() => navigation.navigate('Register')} variant="ghost" style={{ borderColor: 'rgba(255,255,255,0.15)', borderWidth: 1.5 }} />
+            </Card>
+          </ScrollView>
         </View>
-        <Btn label="Create New Account" onPress={() => navigation.navigate('Register')} variant="outline" />
-      </ScrollView>
+      </ImageBackground>
     </SafeAreaView>
   );
 }
@@ -150,56 +160,66 @@ export function DriverLoginScreen({ navigation }) {
 
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: colors.bg }}>
-      <ScrollView contentContainerStyle={screen} keyboardShouldPersistTaps="handled">
-        <View style={{ marginBottom: 32, marginTop: 20 }}>
-          <Text style={h1}>Driver Login 🚛</Text>
-          <Text style={subText}>Access your driver account</Text>
-        </View>
+      <ImageBackground
+        source={{ uri: 'https://images.unsplash.com/photo-151900372282fc-91489002c0c7?q=80&w=1200&auto=format&fit=crop' }}
+        style={{ flex: 1 }}
+        resizeMode="cover"
+      >
+        <View style={{ flex: 1, backgroundColor: 'rgba(11, 15, 25, 0.65)' }}>
+          <ScrollView contentContainerStyle={[screen, { justifyContent: 'center', paddingVertical: 40 }]} keyboardShouldPersistTaps="handled">
+            <Card style={{ backgroundColor: 'rgba(21, 27, 44, 0.88)', borderColor: 'rgba(255, 255, 255, 0.08)', borderWidth: 1.5, ...shadow.lg, padding: 24 }}>
+              <View style={{ marginBottom: 20 }}>
+                <Text style={[h1, { color: colors.white }]}>Driver Login 🚛</Text>
+                <Text style={[subText, { color: colors.sub, marginBottom: 0 }]}>Access your driver account</Text>
+              </View>
 
-        {/* Company / Driver toggle */}
-        <View style={{ flexDirection: 'row', backgroundColor: colors.surface2, borderRadius: radius.full, padding: 4, marginBottom: 24 }}>
-          <TouchableOpacity
-            style={{ flex: 1, paddingVertical: 8, alignItems: 'center' }}
-            onPress={() => navigation.replace('Login')}>
-            <Text style={{ fontSize: 13, fontWeight: '700', color: colors.sub }}>🏢 Company</Text>
-          </TouchableOpacity>
-          <View style={{ flex: 1, backgroundColor: colors.green, borderRadius: radius.full, paddingVertical: 8, alignItems: 'center' }}>
-            <Text style={{ fontSize: 13, fontWeight: '800', color: colors.bg }}>🚛 Driver</Text>
-          </View>
-        </View>
+              {/* Company / Driver toggle */}
+              <View style={{ flexDirection: 'row', backgroundColor: 'rgba(255, 255, 255, 0.08)', borderRadius: radius.full, padding: 4, marginBottom: 24 }}>
+                <TouchableOpacity
+                  style={{ flex: 1, paddingVertical: 8, alignItems: 'center' }}
+                  onPress={() => navigation.replace('Login')}>
+                  <Text style={{ fontSize: 13, fontWeight: '700', color: 'rgba(255, 255, 255, 0.6)' }}>🏢 Company</Text>
+                </TouchableOpacity>
+                <View style={{ flex: 1, backgroundColor: colors.green, borderRadius: radius.full, paddingVertical: 8, alignItems: 'center' }}>
+                  <Text style={{ fontSize: 13, fontWeight: '800', color: colors.white }}>🚛 Driver</Text>
+                </View>
+              </View>
 
-        <Text style={s.label}>EMAIL</Text>
-        <Input
-          placeholder="Enter your email"
-          value={email}
-          onChangeText={setEmail}
-          keyboardType="email-address"
-          autoCapitalize="none"
-        />
-        <Text style={s.label}>PASSWORD</Text>
-        <Input
-          placeholder="Enter password"
-          value={password}
-          onChangeText={setPassword}
-          secureTextEntry
-        />
-        <TouchableOpacity
-          onPress={() => navigation.navigate('ForgotPassword')}
-          style={{ alignSelf: 'flex-end', marginBottom: 20, marginTop: -4 }}>
-          <Text style={{ color: colors.green, fontSize: 13 }}>Forgot Password?</Text>
-        </TouchableOpacity>
-        {loading ? (
-          <ActivityIndicator size="large" color={colors.green} style={{ marginVertical: 16 }} />
-        ) : (
-          <Btn label="Driver Login 🚛" onPress={handleDriverLogin} style={{ backgroundColor: colors.green }} />
-        )}
-        <View style={s.orRow}>
-          <View style={s.line} />
-          <Text style={s.or}>or</Text>
-          <View style={s.line} />
+              <Text style={s.label}>EMAIL</Text>
+              <Input
+                placeholder="Enter your email"
+                value={email}
+                onChangeText={setEmail}
+                keyboardType="email-address"
+                autoCapitalize="none"
+              />
+              <Text style={s.label}>PASSWORD</Text>
+              <Input
+                placeholder="Enter password"
+                value={password}
+                onChangeText={setPassword}
+                secureTextEntry
+              />
+              <TouchableOpacity
+                onPress={() => navigation.navigate('ForgotPassword')}
+                style={{ alignSelf: 'flex-end', marginBottom: 20, marginTop: -4 }}>
+                <Text style={{ color: colors.green, fontSize: 13 }}>Forgot Password?</Text>
+              </TouchableOpacity>
+              {loading ? (
+                <ActivityIndicator size="large" color={colors.green} style={{ marginVertical: 16 }} />
+              ) : (
+                <Btn label="Driver Login 🚛" onPress={handleDriverLogin} style={{ backgroundColor: colors.green }} />
+              )}
+              <View style={s.orRow}>
+                <View style={[s.line, { backgroundColor: 'rgba(255, 255, 255, 0.1)' }]} />
+                <Text style={[s.or, { color: colors.muted }]}>or</Text>
+                <View style={[s.line, { backgroundColor: 'rgba(255, 255, 255, 0.1)' }]} />
+              </View>
+              <Btn label="Register as Driver" onPress={() => navigation.navigate('DriverRegister')} variant="ghost" style={{ borderColor: 'rgba(255,255,255,0.15)', borderWidth: 1.5 }} />
+            </Card>
+          </ScrollView>
         </View>
-        <Btn label="Register as Driver" onPress={() => navigation.navigate('DriverRegister')} variant="outline" />
-      </ScrollView>
+      </ImageBackground>
     </SafeAreaView>
   );
 }
@@ -275,37 +295,52 @@ export function DriverRegisterScreen({ navigation }) {
 
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: colors.bg }}>
-      <ScrollView contentContainerStyle={screen} keyboardShouldPersistTaps="handled">
-        <BackBtn onPress={() => navigation.goBack()} />
-        <Text style={h1}>Driver Registration 🚛</Text>
-        <Text style={subText}>Create your driver account</Text>
-        <Input placeholder="Full Name" value={name} onChangeText={setName} />
-        <Input placeholder="Email Address" value={email} onChangeText={setEmail} keyboardType="email-address" autoCapitalize="none" />
-        <Input placeholder="Phone Number" value={phone} onChangeText={setPhone} keyboardType="phone-pad" />
-        <Input placeholder="Vehicle Number (e.g. TN-01-AB-1234)" value={vehicle} onChangeText={setVehicle} autoCapitalize="characters" />
-        <Input placeholder="Password" value={password} onChangeText={setPassword} secureTextEntry />
-        <Input placeholder="Confirm Password" value={confirmPassword} onChangeText={setConfirmPassword} secureTextEntry />
-        <TouchableOpacity
-          onPress={() => setAgreed(!agreed)}
-          style={{ flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 20 }}>
-          <View style={[s.checkbox, agreed && { backgroundColor: colors.green, borderColor: colors.green }]}>
-            {agreed && <Text style={{ fontSize: 12, color: colors.bg }}>✓</Text>}
-          </View>
-          <Text style={{ fontSize: 13, color: colors.sub, flex: 1 }}>
-            I agree to <Text style={{ color: colors.green }}>Terms & Privacy Policy</Text>
-          </Text>
-        </TouchableOpacity>
-        {loading ? (
-          <ActivityIndicator size="large" color={colors.green} style={{ marginVertical: 16 }} />
-        ) : (
-          <Btn label="Create Driver Account →" onPress={handleRegister} style={{ backgroundColor: colors.green }} />
-        )}
-        <TouchableOpacity onPress={() => navigation.navigate('DriverLogin')} style={{ marginTop: 16, alignItems: 'center' }}>
-          <Text style={{ fontSize: 13, color: colors.sub }}>
-            Already have an account? <Text style={{ color: colors.green }}>Login →</Text>
-          </Text>
-        </TouchableOpacity>
-      </ScrollView>
+      <ImageBackground
+        source={{ uri: 'https://images.unsplash.com/photo-151900372282fc-91489002c0c7?q=80&w=1200&auto=format&fit=crop' }}
+        style={{ flex: 1 }}
+        resizeMode="cover"
+      >
+        <View style={{ flex: 1, backgroundColor: 'rgba(11, 15, 25, 0.65)' }}>
+          <ScrollView contentContainerStyle={[screen, { justifyContent: 'center', paddingVertical: 40 }]} keyboardShouldPersistTaps="handled">
+            <Card style={{ backgroundColor: 'rgba(21, 27, 44, 0.88)', borderColor: 'rgba(255, 255, 255, 0.08)', borderWidth: 1.5, ...shadow.lg, padding: 24 }}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12, marginBottom: 20 }}>
+                <BackBtn onPress={() => navigation.goBack()} style={{ marginBottom: 0 }} />
+                <View>
+                  <Text style={[h1, { color: colors.white, marginBottom: 0 }]}>Driver Register 🚛</Text>
+                  <Text style={[subText, { color: colors.sub, marginBottom: 0 }]}>Create your driver account</Text>
+                </View>
+              </View>
+
+              <Input placeholder="Full Name" value={name} onChangeText={setName} />
+              <Input placeholder="Email Address" value={email} onChangeText={setEmail} keyboardType="email-address" autoCapitalize="none" />
+              <Input placeholder="Phone Number" value={phone} onChangeText={setPhone} keyboardType="phone-pad" />
+              <Input placeholder="Vehicle Number (e.g. TN-01-AB-1234)" value={vehicle} onChangeText={setVehicle} autoCapitalize="characters" />
+              <Input placeholder="Password" value={password} onChangeText={setPassword} secureTextEntry />
+              <Input placeholder="Confirm Password" value={confirmPassword} onChangeText={setConfirmPassword} secureTextEntry />
+              <TouchableOpacity
+                onPress={() => setAgreed(!agreed)}
+                style={{ flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 20 }}>
+                <View style={[s.checkbox, agreed && { backgroundColor: colors.green, borderColor: colors.green }]}>
+                  {agreed && <Text style={{ fontSize: 12, color: colors.bg }}>✓</Text>}
+                </View>
+                <Text style={{ fontSize: 13, color: colors.sub, flex: 1 }}>
+                  I agree to <Text style={{ color: colors.green }}>Terms & Privacy Policy</Text>
+                </Text>
+              </TouchableOpacity>
+              {loading ? (
+                <ActivityIndicator size="large" color={colors.green} style={{ marginVertical: 16 }} />
+              ) : (
+                <Btn label="Create Driver Account →" onPress={handleRegister} style={{ backgroundColor: colors.green }} />
+              )}
+              <TouchableOpacity onPress={() => navigation.navigate('DriverLogin')} style={{ marginTop: 16, alignItems: 'center' }}>
+                <Text style={{ fontSize: 13, color: colors.sub }}>
+                  Already have an account? <Text style={{ color: colors.green }}>Login →</Text>
+                </Text>
+              </TouchableOpacity>
+            </Card>
+          </ScrollView>
+        </View>
+      </ImageBackground>
     </SafeAreaView>
   );
 }
@@ -366,31 +401,46 @@ export function RegisterScreen({ navigation }) {
 
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: colors.bg }}>
-      <ScrollView contentContainerStyle={screen} keyboardShouldPersistTaps="handled">
-        <BackBtn onPress={() => navigation.goBack()} />
-        <Text style={h1}>Create Account</Text>
-        <Text style={subText}>Join LogiRoute today</Text>
-        <Input placeholder="Full Name" value={name} onChangeText={setName} />
-        <Input placeholder="Email Address" value={email} onChangeText={setEmail} keyboardType="email-address" autoCapitalize="none" />
-        <Input placeholder="Phone Number" value={phone} onChangeText={setPhone} keyboardType="phone-pad" />
-        <Input placeholder="Password" value={password} onChangeText={setPassword} secureTextEntry />
-        <Input placeholder="Confirm Password" value={confirmPassword} onChangeText={setConfirmPassword} secureTextEntry />
-        <TouchableOpacity
-          onPress={() => setAgreed(!agreed)}
-          style={{ flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 20 }}>
-          <View style={[s.checkbox, agreed && { backgroundColor: colors.accent }]}>
-            {agreed && <Text style={{ fontSize: 12, color: colors.bg }}>✓</Text>}
-          </View>
-          <Text style={{ fontSize: 13, color: colors.sub, flex: 1 }}>
-            I agree to <Text style={{ color: colors.accent }}>Terms & Privacy Policy</Text>
-          </Text>
-        </TouchableOpacity>
-        {loading ? (
-          <ActivityIndicator size="large" color={colors.accent} style={{ marginVertical: 16 }} />
-        ) : (
-          <Btn label="Create Account →" onPress={handleRegister} />
-        )}
-      </ScrollView>
+      <ImageBackground
+        source={{ uri: 'https://images.unsplash.com/photo-151900372282fc-91489002c0c7?q=80&w=1200&auto=format&fit=crop' }}
+        style={{ flex: 1 }}
+        resizeMode="cover"
+      >
+        <View style={{ flex: 1, backgroundColor: 'rgba(11, 15, 25, 0.65)' }}>
+          <ScrollView contentContainerStyle={[screen, { justifyContent: 'center', paddingVertical: 40 }]} keyboardShouldPersistTaps="handled">
+            <Card style={{ backgroundColor: 'rgba(21, 27, 44, 0.88)', borderColor: 'rgba(255, 255, 255, 0.08)', borderWidth: 1.5, ...shadow.lg, padding: 24 }}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12, marginBottom: 20 }}>
+                <BackBtn onPress={() => navigation.goBack()} style={{ marginBottom: 0 }} />
+                <View>
+                  <Text style={[h1, { color: colors.white, marginBottom: 0 }]}>Create Account</Text>
+                  <Text style={[subText, { color: colors.sub, marginBottom: 0 }]}>Join LogiRoute today</Text>
+                </View>
+              </View>
+
+              <Input placeholder="Full Name" value={name} onChangeText={setName} />
+              <Input placeholder="Email Address" value={email} onChangeText={setEmail} keyboardType="email-address" autoCapitalize="none" />
+              <Input placeholder="Phone Number" value={phone} onChangeText={setPhone} keyboardType="phone-pad" />
+              <Input placeholder="Password" value={password} onChangeText={setPassword} secureTextEntry />
+              <Input placeholder="Confirm Password" value={confirmPassword} onChangeText={setConfirmPassword} secureTextEntry />
+              <TouchableOpacity
+                onPress={() => setAgreed(!agreed)}
+                style={{ flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 20 }}>
+                <View style={[s.checkbox, agreed && { backgroundColor: colors.accent }]}>
+                  {agreed && <Text style={{ fontSize: 12, color: colors.bg }}>✓</Text>}
+                </View>
+                <Text style={{ fontSize: 13, color: colors.sub, flex: 1 }}>
+                  I agree to <Text style={{ color: colors.accent }}>Terms & Privacy Policy</Text>
+                </Text>
+              </TouchableOpacity>
+              {loading ? (
+                <ActivityIndicator size="large" color={colors.accent} style={{ marginVertical: 16 }} />
+              ) : (
+                <Btn label="Create Account →" onPress={handleRegister} />
+              )}
+            </Card>
+          </ScrollView>
+        </View>
+      </ImageBackground>
     </SafeAreaView>
   );
 }
