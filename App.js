@@ -63,6 +63,7 @@ import FeedbackScreen from './src/screens/history/FeedbackScreen';
 import ProfileScreen from './src/screens/profile/ProfileScreen';
 import SettingsScreen from './src/screens/profile/SettingsScreen';
 import NotificationsScreen from './src/screens/profile/NotificationsScreen';
+import HelpSupportScreen from './src/screens/profile/HelpSupportScreen';
 import ChatScreen from './src/screens/ChatScreen';
 import QRScannerScreen from './src/screens/QRScannerScreen';
 import EditProfileScreen from './src/screens/profile/EditProfileScreen';
@@ -135,6 +136,7 @@ export default function App() {
           <Stack.Screen name="Profile" component={ProfileScreen} />
           <Stack.Screen name="Settings" component={SettingsScreen} />
           <Stack.Screen name="Notifications" component={NotificationsScreen} />
+          <Stack.Screen name="HelpSupport" component={HelpSupportScreen} />
           <Stack.Screen name="Chat" component={ChatScreen} />
           <Stack.Screen name="QRScanner" component={QRScannerScreen} options={{ animation: 'slide_from_bottom' }} />
           <Stack.Screen name="EditProfile" component={EditProfileScreen} />
