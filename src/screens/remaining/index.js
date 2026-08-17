@@ -5,7 +5,7 @@ import * as Print from 'expo-print';
 import * as Sharing from 'expo-sharing';
 import * as FileSystem from 'expo-file-system';
 import React, { useState, useEffect, useRef } from 'react';
-import { View, Text, StyleSheet, ScrollView, SafeAreaView, TouchableOpacity, Alert, ActivityIndicator, TextInput, Modal } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, SafeAreaView, TouchableOpacity, Alert, ActivityIndicator, TextInput, Modal, Image } from 'react-native';
 import { colors, radius, shadow } from '../../theme';
 import { Btn, Card, StatCard, Badge, SectionLabel, BackBtn, Divider, ListItem, Input, CostHero, ProgressBar, NotifCard } from '../../components';
 import { MOCK_DRIVERS, MOCK_WEATHER, MOCK_HISTORY } from '../../data';
@@ -1071,23 +1071,23 @@ export function ProfileScreen({ navigation }) {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const mockProfile = { name: 'Kadiyala Logistics', company: 'Kadiyala Transport Co.', email: 'admin@logiroute.in', phone: '+91 93928 59818', city: 'Chennai', gst: '33ABCDE1234F1Z5', type: 'company', verified: true };
-    // Safety timeout — show mock data if Firebase doesn't respond in 2s
-    const timeout = setTimeout(() => {
-      setProfile(mockProfile);
-      setLoading(false);
-    }, 2000);
-    getUserProfile().then(p => {
-      clearTimeout(timeout);
-      setProfile(p || mockProfile);
-      setLoading(false);
-    }).catch(() => {
-      clearTimeout(timeout);
-      setProfile(mockProfile);
-      setLoading(false);
-    });
-    return () => clearTimeout(timeout);
-  }, []);
+    const loadProfile = async () => {
+      try {
+        const local = await getProfile();
+        const fb = await getUserProfile().catch(() => null);
+        setProfile({ ...local, ...fb, avatar: local?.avatar || fb?.avatar });
+      } catch (e) {
+        const local = await getProfile();
+        setProfile(local);
+      } finally {
+        setLoading(false);
+      }
+    };
+    // Reload profile details whenever screen focuses
+    const unsub = navigation.addListener('focus', loadProfile);
+    loadProfile();
+    return unsub;
+  }, [navigation]);
 
   const handleLogout = async () => {
     Alert.alert(t('logout'), 'Are you sure you want to logout?', [
@@ -1118,8 +1118,12 @@ export function ProfileScreen({ navigation }) {
       <ScrollView contentContainerStyle={screen()}>
         <BackBtn onPress={() => navigation.goBack()} style={{ alignSelf: 'flex-start', marginBottom: 8 }} />
         <View style={{ alignItems: 'center', paddingVertical: 20 }}>
-          <View style={{ width: 80, height: 80, borderRadius: 40, backgroundColor: colors.accent, alignItems: 'center', justifyContent: 'center', marginBottom: 12 }}>
-            <Text style={{ fontSize: 40 }}>👤</Text>
+          <View style={{ width: 80, height: 80, borderRadius: 40, backgroundColor: colors.accent, alignItems: 'center', justifyContent: 'center', marginBottom: 12, overflow: 'hidden', borderWidth: 2, borderColor: colors.accent + '33' }}>
+            {profile?.avatar ? (
+              <Image source={{ uri: profile.avatar }} style={{ width: 80, height: 80 }} />
+            ) : (
+              <Text style={{ fontSize: 40 }}>👤</Text>
+            )}
           </View>
           {loading ? (
             <ActivityIndicator color={colors.accent} />
