@@ -1155,6 +1155,50 @@ export function SettingsScreen({ navigation }) {
   const [sms, setSms] = useState(false);
   const [biometric, setBiometric] = useState(false);
 
+  const [language, setLanguage] = useState('en');
+  const [currency, setCurrency] = useState('INR');
+
+  const [langModalVisible, setLangModalVisible] = useState(false);
+  const [currModalVisible, setCurrModalVisible] = useState(false);
+
+  const languages = [
+    { name: 'English', code: 'en', native: 'English' },
+    { name: 'Hindi', code: 'hi', native: 'हिन्दी' },
+    { name: 'Tamil', code: 'ta', native: 'தமிழ்' },
+    { name: 'Telugu', code: 'te', native: 'తెలుగు' },
+    { name: 'Kannada', code: 'kn', native: 'ಕನ್ನಡ' }
+  ];
+
+  const currencies = [
+    { name: 'Indian Rupee', code: 'INR', symbol: '₹' },
+    { name: 'US Dollar', code: 'USD', symbol: '$' },
+    { name: 'Euro', code: 'EUR', symbol: '€' },
+    { name: 'British Pound', code: 'GBP', symbol: '£' }
+  ];
+
+  useEffect(() => {
+    getProfile().then(p => {
+      if (p.language) setLanguage(p.language);
+      if (p.currency) setCurrency(p.currency);
+    });
+  }, []);
+
+  const handleSelectLanguage = async (code) => {
+    setLanguage(code);
+    await saveProfile({ language: code });
+    setLangModalVisible(false);
+    const selected = languages.find(l => l.code === code);
+    Alert.alert('Language Updated', `System language set to ${selected?.native || selected?.name}.`);
+  };
+
+  const handleSelectCurrency = async (code) => {
+    setCurrency(code);
+    await saveProfile({ currency: code });
+    setCurrModalVisible(false);
+    const selected = currencies.find(c => c.code === code);
+    Alert.alert('Currency Updated', `Default system currency set to ${selected?.code} (${selected?.symbol}).`);
+  };
+
   const Toggle = ({ value, onToggle }) => (
     <TouchableOpacity onPress={onToggle} style={{ width: 44, height: 24, borderRadius: 12, backgroundColor: value ? colors.accent : colors.surface3, justifyContent: 'center', paddingHorizontal: 3 }}>
       <View style={{ width: 18, height: 18, borderRadius: 9, backgroundColor: '#fff', alignSelf: value ? 'flex-end' : 'flex-start' }} />
@@ -1167,6 +1211,9 @@ export function SettingsScreen({ navigation }) {
       { text: 'Logout', style: 'destructive', onPress: async () => { await signOut(auth); navigation.replace('Login'); } },
     ]);
   };
+
+  const activeLangName = languages.find(l => l.code === language)?.native || 'English';
+  const activeCurrSymbol = currencies.find(c => c.code === currency)?.code || 'INR';
 
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: colors.bg }}>
@@ -1181,9 +1228,21 @@ export function SettingsScreen({ navigation }) {
             <Toggle value={val} onToggle={() => setter(!val)} />
           </View>
         ))}
+
         <SectionLabel label="Display" style={{ marginTop: 16 }} />
-        <ListItem left={<Text style={{ fontSize: 20 }}>🌍</Text>} title="Language" right={<Text style={{ fontSize: 13, color: colors.sub }}>English ›</Text>} />
-        <ListItem left={<Text style={{ fontSize: 20 }}>💰</Text>} title="Currency" right={<Text style={{ fontSize: 13, color: colors.sub }}>INR ›</Text>} />
+        <ListItem
+          left={<Text style={{ fontSize: 20 }}>🌍</Text>}
+          title="Language"
+          right={<Text style={{ fontSize: 13, color: colors.sub }}>{activeLangName} ›</Text>}
+          onPress={() => setLangModalVisible(true)}
+        />
+        <ListItem
+          left={<Text style={{ fontSize: 20 }}>💰</Text>}
+          title="Currency"
+          right={<Text style={{ fontSize: 13, color: colors.sub }}>{activeCurrSymbol} ›</Text>}
+          onPress={() => setCurrModalVisible(true)}
+        />
+
         <SectionLabel label="Security" style={{ marginTop: 8 }} />
         <ListItem left={<Text style={{ fontSize: 20 }}>🔒</Text>} title="Change Password" right={<Text style={{ fontSize: 16, color: colors.muted }}>›</Text>} onPress={() => navigation.navigate('ResetPassword')} />
         <View style={{ flexDirection: 'row', alignItems: 'center', paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: colors.border }}>
@@ -1192,6 +1251,81 @@ export function SettingsScreen({ navigation }) {
           <Toggle value={biometric} onToggle={() => setBiometric(!biometric)} />
         </View>
         <ListItem left={<Text style={{ fontSize: 20 }}>🚪</Text>} title={<Text style={{ color: colors.red, fontSize: 14, fontWeight: '600' }}>Logout</Text>} style={{ marginTop: 8 }} right={<Text style={{ fontSize: 16, color: colors.muted }}>›</Text>} onPress={handleLogout} />
+
+        {/* Language Selection Modal */}
+        <Modal visible={langModalVisible} transparent animationType="slide">
+          <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'flex-end' }}>
+            <View style={{ backgroundColor: '#FFFFFF', borderTopLeftRadius: 24, borderTopRightRadius: 24, padding: 24, maxHeight: '80%' }}>
+              <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 18 }}>
+                <Text style={{ fontSize: 18, fontWeight: '900', color: '#1A1A2E' }}>Select Language</Text>
+                <TouchableOpacity onPress={() => setLangModalVisible(false)} style={{ padding: 4 }}>
+                  <Text style={{ fontSize: 20, color: '#94A3B8' }}>✕</Text>
+                </TouchableOpacity>
+              </View>
+
+              {languages.map(l => (
+                <TouchableOpacity
+                  key={l.code}
+                  onPress={() => handleSelectLanguage(l.code)}
+                  style={{
+                    flexDirection: 'row',
+                    justifyContent: 'space-between',
+                    alignItems: 'center',
+                    paddingVertical: 16,
+                    borderBottomWidth: 1,
+                    borderBottomColor: '#F1F5F9'
+                  }}
+                >
+                  <View style={{ flexDirection: 'row', alignItems: 'baseline', gap: 8 }}>
+                    <Text style={{ fontSize: 15, fontWeight: '800', color: '#1E293B' }}>{l.name}</Text>
+                    <Text style={{ fontSize: 13, color: '#64748B' }}>({l.native})</Text>
+                  </View>
+                  {language === l.code && <Text style={{ fontSize: 16, color: colors.accent, fontWeight: '900' }}>✓</Text>}
+                </TouchableOpacity>
+              ))}
+            </View>
+          </View>
+        </Modal>
+
+        {/* Currency Selection Modal */}
+        <Modal visible={currModalVisible} transparent animationType="slide">
+          <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'flex-end' }}>
+            <View style={{ backgroundColor: '#FFFFFF', borderTopLeftRadius: 24, borderTopRightRadius: 24, padding: 24, maxHeight: '80%' }}>
+              <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 18 }}>
+                <Text style={{ fontSize: 18, fontWeight: '900', color: '#1A1A2E' }}>Select Default Currency</Text>
+                <TouchableOpacity onPress={() => setCurrModalVisible(false)} style={{ padding: 4 }}>
+                  <Text style={{ fontSize: 20, color: '#94A3B8' }}>✕</Text>
+                </TouchableOpacity>
+              </View>
+
+              {currencies.map(c => (
+                <TouchableOpacity
+                  key={c.code}
+                  onPress={() => handleSelectCurrency(c.code)}
+                  style={{
+                    flexDirection: 'row',
+                    justifyContent: 'space-between',
+                    alignItems: 'center',
+                    paddingVertical: 16,
+                    borderBottomWidth: 1,
+                    borderBottomColor: '#F1F5F9'
+                  }}
+                >
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
+                    <View style={{ width: 36, height: 36, borderRadius: 18, backgroundColor: '#EFF6FF', alignItems: 'center', justifyContent: 'center' }}>
+                      <Text style={{ fontSize: 16, fontWeight: '900', color: '#1D4ED8' }}>{c.symbol}</Text>
+                    </View>
+                    <View>
+                      <Text style={{ fontSize: 14, fontWeight: '800', color: '#1E293B' }}>{c.name}</Text>
+                      <Text style={{ fontSize: 12, color: '#64748B', marginTop: 1 }}>{c.code}</Text>
+                    </View>
+                  </View>
+                  {currency === c.code && <Text style={{ fontSize: 16, color: colors.accent, fontWeight: '900' }}>✓</Text>}
+                </TouchableOpacity>
+              ))}
+            </View>
+          </View>
+        </Modal>
       </ScrollView>
     </SafeAreaView>
   );
