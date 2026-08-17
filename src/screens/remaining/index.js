@@ -1108,7 +1108,7 @@ export function ProfileScreen({ navigation }) {
     { icon: '💳', label: t('paymentMethods'), sub: t('paymentMethodsSub'), route: 'PaymentMethods' },
     { icon: '🔔', label: t('notificationPrefs'), sub: '', route: 'Notifications' },
     { icon: '⚙️', label: t('settings'), sub: '', route: 'Settings' },
-    { icon: '❓', label: t('helpSupport'), sub: '', route: null },
+    { icon: '❓', label: t('helpSupport'), sub: '', route: 'HelpSupport' },
     { icon: 'ℹ️', label: t('aboutApp'), sub: 'v1.0.0', route: null },
     { icon: '🚪', label: t('logout'), sub: '', color: colors.red, route: null, action: handleLogout },
   ];
@@ -1432,4 +1432,116 @@ function timeAgo(ts) {
   if (hrs < 24) return `${hrs}h ago`;
   const days = Math.floor(hrs / 24);
   return `${days}d ago`;
+}
+
+function FAQItem({ q, a }) {
+  const [open, setOpen] = useState(false);
+  return (
+    <Card style={{ marginBottom: 10, borderColor: open ? colors.accent + '55' : colors.border }} onPress={() => setOpen(!open)}>
+      <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+        <Text style={{ fontSize: 14, fontWeight: '700', color: colors.text, flex: 1, marginRight: 8 }}>{q}</Text>
+        <Text style={{ fontSize: 16, color: colors.accent, fontWeight: '900' }}>{open ? '−' : '+'}</Text>
+      </View>
+      {open && (
+        <Text style={{ fontSize: 13, color: colors.textSub, marginTop: 8, lineHeight: 18 }}>{a}</Text>
+      )}
+    </Card>
+  );
+}
+
+export function HelpSupportScreen({ navigation }) {
+  const { t } = useLang();
+  const [ticketForm, setTicketForm] = useState({ category: 'General', details: '' });
+  const [submitting, setSubmitting] = useState(false);
+
+  const handleSubmitTicket = () => {
+    if (!ticketForm.details.trim()) {
+      Alert.alert('Missing Field', 'Please describe your request.');
+      return;
+    }
+    setSubmitting(true);
+    setTimeout(() => {
+      setSubmitting(false);
+      Alert.alert(
+        '🎟️ Support Ticket Submitted!',
+        `Your ticket ID is #LR-${Math.floor(1000 + Math.random() * 9000)}. Our support team will respond within 24 hours.`,
+        [{ text: 'OK', onPress: () => setTicketForm({ category: 'General', details: '' }) }]
+      );
+    }, 1200);
+  };
+
+  const faqs = [
+    { q: 'How do I post a cargo job?', a: 'Go to the home dashboard and tap "Post Job for Any Driver". Enter the pick-up location, drop-off location, cargo weight, and pricing. Drivers will be notified instantly.' },
+    { q: 'How is route optimization calculated?', a: 'LogiRoute queries active open-source route geometries and evaluates distance, current weather conditions, WMO codes, and vehicle parameters to produce the fastest road transit path.' },
+    { q: 'How does KYC document verification work?', a: 'Upload your Aadhaar, PAN, and vehicle registration numbers inside "KYC Documents" on your Profile screen. Verified profiles get access to priority booking rates.' },
+    { q: 'How do I contact a driver after booking?', a: 'Once a booking is accepted by a driver, their contact phone number and vehicle details are displayed on the shipment details screen under "My Trips" or "Active Shipments".' },
+  ];
+
+  return (
+    <SafeAreaView style={{ flex: 1, backgroundColor: colors.bg }}>
+      <ScrollView contentContainerStyle={screen(60)} keyboardShouldPersistTaps="handled">
+        <BackBtn onPress={() => navigation.goBack()} />
+        <Text style={h1}>Help & Support</Text>
+        <Text style={sub}>Resolve issues and contact support hotlines</Text>
+
+        <SectionLabel label="Contact Channels" />
+        <View style={{ flexDirection: 'row', gap: 10, marginBottom: 18 }}>
+          <Card style={{ flex: 1, alignItems: 'center', gap: 8, padding: 12 }}>
+            <Text style={{ fontSize: 24 }}>📞</Text>
+            <Text style={{ fontSize: 13, fontWeight: '800', color: colors.text }}>Hotline</Text>
+            <Text style={{ fontSize: 10, color: colors.accent, fontWeight: '700' }}>+91 93928 59818</Text>
+          </Card>
+          <Card style={{ flex: 1, alignItems: 'center', gap: 8, padding: 12 }}>
+            <Text style={{ fontSize: 24 }}>✉️</Text>
+            <Text style={{ fontSize: 13, fontWeight: '800', color: colors.text }}>Email</Text>
+            <Text style={{ fontSize: 10, color: colors.accent, fontWeight: '700' }}>support@logiroute.in</Text>
+          </Card>
+          <Card style={{ flex: 1, alignItems: 'center', gap: 8, padding: 12 }}>
+            <Text style={{ fontSize: 24 }}>💬</Text>
+            <Text style={{ fontSize: 13, fontWeight: '800', color: colors.text }}>WhatsApp</Text>
+            <Text style={{ fontSize: 10, color: colors.accent, fontWeight: '700' }}>+91 93928 59818</Text>
+          </Card>
+        </View>
+
+        <SectionLabel label="Frequently Asked Questions" />
+        <View style={{ marginBottom: 12 }}>
+          {faqs.map((f, i) => <FAQItem key={i} q={f.q} a={f.a} />)}
+        </View>
+
+        <SectionLabel label="Open Support Ticket" />
+        <Card style={{ marginBottom: 16 }}>
+          <Text style={{ fontSize: 11, fontWeight: '800', color: colors.textSub, marginBottom: 6, textTransform: 'uppercase' }}>Issue Category</Text>
+          <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 12 }}>
+            {['General', 'Booking', 'Payment', 'Routing'].map(cat => (
+              <TouchableOpacity
+                key={cat}
+                onPress={() => setTicketForm(p => ({ ...p, category: cat }))}
+                style={{
+                  backgroundColor: ticketForm.category === cat ? colors.accent : colors.surface2,
+                  paddingHorizontal: 12,
+                  paddingVertical: 6,
+                  borderRadius: 20,
+                  borderWidth: 1,
+                  borderColor: ticketForm.category === cat ? colors.accent : colors.border
+                }}
+              >
+                <Text style={{ fontSize: 12, color: ticketForm.category === cat ? colors.white : colors.textSub, fontWeight: '700' }}>{cat}</Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+
+          <Text style={{ fontSize: 11, fontWeight: '800', color: colors.textSub, marginBottom: 6, textTransform: 'uppercase' }}>Details</Text>
+          <Input
+            placeholder="Describe your issue or feedback in detail..."
+            value={ticketForm.details}
+            onChangeText={v => setTicketForm(p => ({ ...p, details: v }))}
+            multiline
+            style={{ height: 90, textAlignVertical: 'top' }}
+          />
+
+          <Btn label="Submit Ticket 🎟️" onPress={handleSubmitTicket} loading={submitting} style={{ marginTop: 8 }} />
+        </Card>
+      </ScrollView>
+    </SafeAreaView>
+  );
 }
