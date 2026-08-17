@@ -3,6 +3,7 @@ import { View, Text, ScrollView, SafeAreaView, TouchableOpacity, Alert, Activity
 import { colors } from '../../theme';
 import { BackBtn, Input, Btn, SectionLabel } from '../../components';
 import { getProfile, saveProfile } from '../../config/UserStore';
+import { saveUserProfile, getUserProfile } from '../../config/firebaseService';
 import * as ImagePicker from 'expo-image-picker';
 
 export default function EditProfileScreen({ navigation }) {
@@ -13,18 +14,27 @@ export default function EditProfileScreen({ navigation }) {
   const set = (key, val) => setForm(prev => ({ ...prev, [key]: val }));
 
   useEffect(() => {
-    getProfile().then(p => {
-      setForm({
-        name: p.name || '',
-        company: p.company || '',
-        phone: p.phone || '',
-        email: p.email || '',
-        city: p.city || '',
-        gst: p.gst || '',
-        avatar: p.avatar || ''
-      });
-      setLoading(false);
-    });
+    const loadProfile = async () => {
+      try {
+        const fb = await getUserProfile().catch(() => null);
+        const local = await getProfile().catch(() => null);
+        const data = { ...local, ...fb, avatar: local?.avatar || fb?.avatar };
+        setForm({
+          name: data.name || '',
+          company: data.company || '',
+          phone: data.phone || '',
+          email: data.email || '',
+          city: data.city || '',
+          gst: data.gst || '',
+          avatar: data.avatar || ''
+        });
+      } catch (e) {
+        // Fallback
+      } finally {
+        setLoading(false);
+      }
+    };
+    loadProfile();
   }, []);
 
   const pickImage = async () => {
@@ -53,17 +63,28 @@ export default function EditProfileScreen({ navigation }) {
   const handleSave = async () => {
     if (!form.name.trim()) { Alert.alert('Missing Field', 'Please enter your name.'); return; }
     setSaving(true);
-    await saveProfile({
-      name: form.name.trim(),
-      company: form.company.trim(),
-      phone: form.phone.trim(),
-      email: form.email.trim(),
-      city: form.city.trim(),
-      gst: form.gst.trim(),
-      avatar: form.avatar
-    });
-    setSaving(false);
-    Alert.alert('✅ Profile Updated!', 'Your changes have been saved successfully.', [{ text: 'OK', onPress: () => navigation.goBack() }]);
+    try {
+      const payload = {
+        name: form.name.trim(),
+        company: form.company.trim(),
+        phone: form.phone.trim(),
+        email: form.email.trim(),
+        city: form.city.trim(),
+        gst: form.gst.trim(),
+        avatar: form.avatar
+      };
+      
+      // 1. Save locally to AsyncStorage
+      await saveProfile(payload);
+      // 2. Save globally to Firebase database
+      await saveUserProfile(payload).catch(() => null);
+
+      setSaving(false);
+      Alert.alert('✅ Profile Updated!', 'Your changes have been saved successfully.', [{ text: 'OK', onPress: () => navigation.goBack() }]);
+    } catch (e) {
+      setSaving(false);
+      Alert.alert('Error', 'Could not save profile changes.');
+    }
   };
 
   if (loading) return (
