@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, ScrollView, SafeAreaView, TouchableOpacity, FlatList, ActivityIndicator, Alert } from 'react-native';
+import { useLang } from '../../context/LanguageContext';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { colors, radius, shadow } from '../../theme';
 import { Btn, Card, StatCard, Badge, SectionLabel, ProgressBar, BackBtn, BottomNav, ListItem, Divider, TransportIcon, CostHero, Chip, Input } from '../../components';
@@ -16,6 +17,7 @@ const TRANSPORT_COLOR = { truck: colors.orange, train: colors.blue, ship: colors
 
 // S11 — Company Dashboard
 export function CompanyDashboard({ navigation }) {
+  const { t } = useLang();
   const [activeTab, setActiveTab] = useState('home');
   const [shipments, setShipments] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -69,7 +71,7 @@ export function CompanyDashboard({ navigation }) {
       <ScrollView contentContainerStyle={screen(60)}>
         <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
           <View>
-            <Text style={{ fontSize: 13, color: colors.sub }}>Good Morning 👋</Text>
+            <Text style={{ fontSize: 13, color: colors.sub }}>{t('goodMorning')}</Text>
             <Text style={{ fontSize: 22, fontWeight: '900', color: colors.text }}>Kadiyala Logistics</Text>
           </View>
           <TouchableOpacity onPress={() => navigation.navigate('Profile')} style={{ width: 44, height: 44, backgroundColor: colors.accent, borderRadius: radius.full, alignItems: 'center', justifyContent: 'center' }}>
@@ -78,17 +80,17 @@ export function CompanyDashboard({ navigation }) {
         </View>
 
         <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 10, marginBottom: 14 }}>
-          <StatCard icon="📦" value={String(activeCount)} label="Active" color={colors.blue} style={{ width: '47%' }} />
-          <StatCard icon="💰" value={thisMonthLabel} label="This Month" color={colors.green} style={{ width: '47%' }} />
+          <StatCard icon="📦" value={String(activeCount)} label={t('activeShipments')} color={colors.blue} style={{ width: '47%' }} />
+          <StatCard icon="💰" value={thisMonthLabel} label={t('minCost')} color={colors.green} style={{ width: '47%' }} />
           <StatCard icon="⏱" value="—" label="On Time" color={colors.accent} style={{ width: '47%' }} />
           <TouchableOpacity style={{ width: '47%' }} onPress={() => navigation.navigate('Notifications')}>
-            <StatCard icon="🔔" value={String(unreadAlerts)} label="Alerts" color={colors.orange} />
+            <StatCard icon="🔔" value={String(unreadAlerts)} label={t('notifications')} color={colors.orange} />
           </TouchableOpacity>
         </View>
 
         <View style={{ flexDirection: 'row', gap: 10, marginBottom: 16 }}>
-          <Btn label="+ New Shipment" onPress={() => navigation.navigate('NewShipment')} style={{ flex: 1, marginBottom: 0, paddingVertical: 12 }} />
-          <Btn label="⚡ Optimize" onPress={() => navigation.navigate('Optimizer')} variant="outline" style={{ flex: 1, marginBottom: 0, paddingVertical: 12 }} />
+          <Btn label={t('newShipment')} onPress={() => navigation.navigate('NewShipment')} style={{ flex: 1, marginBottom: 0, paddingVertical: 12 }} />
+          <Btn label={t('optimizeRoute')} onPress={() => navigation.navigate('Optimizer')} variant="outline" style={{ flex: 1, marginBottom: 0, paddingVertical: 12 }} />
         </View>
         <Btn label="📢 Post Job for Any Driver" onPress={() => navigation.navigate('PostJob')} variant="outline" style={{ marginBottom: 14 }} />
 

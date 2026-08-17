@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, ScrollView, SafeAreaView, TouchableOpacity, ActivityIndicator, FlatList, Platform } from 'react-native';
+import { useLang } from '../../context/LanguageContext';
 import { colors, radius, shadow } from '../../theme';
 import { Btn, Card, StatCard, Badge, SectionLabel, BackBtn, Divider, TransportIcon, CostHero, Chip, Input } from '../../components';
 import { MATERIALS, apiOptimize } from '../../data';
@@ -10,6 +11,7 @@ const sub = { fontSize: 13, color: colors.sub, marginBottom: 20 };
 
 // S25 — Route Optimizer
 export function OptimizerScreen({ navigation }) {
+  const { t } = useLang();
   const [material, setMaterial] = useState('Steel');
   const [tons, setTons] = useState('');
   const [source, setSource] = useState('');
@@ -60,14 +62,14 @@ export function OptimizerScreen({ navigation }) {
             <Text style={{ fontSize: 22 }}>🚚</Text>
           </View>
           <View>
-            <Text style={{ fontSize: 20, fontWeight: '900', color: colors.text }}>Route Optimizer</Text>
+            <Text style={{ fontSize: 20, fontWeight: '900', color: colors.text }}>{t('optimize')}</Text>
             <Text style={{ fontSize: 12, color: colors.sub }}>Find the best route & freight cost</Text>
           </View>
         </View>
 
         {/* Material */}
         <Card>
-          <SectionLabel label="Material" />
+          <SectionLabel label={t('material')} />
           <View style={{ flexDirection: 'row', gap: 8 }}>
             {MATERIALS.map(m => (
               <TouchableOpacity key={m.id} onPress={() => setMaterial(m.id)} style={{ flex: 1, backgroundColor: material === m.id ? m.color + '22' : colors.surface2, borderWidth: material === m.id ? 2 : 1, borderColor: material === m.id ? m.color : colors.border, borderRadius: 8, paddingVertical: 10, alignItems: 'center' }}>
@@ -92,7 +94,7 @@ export function OptimizerScreen({ navigation }) {
 
         {/* Route */}
         <Card>
-          <SectionLabel label="Route" />
+          <SectionLabel label={t('route')} />
           <View style={{ flexDirection: 'row', gap: 12, alignItems: 'flex-start' }}>
             <View style={{ alignItems: 'center', paddingTop: 14, gap: 4 }}>
               <View style={{ width: 10, height: 10, borderRadius: 5, backgroundColor: colors.green }} />
@@ -101,7 +103,7 @@ export function OptimizerScreen({ navigation }) {
             </View>
             <View style={{ flex: 1 }}>
               <View>
-                <Input placeholder="Source city..." value={source} onChangeText={fetchSrc} style={{ marginBottom: 0 }} />
+                <Input placeholder={t('source')} value={source} onChangeText={fetchSrc} style={{ marginBottom: 0 }} />
                 {srcSuggestions.length > 0 && (
                   <View style={sug.wrap}>
                     {srcSuggestions.map((s, i) => (
@@ -114,7 +116,7 @@ export function OptimizerScreen({ navigation }) {
               </View>
               <View style={{ height: 10 }} />
               <View>
-                <Input placeholder="Destination city..." value={destination} onChangeText={fetchDst} style={{ marginBottom: 0 }} />
+                <Input placeholder={t('destination')} value={destination} onChangeText={fetchDst} style={{ marginBottom: 0 }} />
                 {dstSuggestions.length > 0 && (
                   <View style={sug.wrap}>
                     {dstSuggestions.map((s, i) => (
@@ -130,7 +132,7 @@ export function OptimizerScreen({ navigation }) {
         </Card>
 
         {error ? <Text style={{ color: colors.red, fontSize: 13, marginBottom: 10 }}>{error}</Text> : null}
-        <Btn label="⚡ Optimize Route" onPress={optimize} loading={loading} />
+        <Btn label={t('optimizeRoute')} onPress={optimize} loading={loading} />
 
         {/* Quick Features */}
         <View style={{ flexDirection: 'row', gap: 10, marginTop: 4 }}>

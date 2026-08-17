@@ -1,4 +1,5 @@
-import React, { createContext, useContext, useState } from 'react';
+import React, { createContext, useContext, useState, useEffect } from 'react';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const translations = {
   en: {
@@ -69,7 +70,7 @@ const translations = {
     password: 'கடவுச்சொல்',
     forgotPassword: 'கடவுச்சொல் மறந்தீர்களா?',
     welcome: 'மீண்டும் வருக 👋',
-    loginSub: 'உங்கள் கணக்கில் உள்நுழைக',
+    loginSub: 'உங்கள் கணக்கில் உள்நுழைக்க',
     dashboard: 'டாஷ்போர்டு',
     shipments: 'ஏற்றுமதிகள்',
     optimize: 'உகந்தமாக்கு',
@@ -82,7 +83,7 @@ const translations = {
     payment: 'கட்டணம்',
     confirmed: 'பதிவு உறுதிப்படுத்தப்பட்டது!',
     weather: 'வானிலை',
-    history: 'வரலாறு',
+    history: 'வரಲಾறு',
     notifications: 'அறிவிப்புகள்',
     settings: 'அமைப்புகள்',
     logout: 'வெளியேறு',
@@ -115,7 +116,7 @@ const translations = {
     scanQR: 'QR குறியீட்டை ஸ்கேன் செய்',
     offline: 'நீங்கள் ஆஃப்லைனில் இருக்கிறீர்கள்',
     offlineSub: 'தற்காலிக தரவு காட்டப்படுகிறது',
-    adminPanel: 'நிர்வாக பலகம்',
+    adminPanel: 'நிರ್வாக பலகம்',
   },
   hi: {
     appName: 'LogiRoute',
@@ -175,12 +176,138 @@ const translations = {
     offlineSub: 'कैश्ड डेटा दिखाया जा रहा है',
     adminPanel: 'एडमिन पैनल',
   },
+  te: {
+    appName: 'LogiRoute',
+    tagline: 'స్మార్ట్ లాజిస్టికస్ ఆప్టిమైజర్',
+    getStarted: 'ప్రారంభించండి',
+    login: 'లాగిన్',
+    register: 'ఖాతా సృష్టించండి',
+    email: 'ఈమెయిల్ / ఫోన్',
+    password: 'పాస్‌వర్డ్',
+    forgotPassword: 'పాస్‌వర్డ్ మర్చిపోయారా?',
+    welcome: 'స్వాగతం 👋',
+    loginSub: 'మీ ఖాతాకు లాగిన్ అవ్వండి',
+    dashboard: 'డాష్‌బోర్డ్',
+    shipments: 'రవాణా జాబితా',
+    optimize: 'ఆప్టిమైజ్',
+    analytics: 'విశ్లేషణలు',
+    profile: 'ప్రొఫైల్',
+    newShipment: 'కొత్త రవాణా',
+    activeShipments: 'సక్రియ రవాణా',
+    trackLive: 'లైవ్ ట్రాక్',
+    bookTransport: 'రవాణా బుకింగ్',
+    payment: 'చెల్లింపు',
+    confirmed: 'బుకింగ్ ఖరారైంది!',
+    weather: 'వాతావరణం',
+    history: 'చరిత్ర',
+    notifications: 'నోటిఫికేషన్లు',
+    settings: 'సెట్టింగులు',
+    logout: 'లాగౌట్',
+    source: 'బయలుదేరే నగరం...',
+    destination: 'చేరుకునే నగరం...',
+    optimizeRoute: '⚡ రూట్ ఆప్టిమైజ్ చేయి',
+    material: 'సరుకు రకం',
+    route: 'మార్గం',
+    distance: 'దూరం',
+    estTime: 'సమయం',
+    transport: 'రవాణా మార్గం',
+    minCost: 'కనీస ఖర్చు',
+    viewMap: '🗺 మ్యాప్ చూడండి',
+    compareAll: '📊 ఖర్చులను సరిపోల్చండి',
+    bookThis: '✅ ఈ రవాణాని బుక్ చేయి',
+    driver: 'డ్రైవర్',
+    earnings: 'సంపాదన',
+    myTrips: 'నా ప్రయాణాలు',
+    jobs: 'జాబ్స్',
+    vehicle: 'వాహన స్థితి',
+    goodMorning: 'శుభోదయం 👋',
+    noAlerts: 'వాతావరణ హెచ్చరికలు లేవు. సురక్షితం.',
+    selectMaterial: 'సరుకును ఎంచుకోండి',
+    proceed: 'చెల్లింపునకు వెళ్లండి',
+    payNow: '🔒 చెల్లించండి',
+    back: '← వెనక్కి',
+    skip: 'వదిలేయండి',
+    next: 'తరువాత →',
+    chat: 'చాట్',
+    scanQR: 'QR కోడ్ స్కాన్ చేయి',
+    offline: 'మీరు ఆఫ్ లైన్ లో ఉన్నారు',
+    offlineSub: 'పాత సమాచారం చూపబడుతోంది',
+    adminPanel: 'అడ్మిన్ ప్యానెల్',
+  },
+  kn: {
+    appName: 'LogiRoute',
+    tagline: 'ಸ್ಮಾರ್ಟ್ ಲಾಜಿಸ್ಟಿಕ್ಸ್ ಆಪ್ಟಿಮೈಜರ್',
+    getStarted: 'ಪ್ರಾರಂಭಿಸಿ',
+    login: 'ಲಾಗಿನ್',
+    register: 'ಖಾತೆ ತೆರೆಯಿರಿ',
+    email: 'ಇಮೇಲ್ / ಫೋನ್ ಸಂಖ್ಯೆ',
+    password: 'ಪಾಸ್ವರ್ಡ್',
+    forgotPassword: 'ಪಾಸ್ವರ್ಡ್ ಮರೆತಿರಾ?',
+    welcome: 'ಸ್ವಾಗತ 👋',
+    loginSub: 'ನಿಮ್ಮ ಖಾತೆಗೆ ಲಾಗಿನ್ ಮಾಡಿ',
+    dashboard: 'ಡ್ಯಾಶ್‌ಬೋರ್ಡ್',
+    shipments: 'ಸಾಗಣೆಗಳು',
+    optimize: 'ಆಪ್ಟಿಮೈಜ್',
+    analytics: 'ವಿಶ್ಲೇಷಣೆ',
+    profile: 'ಪ್ರೊಫೈಲ್',
+    newShipment: 'ಹೊಸ ಸಾಗಣೆ',
+    activeShipments: 'ಸಕ್ರಿಯ ಸಾಗಣೆಗಳು',
+    trackLive: 'ಲೈವ್ ಟ್ರ್ಯಾಕ್',
+    bookTransport: 'ಬುಕಿಂಗ್ ಮಾಡಿ',
+    payment: 'ಪಾವತಿ',
+    confirmed: 'ಬುಕಿಂಗ್ ಖಚಿತಪಟ್ಟಿದೆ!',
+    weather: 'ಹವಾಮಾನ',
+    history: 'ಇತಿಹಾಸ',
+    notifications: 'ಅಧಿಸೂಚನೆಗಳು',
+    settings: 'ಸೆಟ್ಟಿಂಗ್ಸ್',
+    logout: 'ಲಾಗ್ಔಟ್',
+    source: 'ಹೊರಡುವ ಸ್ಥಳ...',
+    destination: 'ತಲುಪುವ ಸ್ಥಳ...',
+    optimizeRoute: '⚡ ಮಾರ್ಗ ಆಪ್ಟಿಮೈಜ್ ಮಾಡಿ',
+    material: 'ಸರಕು ಪ್ರಕಾರ',
+    route: 'ಮಾರ್ಗ',
+    distance: 'ದೂರ',
+    estTime: 'ಅಂದಾಜು ಸಮಯ',
+    transport: 'ಸಾರಿಗೆ',
+    minCost: 'ಕನಿಷ್ಠ ವೆಚ್ಚ',
+    viewMap: '🗺 ನಕ್ಷೆ ವೀಕ್ಷಿಸಿ',
+    compareAll: '📊 ವೆಚ್ಚಗಳನ್ನು ಹೋಲಿಸಿ',
+    bookThis: '✅ ಸಾರಿಗೆ ಕಾಯ್ದಿರಿಸಿ',
+    driver: 'ಚಾಲಕ',
+    earnings: 'ಗಳಿಕೆ',
+    myTrips: 'ನನ್ನ ಪ್ರವಾಸಗಳು',
+    jobs: 'ಲಭ್ಯವಿರುವ ಕೆಲಸಗಳು',
+    vehicle: 'ವಾಹನದ ವಿವರ',
+    goodMorning: 'ಶುಭ ಮುಂಜಾನೆ 👋',
+    noAlerts: 'ಯಾವುದೇ ಹವಾಮಾನ ಮುನ್ನೆಚ್ಚರಿಕೆ ಇಲ್ಲ.',
+    selectMaterial: 'ಸರಕು ಆಯ್ಕೆ ಮಾಡಿ',
+    proceed: 'ಪಾವತಿಗೆ ಮುಂದುವರಿಯಿರಿ',
+    payNow: '🔒 ಪಾವತಿಸಿ',
+    back: '← ಹಿಂದೆ',
+    skip: 'ವಜಾಗೊಳಿಸಿ',
+    next: 'ಮುಂದೆ →',
+    chat: 'ಚಾಟ್',
+    scanQR: 'QR ಕೋಡ್ ಸ್ಕ್ಯಾನ್ ಮಾಡಿ',
+    offline: 'ನೀವು ಆಫ್‌ಲೈನ್‌ನಲ್ಲಿದ್ದೀರಿ',
+    offlineSub: 'ಹಳೆಯ ಡೇಟಾ ತೋರಿಸಲಾಗುತ್ತಿದೆ',
+    adminPanel: 'ನಿರ್ವಾಹಕ ಫಲಕ',
+  }
 };
 
 const LangContext = createContext();
 
 export function LanguageProvider({ children }) {
   const [lang, setLang] = useState('en');
+
+  useEffect(() => {
+    AsyncStorage.getItem('logiroute_user_profile').then(raw => {
+      if (raw) {
+        const parsed = JSON.parse(raw);
+        if (parsed.language) setLang(parsed.language);
+      }
+    });
+  }, []);
+
   const t = (key) => translations[lang]?.[key] || translations.en[key] || key;
   return (
     <LangContext.Provider value={{ lang, setLang, t, translations }}>
@@ -202,11 +329,19 @@ export function LanguageSelector() {
     { id: 'en', label: 'EN', flag: '🇬🇧', name: 'English' },
     { id: 'ta', label: 'தமிழ்', flag: '🇮🇳', name: 'Tamil' },
     { id: 'hi', label: 'हिंदी', flag: '🇮🇳', name: 'Hindi' },
+    { id: 'te', label: 'తెలుగు', flag: '🇮🇳', name: 'Telugu' },
+    { id: 'kn', label: 'ಕನ್ನಡ', flag: '🇮🇳', name: 'Kannada' }
   ];
   return (
     <View style={ls.row}>
       {options.map(opt => (
-        <TouchableOpacity key={opt.id} onPress={() => setLang(opt.id)} style={[ls.btn, lang === opt.id && ls.btnActive]}>
+        <TouchableOpacity key={opt.id} onPress={() => {
+          setLang(opt.id);
+          AsyncStorage.getItem('logiroute_user_profile').then(raw => {
+            const current = raw ? JSON.parse(raw) : {};
+            AsyncStorage.setItem('logiroute_user_profile', JSON.stringify({ ...current, language: opt.id }));
+          });
+        }} style={[ls.btn, lang === opt.id && ls.btnActive]}>
           <Text style={ls.flag}>{opt.flag}</Text>
           <Text style={[ls.label, lang === opt.id && ls.labelActive]}>{opt.label}</Text>
         </TouchableOpacity>
