@@ -164,17 +164,13 @@ export function ResultScreen({ navigation, route }) {
   const shipAvailable = isPort(source) && isPort(destination);
   const { MATERIALS: mats } = require('../../data');
   const matRate = mats?.find(m => m.id === material)?.rate || 8;
-  const bestTransport = data.best_transport === 'ship' && !shipAvailable ? 'train' : data.best_transport;
-  const bestCost = bestTransport !== data.best_transport
-    ? (data.distance || 1420) * matRate * 0.8 * (tons || 1)
-    : data.minimum_cost;
+  const bestTransport = 'truck';
+  const bestCost = (data.distance || 1420) * matRate * (tons || 1);
 
   const transportMeta = {
-    truck: { icon: '🚛', color: colors.orange, label: 'Road Freight', desc: 'Ideal for short-distance delivery under 100km.' },
-    train: { icon: '🚂', color: colors.blue, label: 'Rail Freight', desc: 'Efficient for medium distances 100–800km. Bulk transport.' },
-    ship: { icon: '🚢', color: colors.purple, label: 'Sea Freight', desc: 'Best for long-distance over 800km. Largest capacity.' },
+    truck: { icon: '🚛', color: colors.orange, label: 'Road Freight', desc: 'Ideal for shipping goods via road transport.' },
   };
-  const t = transportMeta[bestTransport] || transportMeta.train;
+  const t = transportMeta.truck;
 
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: colors.bg }}>
@@ -218,7 +214,6 @@ export function ResultScreen({ navigation, route }) {
           </View>
         </Card>
         <Btn label="🗺 View Route Map" onPress={() => navigation.navigate('RouteMap', { data, source, destination })} variant="blue" />
-        <Btn label="📊 Compare All Costs" onPress={() => navigation.navigate('Compare', { data, source, destination, material, tons })} variant="outline" />
         <Btn label="✅ Book This Transport" onPress={() => navigation.navigate('BookTransport', { data, source, destination, material, tons })} />
       </ScrollView>
     </SafeAreaView>
@@ -857,10 +852,10 @@ export function CompareScreen({ navigation, route }) {
 // S29 — Route History
 export function RouteHistoryScreen({ navigation }) {
   const history = [
-    { icon: '🚂', from: 'Mumbai', to: 'Delhi', material: 'Steel', date: 'Today', cost: 14200 },
+    { icon: '🚛', from: 'Mumbai', to: 'Delhi', material: 'Steel', date: 'Today', cost: 14200 },
     { icon: '🚛', from: 'Chennai', to: 'Bangalore', material: 'Cement', date: 'Yesterday', cost: 2076 },
-    { icon: '🚢', from: 'Kolkata', to: 'Mumbai', material: 'Coal', date: '2 days ago', cost: 9900 },
-    { icon: '🚂', from: 'Delhi', to: 'Hyderabad', material: 'Aluminium', date: '3 days ago', cost: 18000 },
+    { icon: '🚛', from: 'Kolkata', to: 'Mumbai', material: 'Coal', date: '2 days ago', cost: 9900 },
+    { icon: '🚛', from: 'Delhi', to: 'Hyderabad', material: 'Aluminium', date: '3 days ago', cost: 18000 },
     { icon: '🚛', from: 'Pune', to: 'Surat', material: 'Wood', date: '5 days ago', cost: 1680 },
   ];
   return (
@@ -892,9 +887,9 @@ export function RouteHistoryScreen({ navigation }) {
 // S30 — Saved Routes
 export function SavedRoutesScreen({ navigation }) {
   const saved = [
-    { from: 'Mumbai', to: 'Delhi', material: 'Steel', avg: 14200, last: 'Today', icon: '🚂' },
+    { from: 'Mumbai', to: 'Delhi', material: 'Steel', avg: 14200, last: 'Today', icon: '🚛' },
     { from: 'Chennai', to: 'Bangalore', material: 'Cement', avg: 2076, last: 'Yesterday', icon: '🚛' },
-    { from: 'Kolkata', to: 'Mumbai', material: 'Coal', avg: 9900, last: 'Last week', icon: '🚢' },
+    { from: 'Kolkata', to: 'Mumbai', material: 'Coal', avg: 9900, last: 'Last week', icon: '🚛' },
   ];
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: colors.bg }}>
