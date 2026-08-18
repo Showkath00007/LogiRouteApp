@@ -2,7 +2,7 @@
 import React, { useEffect, useRef } from 'react';
 import { View, Text, StyleSheet, Animated, TouchableOpacity, ScrollView, SafeAreaView } from 'react-native';
 import { colors, radius, shadow } from '../../theme';
-import { Btn } from '../../components';
+import { Btn, AppLogo } from '../../components';
 
 export function SplashScreen({ navigation }) {
   const scale = useRef(new Animated.Value(0.7)).current;
@@ -17,8 +17,8 @@ export function SplashScreen({ navigation }) {
   }, []);
   return (
     <View style={s.splash}>
-      <Animated.View style={[s.splashLogo, shadow.accent, { transform: [{ scale }], opacity }]}>
-        <Text style={{ fontSize: 44 }}>🚚</Text>
+      <Animated.View style={{ transform: [{ scale }], opacity, marginBottom: 20 }}>
+        <AppLogo size={90} />
       </Animated.View>
       <Animated.View style={{ opacity, alignItems: 'center' }}>
         <Text style={s.splashTitle}>LogiRoute</Text>

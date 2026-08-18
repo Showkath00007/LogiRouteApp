@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { View, Text, StyleSheet, ScrollView, SafeAreaView, TouchableOpacity, Alert, ActivityIndicator, ImageBackground } from 'react-native';
 import { colors, radius, shadow } from '../../theme';
-import { Btn, Input, Card, BackBtn, Chip } from '../../components';
+import { Btn, Input, Card, BackBtn, Chip, AppLogo } from '../../components';
 import { MATERIALS } from '../../data';
 import { auth } from '../../config/firebase';
 import {
@@ -64,9 +64,12 @@ export function LoginScreen({ navigation }) {
         <View style={{ flex: 1, backgroundColor: 'rgba(11, 15, 25, 0.65)' }}>
           <ScrollView contentContainerStyle={[screen, { justifyContent: 'center', paddingVertical: 40 }]} keyboardShouldPersistTaps="handled">
             <Card style={{ backgroundColor: 'rgba(21, 27, 44, 0.88)', borderColor: 'rgba(255, 255, 255, 0.08)', borderWidth: 1.5, ...shadow.lg, padding: 24 }}>
-              <View style={{ marginBottom: 20 }}>
-                <Text style={[h1, { color: colors.white }]}>Welcome Back 👋</Text>
-                <Text style={[subText, { color: colors.sub, marginBottom: 0 }]}>Login to your account</Text>
+              <View style={{ marginBottom: 20, alignItems: 'center' }}>
+                <View style={{ marginBottom: 16 }}>
+                  <AppLogo size={75} />
+                </View>
+                <Text style={[h1, { color: colors.white, textAlign: 'center', marginBottom: 6 }]}>Welcome Back 👋</Text>
+                <Text style={[subText, { color: colors.sub, marginBottom: 0, textAlign: 'center' }]}>Login to your account</Text>
               </View>
 
               {/* Company / Driver toggle */}
@@ -168,9 +171,12 @@ export function DriverLoginScreen({ navigation }) {
         <View style={{ flex: 1, backgroundColor: 'rgba(11, 15, 25, 0.65)' }}>
           <ScrollView contentContainerStyle={[screen, { justifyContent: 'center', paddingVertical: 40 }]} keyboardShouldPersistTaps="handled">
             <Card style={{ backgroundColor: 'rgba(21, 27, 44, 0.88)', borderColor: 'rgba(255, 255, 255, 0.08)', borderWidth: 1.5, ...shadow.lg, padding: 24 }}>
-              <View style={{ marginBottom: 20 }}>
-                <Text style={[h1, { color: colors.white }]}>Driver Login 🚛</Text>
-                <Text style={[subText, { color: colors.sub, marginBottom: 0 }]}>Access your driver account</Text>
+              <View style={{ marginBottom: 20, alignItems: 'center' }}>
+                <View style={{ marginBottom: 16 }}>
+                  <AppLogo size={75} />
+                </View>
+                <Text style={[h1, { color: colors.white, textAlign: 'center', marginBottom: 6 }]}>Driver Login 🚛</Text>
+                <Text style={[subText, { color: colors.sub, marginBottom: 0, textAlign: 'center' }]}>Access your driver account</Text>
               </View>
 
               {/* Company / Driver toggle */}
@@ -303,10 +309,13 @@ export function DriverRegisterScreen({ navigation }) {
         <View style={{ flex: 1, backgroundColor: 'rgba(11, 15, 25, 0.65)' }}>
           <ScrollView contentContainerStyle={[screen, { justifyContent: 'center', paddingVertical: 40 }]} keyboardShouldPersistTaps="handled">
             <Card style={{ backgroundColor: 'rgba(21, 27, 44, 0.88)', borderColor: 'rgba(255, 255, 255, 0.08)', borderWidth: 1.5, ...shadow.lg, padding: 24 }}>
-              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12, marginBottom: 20 }}>
-                <BackBtn onPress={() => navigation.goBack()} style={{ marginBottom: 0 }} />
+              <View style={{ marginBottom: 20 }}>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12, marginBottom: 12 }}>
+                  <BackBtn onPress={() => navigation.goBack()} style={{ marginBottom: 0 }} />
+                  <AppLogo size={46} />
+                </View>
                 <View>
-                  <Text style={[h1, { color: colors.white, marginBottom: 0 }]}>Driver Register 🚛</Text>
+                  <Text style={[h1, { color: colors.white, marginBottom: 2 }]}>Driver Register 🚛</Text>
                   <Text style={[subText, { color: colors.sub, marginBottom: 0 }]}>Create your driver account</Text>
                 </View>
               </View>
@@ -409,10 +418,13 @@ export function RegisterScreen({ navigation }) {
         <View style={{ flex: 1, backgroundColor: 'rgba(11, 15, 25, 0.65)' }}>
           <ScrollView contentContainerStyle={[screen, { justifyContent: 'center', paddingVertical: 40 }]} keyboardShouldPersistTaps="handled">
             <Card style={{ backgroundColor: 'rgba(21, 27, 44, 0.88)', borderColor: 'rgba(255, 255, 255, 0.08)', borderWidth: 1.5, ...shadow.lg, padding: 24 }}>
-              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12, marginBottom: 20 }}>
-                <BackBtn onPress={() => navigation.goBack()} style={{ marginBottom: 0 }} />
+              <View style={{ marginBottom: 20 }}>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12, marginBottom: 12 }}>
+                  <BackBtn onPress={() => navigation.goBack()} style={{ marginBottom: 0 }} />
+                  <AppLogo size={46} />
+                </View>
                 <View>
-                  <Text style={[h1, { color: colors.white, marginBottom: 0 }]}>Create Account</Text>
+                  <Text style={[h1, { color: colors.white, marginBottom: 2 }]}>Create Account</Text>
                   <Text style={[subText, { color: colors.sub, marginBottom: 0 }]}>Join LogiRoute today</Text>
                 </View>
               </View>

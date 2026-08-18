@@ -1,6 +1,7 @@
 import React, { useEffect, useRef } from 'react';
 import { View, Text, Animated, StyleSheet } from 'react-native';
 import { colors, fonts } from '../../theme';
+import { AppLogo } from '../../components';
 
 export default function SplashScreen({ navigation }) {
   const fade = useRef(new Animated.Value(0)).current;
@@ -26,15 +27,7 @@ export default function SplashScreen({ navigation }) {
 
       <Animated.View style={[s.logoWrap, { opacity: fade, transform: [{ scale }] }]}>
         {/* Logo */}
-        <View style={s.logoBox}>
-          <View style={s.logoInner}>
-            <Text style={s.logoIcon}>🚛</Text>
-          </View>
-          {/* Color dots */}
-          <View style={[s.dot, { backgroundColor: colors.orange, top: 0, right: 0 }]} />
-          <View style={[s.dot, { backgroundColor: colors.green, bottom: 0, left: 0 }]} />
-          <View style={[s.dot, { backgroundColor: colors.pink, bottom: 0, right: 0 }]} />
-        </View>
+        <AppLogo size={110} />
 
         <Animated.View style={{ transform: [{ translateY: slide }], alignItems: 'center' }}>
           <Text style={s.brand}>LogiRoute</Text>

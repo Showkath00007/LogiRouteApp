@@ -305,3 +305,51 @@ export function NotifCard({ icon, title, msg, time, color = colors.accent, unrea
     </View>
   );
 }
+
+// ── AppLogo (Premium Vector Branding) ───────────────────────────────────────────
+export function AppLogo({ size = 80 }) {
+  const innerSize = size * 0.85;
+  const radiusVal = size * 0.28;
+  return (
+    <View style={{
+      width: size,
+      height: size,
+      borderRadius: radiusVal,
+      backgroundColor: colors.accent,
+      alignItems: 'center',
+      justifyContent: 'center',
+      shadowColor: colors.accent,
+      shadowOffset: { width: 0, height: 8 },
+      shadowOpacity: 0.35,
+      shadowRadius: 15,
+      elevation: 8,
+    }}>
+      <View style={{
+        width: innerSize,
+        height: innerSize,
+        borderRadius: radiusVal * 0.9,
+        borderWidth: 2,
+        borderColor: 'rgba(255, 255, 255, 0.25)',
+        alignItems: 'center',
+        justifyContent: 'center'
+      }}>
+        <View style={{ width: '60%', height: '60%', position: 'relative' }}>
+          {/* Node 1 */}
+          <View style={{ position: 'absolute', top: 0, left: 0, width: 8, height: 8, borderRadius: 4, backgroundColor: colors.white }} />
+          {/* Path line 1 */}
+          <View style={{ position: 'absolute', top: 3, left: 6, width: '65%', height: 2, backgroundColor: 'rgba(255, 255, 255, 0.6)', transform: [{ rotate: '25deg' }] }} />
+          {/* Node 2 */}
+          <View style={{ position: 'absolute', top: '35%', right: 0, width: 10, height: 10, borderRadius: 5, backgroundColor: colors.orange, borderWidth: 1.5, borderColor: colors.white }} />
+          {/* Path line 2 */}
+          <View style={{ position: 'absolute', bottom: 6, left: 8, width: '55%', height: 2, backgroundColor: 'rgba(255, 255, 255, 0.6)', transform: [{ rotate: '-30deg' }] }} />
+          {/* Node 3 */}
+          <View style={{ position: 'absolute', bottom: 0, left: '20%', width: 7, height: 7, borderRadius: 3.5, backgroundColor: colors.green }} />
+          {/* Center delivery truck icon */}
+          <View style={{ position: 'absolute', top: '15%', left: '15%', alignItems: 'center', justifyContent: 'center', width: '70%', height: '70%' }}>
+            <Text style={{ fontSize: size * 0.32 }}>🚛</Text>
+          </View>
+        </View>
+      </View>
+    </View>
+  );
+}
