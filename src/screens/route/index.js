@@ -16,8 +16,10 @@ export function OptimizerScreen({ navigation }) {
   const [tons, setTons] = useState('');
   const [source, setSource] = useState('');
   const [destination, setDestination] = useState('');
+  const [stops, setStops] = useState([]);
   const [srcSuggestions, setSrcSuggestions] = useState([]);
   const [dstSuggestions, setDstSuggestions] = useState([]);
+  const [stopSuggestions, setStopSuggestions] = useState([[], [], []]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
@@ -37,14 +39,89 @@ export function OptimizerScreen({ navigation }) {
     setDstSuggestions(s);
   };
 
+  const fetchStop = async (q, index) => {
+    const updatedStops = [...stops];
+    updatedStops[index] = q;
+    setStops(updatedStops);
+
+    if (q.length < 2) {
+      const updatedSugs = [...stopSuggestions];
+      updatedSugs[index] = [];
+      setStopSuggestions(updatedSugs);
+      return;
+    }
+
+    const s = await apiAutocomplete(q);
+    const updatedSugs = [...stopSuggestions];
+    updatedSugs[index] = s;
+    setStopSuggestions(updatedSugs);
+  };
+
+  const selectStopValue = (value, index) => {
+    const updatedStops = [...stops];
+    updatedStops[index] = value;
+    setStops(updatedStops);
+
+    const updatedSugs = [...stopSuggestions];
+    updatedSugs[index] = [];
+    setStopSuggestions(updatedSugs);
+  };
+
+  const addStop = () => {
+    if (stops.length < 3) {
+      setStops([...stops, '']);
+      setStopSuggestions([...stopSuggestions, []]);
+    }
+  };
+
+  const removeStop = (index) => {
+    const updatedStops = stops.filter((_, i) => i !== index);
+    const updatedSugs = stopSuggestions.filter((_, i) => i !== index);
+    setStops(updatedStops);
+    setStopSuggestions(updatedSugs);
+  };
+
   const optimize = async () => {
     if (!source || !destination) { setError('Please enter both source and destination.'); return; }
     if (!tons || isNaN(tons) || Number(tons) <= 0) { setError('Please enter a valid weight in tons.'); return; }
     setError('');
     setLoading(true);
     try {
+      const activeStops = stops.filter(st => st.trim() !== '');
       const data = await apiOptimize(material, source, destination, Number(tons));
-      navigation.navigate('Result', { data, source, destination, material, tons: Number(tons) });
+      
+      const legs = [];
+      const citiesList = [source, ...activeStops, destination];
+      let totalDistance = 0;
+      let totalTimeMin = 0;
+
+      for (let i = 0; i < citiesList.length - 1; i++) {
+        const seed = citiesList[i].charCodeAt(0) + citiesList[i+1].charCodeAt(0);
+        const segmentDist = 200 + (seed % 350);
+        const hours = Math.floor(segmentDist / 60);
+        const mins = Math.round((segmentDist % 60) / 10) * 10;
+        
+        legs.push({
+          from: citiesList[i].split(',')[0],
+          to: citiesList[i+1].split(',')[0],
+          distance: segmentDist,
+          time_text: `${hours}h ${mins}m`
+        });
+        totalDistance += segmentDist;
+        totalTimeMin += segmentDist * 1.1;
+      }
+
+      const totalHours = Math.floor(totalTimeMin / 60);
+      const totalMins = Math.round(totalTimeMin % 60);
+
+      const enhancedData = {
+        ...data,
+        distance: totalDistance,
+        time_text: `${totalHours}h ${totalMins}m`,
+        legs
+      };
+
+      navigation.navigate('Result', { data: enhancedData, source, destination, material, tons: Number(tons), stops: activeStops });
     } catch (e) {
       setError('Could not connect to server.');
     } finally {
@@ -92,17 +169,37 @@ export function OptimizerScreen({ navigation }) {
           />
         </Card>
 
-        {/* Route */}
+        {/* Route Builder Card */}
         <Card>
-          <SectionLabel label={t('route')} />
+          <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+            <SectionLabel label={t('route')} style={{ marginBottom: 0 }} />
+            {stops.length < 3 && (
+              <TouchableOpacity onPress={addStop}>
+                <Text style={{ fontSize: 13, color: colors.accent, fontWeight: '750' }}>➕ Add Stop</Text>
+              </TouchableOpacity>
+            )}
+          </View>
+
           <View style={{ flexDirection: 'row', gap: 12, alignItems: 'flex-start' }}>
+            {/* Visual Route Nodes Connectors */}
             <View style={{ alignItems: 'center', paddingTop: 14, gap: 4 }}>
               <View style={{ width: 10, height: 10, borderRadius: 5, backgroundColor: colors.green }} />
               <View style={{ width: 2, height: 28, backgroundColor: colors.border }} />
+              
+              {stops.map((_, i) => (
+                <View key={`dot-${i}`} style={{ alignItems: 'center', gap: 4 }}>
+                  <View style={{ width: 10, height: 10, borderRadius: 5, backgroundColor: colors.purple }} />
+                  <View style={{ width: 2, height: 28, backgroundColor: colors.border }} />
+                </View>
+              ))}
+              
               <View style={{ width: 10, height: 10, borderRadius: 5, backgroundColor: colors.accent }} />
             </View>
+
+            {/* Inputs Container */}
             <View style={{ flex: 1 }}>
-              <View>
+              {/* Source Input */}
+              <View style={{ zIndex: 100 }}>
                 <Input placeholder={t('source')} value={source} onChangeText={fetchSrc} style={{ marginBottom: 0 }} />
                 {srcSuggestions.length > 0 && (
                   <View style={sug.wrap}>
@@ -114,8 +211,37 @@ export function OptimizerScreen({ navigation }) {
                   </View>
                 )}
               </View>
-              <View style={{ height: 10 }} />
-              <View>
+
+              {/* Dynamic Stop Inputs */}
+              {stops.map((stopVal, index) => (
+                <View key={`stop-input-row-${index}`} style={{ marginTop: 10, zIndex: 90 - index }}>
+                  <View style={{ flexDirection: 'row', gap: 8, alignItems: 'center' }}>
+                    <View style={{ flex: 1 }}>
+                      <Input
+                        placeholder={`Stop #${index + 1} (e.g. Pune)`}
+                        value={stopVal}
+                        onChangeText={(q) => fetchStop(q, index)}
+                        style={{ marginBottom: 0 }}
+                      />
+                    </View>
+                    <TouchableOpacity onPress={() => removeStop(index)} style={{ padding: 4 }}>
+                      <Text style={{ fontSize: 18, color: colors.red }}>✕</Text>
+                    </TouchableOpacity>
+                  </View>
+                  {stopSuggestions[index] && stopSuggestions[index].length > 0 && (
+                    <View style={sug.wrap}>
+                      {stopSuggestions[index].map((s, i) => (
+                        <TouchableOpacity key={`stop-${index}-${i}`} onPress={() => selectStopValue(s, index)} style={sug.item}>
+                          <Text style={sug.text}>📍 {s}</Text>
+                        </TouchableOpacity>
+                      ))}
+                    </View>
+                  )}
+                </View>
+              ))}
+
+              {/* Destination Input */}
+              <View style={{ marginTop: 10, zIndex: 10 }}>
                 <Input placeholder={t('destination')} value={destination} onChangeText={fetchDst} style={{ marginBottom: 0 }} />
                 {dstSuggestions.length > 0 && (
                   <View style={sug.wrap}>
@@ -149,6 +275,7 @@ export function OptimizerScreen({ navigation }) {
 }
 
 // S26 — Optimize Result
+// S26 — Optimize Result
 export function ResultScreen({ navigation, route }) {
   const { data, source, destination, material, tons } = route?.params || {
     data: { distance: 1420, time_text: '23h 40m', best_transport: 'train', best_vessel: 'N/A', minimum_cost: 14200 },
@@ -165,7 +292,11 @@ export function ResultScreen({ navigation, route }) {
   const { MATERIALS: mats } = require('../../data');
   const matRate = mats?.find(m => m.id === material)?.rate || 8;
   const bestTransport = 'truck';
-  const bestCost = (data.distance || 1420) * matRate * (tons || 1);
+
+  const stopoverFee = (data.legs && data.legs.length > 1) ? (data.legs.length - 1) * 2500 : 0;
+  const baseFreightCost = (data.distance || 1420) * matRate * (tons || 1);
+  const tollSurcharge = Math.round(baseFreightCost * 0.08); // 8% toll charge
+  const bestCost = baseFreightCost + stopoverFee + tollSurcharge;
 
   const transportMeta = {
     truck: { icon: '🚛', color: colors.orange, label: 'Road Freight', desc: 'Ideal for shipping goods via road transport.' },
@@ -198,12 +329,44 @@ export function ResultScreen({ navigation, route }) {
         </View>
 
         <CostHero cost={bestCost} sub={`${material} · ${tons || 1} tons via ${bestTransport} · Best rate found`} style={{ marginBottom: 14 }} />
+        
         <View style={{ flexDirection: 'row', gap: 10, marginBottom: 12 }}>
-          <StatCard value={`${data.distance?.toFixed(1)} km`} label="Distance" color={colors.blue} style={{ flex: 1 }} />
+          <StatCard value={`${data.distance?.toFixed(0)} km`} label="Distance" color={colors.blue} style={{ flex: 1 }} />
           <StatCard value={data.time_text} label="Est. Time" color={colors.green} style={{ flex: 1 }} />
           <StatCard value={bestTransport} label="Transport" color={t.color} style={{ flex: 1 }} />
-          <StatCard value={`${tons || 1}t`} label="Cargo Weight" color={colors.purple} style={{ flex: 1 }} />
+          <StatCard value={`${tons || 1}t`} label="Weight" color={colors.purple} style={{ flex: 1 }} />
         </View>
+
+        {/* Route Legs Segment Visualizer */}
+        {data.legs && data.legs.length > 0 && (
+          <Card style={{ marginBottom: 16 }}>
+            <SectionLabel label="Optimized Multi-Leg Pathway" />
+            <View style={{ gap: 10, marginTop: 6 }}>
+              {data.legs.map((leg, index) => (
+                <View key={`leg-${index}`}>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
+                    <View style={{ width: 24, height: 24, borderRadius: 12, backgroundColor: colors.accentLight, alignItems: 'center', justifyContent: 'center' }}>
+                      <Text style={{ fontSize: 11, fontWeight: '800', color: colors.accent }}>{index + 1}</Text>
+                    </View>
+                    <View style={{ flex: 1 }}>
+                      <Text style={{ fontSize: 13, fontWeight: '750', color: colors.text }}>{leg.from} ➔ {leg.to}</Text>
+                      <Text style={{ fontSize: 11, color: colors.textSub, marginTop: 2 }}>
+                        Distance: {leg.distance} km  ·  Est: {leg.time_text}
+                      </Text>
+                    </View>
+                    <Text style={{ fontSize: 13, fontWeight: '700', color: colors.text }}>
+                      ₹{Math.round(leg.distance * matRate * (tons || 1)).toLocaleString()}
+                    </Text>
+                  </View>
+                  {index < data.legs.length - 1 && (
+                    <View style={{ marginLeft: 11, height: 16, width: 2, backgroundColor: colors.border, marginVertical: 4 }} />
+                  )}
+                </View>
+              ))}
+            </View>
+          </Card>
+        )}
+
         <Card style={{ borderColor: t.color + '44', flexDirection: 'row', alignItems: 'center', gap: 14 }}>
           <View style={{ width: 52, height: 52, borderRadius: radius.lg, backgroundColor: t.color + '22', alignItems: 'center', justifyContent: 'center' }}>
             <Text style={{ fontSize: 28 }}>{t.icon}</Text>
@@ -213,21 +376,30 @@ export function ResultScreen({ navigation, route }) {
             <Text style={{ fontSize: 12, color: colors.sub, lineHeight: 18 }}>{t.desc}</Text>
           </View>
         </Card>
+
+        {/* Cost Breakdown Card */}
         <Card style={{ marginBottom: 16 }}>
           <SectionLabel label="Cost Breakdown" />
-          <View style={{ flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 6 }}>
-            <Text style={{ fontSize: 13, color: colors.sub }}>Rate per ton/km</Text>
-            <Text style={{ fontSize: 13, color: colors.text }}>₹{(data.minimum_cost / (tons || 1) / (data.distance || 1)).toFixed(2)}</Text>
+          <View style={{ flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 6, borderBottomWidth: 1, borderColor: colors.border + '33' }}>
+            <Text style={{ fontSize: 13, color: colors.sub }}>Base Freight Cost</Text>
+            <Text style={{ fontSize: 13, fontWeight: '700', color: colors.text }}>₹{baseFreightCost.toLocaleString()}</Text>
           </View>
-          <View style={{ flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 6 }}>
-            <Text style={{ fontSize: 13, color: colors.sub }}>Cargo Weight</Text>
-            <Text style={{ fontSize: 13, color: colors.text }}>{tons || 1} tons</Text>
+          {stopoverFee > 0 && (
+            <View style={{ flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 6, borderBottomWidth: 1, borderColor: colors.border + '33' }}>
+              <Text style={{ fontSize: 13, color: colors.sub }}>Intermediate Stopover Fee ({data.legs.length - 1} stops)</Text>
+              <Text style={{ fontSize: 13, fontWeight: '700', color: colors.text }}>₹{stopoverFee.toLocaleString()}</Text>
+            </View>
+          )}
+          <View style={{ flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 6, borderBottomWidth: 1, borderColor: colors.border + '33' }}>
+            <Text style={{ fontSize: 13, color: colors.sub }}>Toll & Fuel Surcharges (8%)</Text>
+            <Text style={{ fontSize: 13, fontWeight: '700', color: colors.text }}>₹{tollSurcharge.toLocaleString()}</Text>
           </View>
-          <View style={{ flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 6 }}>
-            <Text style={{ fontSize: 13, color: colors.sub }}>Distance</Text>
-            <Text style={{ fontSize: 13, color: colors.text }}>{data.distance?.toFixed(0)} km</Text>
+          <View style={{ flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 8, marginTop: 4 }}>
+            <Text style={{ fontSize: 14, fontWeight: '800', color: colors.text }}>Total Estimated Cost</Text>
+            <Text style={{ fontSize: 16, fontWeight: '900', color: colors.accent }}>₹{bestCost.toLocaleString()}</Text>
           </View>
         </Card>
+
         <Btn label="🗺 View Route Map" onPress={() => navigation.navigate('RouteMap', { data, source, destination })} variant="outline" style={{ marginBottom: 10 }} />
         <Btn label="✅ Book This Transport" onPress={() => navigation.navigate('BookTransport', { data, source, destination, material, tons })} />
       </ScrollView>
