@@ -569,32 +569,168 @@ export function TrackShipmentScreen({ navigation }) {
 }
 
 export function DeliveryStatusScreen({ navigation }) {
+  const [qrVerified, setQrVerified] = useState(false);
+  const [scanning, setScanning] = useState(false);
+  const [scanProgress, setScanProgress] = useState(0);
+  const [signName, setSignName] = useState('');
+  const [delivered, setDelivered] = useState(false);
+
   const steps = [
     { icon: '✅', label: 'Order Placed', time: 'May 10, 08:00 AM', done: true },
     { icon: '✅', label: 'Picked Up', time: 'May 10, 09:30 AM', done: true },
     { icon: '🚛', label: 'In Transit', time: 'May 10, 10:00 AM', done: true },
-    { icon: '⏳', label: 'Out for Delivery', time: 'Expected May 11', done: false },
-    { icon: '⏳', label: 'Delivered', time: 'Expected May 11, 6 PM', done: false },
+    { icon: delivered ? '✅' : '⏳', label: 'Out for Delivery', time: delivered ? 'May 11, 04:30 PM' : 'Expected May 11', done: delivered },
+    { icon: delivered ? '🎉' : '⏳', label: 'Delivered', time: delivered ? 'May 11, 05:00 PM' : 'Expected May 11, 6 PM', done: delivered },
   ];
+
+  const startScan = () => {
+    setScanning(true);
+    setScanProgress(0);
+  };
+
+  useEffect(() => {
+    let timer;
+    if (scanning) {
+      timer = setInterval(() => {
+        setScanProgress(prev => {
+          if (prev >= 100) {
+            clearInterval(timer);
+            setScanning(false);
+            setQrVerified(true);
+            return 100;
+          }
+          return prev + 10;
+        });
+      }, 150);
+    }
+    return () => clearInterval(timer);
+  }, [scanning]);
+
+  const confirmDelivery = () => {
+    if (!qrVerified) {
+      Alert.alert('Error', 'Please scan the cargo package QR code first.');
+      return;
+    }
+    if (!signName.trim()) {
+      Alert.alert('Error', 'Please sign/type your name to authorize the cargo release.');
+      return;
+    }
+    setDelivered(true);
+    Alert.alert('Success 🎉', 'Cargo successfully signed off and marked as DELIVERED!');
+  };
+
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: colors.bg }}>
-      <ScrollView contentContainerStyle={screen()}>
+      <ScrollView contentContainerStyle={screen()} keyboardShouldPersistTaps="handled">
         <BackBtn onPress={() => navigation.goBack()} />
-        <Text style={h1}>Delivery Status</Text>
-        {steps.map((step, i) => (
-          <View key={i} style={{ flexDirection: 'row', gap: 14, marginBottom: 20 }}>
-            <View style={{ alignItems: 'center' }}>
-              <View style={{ width: 36, height: 36, borderRadius: 18, backgroundColor: step.done ? colors.green : colors.surface2, borderWidth: 2, borderColor: step.done ? colors.green : colors.border, alignItems: 'center', justifyContent: 'center' }}>
-                <Text style={{ fontSize: 16 }}>{step.icon}</Text>
+        <Text style={h1}>Delivery Tracking</Text>
+        <Text style={{ fontSize: 13, color: colors.sub, marginBottom: 16 }}>Live milestone checkpoints & verification receipt</Text>
+
+        {/* Milestone Steps */}
+        <Card style={{ marginBottom: 16 }}>
+          {steps.map((step, i) => (
+            <View key={i} style={{ flexDirection: 'row', gap: 14, marginBottom: i === steps.length - 1 ? 0 : 20 }}>
+              <View style={{ alignItems: 'center' }}>
+                <View style={{ width: 36, height: 36, borderRadius: 18, backgroundColor: step.done ? colors.green : colors.surface2, borderWidth: 2, borderColor: step.done ? colors.green : colors.border, alignItems: 'center', justifyContent: 'center' }}>
+                  <Text style={{ fontSize: 16 }}>{step.icon}</Text>
+                </View>
+                {i < steps.length - 1 && <View style={{ width: 2, flex: 1, backgroundColor: step.done ? colors.green : colors.border, marginTop: 4 }} />}
               </View>
-              {i < steps.length - 1 && <View style={{ width: 2, flex: 1, backgroundColor: step.done ? colors.green : colors.border, marginTop: 4 }} />}
+              <View style={{ flex: 1, paddingTop: 6 }}>
+                <Text style={{ fontSize: 14, fontWeight: '750', color: step.done ? colors.text : colors.muted }}>{step.label}</Text>
+                <Text style={{ fontSize: 12, color: colors.muted, marginTop: 2 }}>{step.time}</Text>
+              </View>
             </View>
-            <View style={{ flex: 1, paddingTop: 6 }}>
-              <Text style={{ fontSize: 14, fontWeight: '700', color: step.done ? colors.text : colors.muted }}>{step.label}</Text>
-              <Text style={{ fontSize: 12, color: colors.muted }}>{step.time}</Text>
+          ))}
+        </Card>
+
+        {/* Signature & QR verification module */}
+        {!delivered && (
+          <Card style={{ marginBottom: 16 }}>
+            <SectionLabel label="Secure Delivery Verification" />
+            <Text style={{ fontSize: 12, color: colors.sub, marginBottom: 14, lineHeight: 18 }}>
+              Verify cargo package barcode and sign authorization to release the shipment.
+            </Text>
+
+            {/* QR Scanner Step */}
+            <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingVertical: 10, borderBottomWidth: 1, borderColor: colors.border }}>
+              <View style={{ flex: 1, marginRight: 10 }}>
+                <Text style={{ fontSize: 13, fontWeight: '700', color: colors.text }}>1. Cargo Package QR Check</Text>
+                <Text style={{ fontSize: 11, color: qrVerified ? colors.green : colors.sub, marginTop: 2 }}>
+                  {qrVerified ? 'Verified: LR-PKG-8942-OK ✅' : 'Scanner ready for delivery check'}
+                </Text>
+              </View>
+              <Btn
+                label={qrVerified ? 'Verified ✓' : 'Scan QR 📷'}
+                onPress={startScan}
+                variant={qrVerified ? 'outline' : 'blue'}
+                disabled={qrVerified}
+                style={{ marginBottom: 0, paddingVertical: 8, paddingHorizontal: 16 }}
+              />
+            </View>
+
+            {/* Digital Signature Step */}
+            <View style={{ marginTop: 14 }}>
+              <Text style={{ fontSize: 13, fontWeight: '700', color: colors.text, marginBottom: 8 }}>2. Receiver Digital Signature</Text>
+              <Input
+                placeholder="Type name (e.g. Rajesh Kumar) for cursive sign"
+                value={signName}
+                onChangeText={setSignName}
+                style={{ marginBottom: 10 }}
+              />
+              
+              {signName.length > 0 && (
+                <View style={{
+                  backgroundColor: colors.surface2,
+                  borderWidth: 1.5,
+                  borderColor: colors.border,
+                  borderStyle: 'dashed',
+                  borderRadius: radius.md,
+                  height: 60,
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  padding: 10
+                }}>
+                  <Text style={{
+                    fontSize: 24,
+                    color: colors.accent,
+                    fontStyle: 'italic',
+                    fontFamily: Platform.OS === 'ios' ? 'Snell Roundhand' : 'Georgia'
+                  }}>
+                    {signName}
+                  </Text>
+                </View>
+              )}
+            </View>
+
+            <Btn
+              label="Authorize & Deliver Cargo"
+              onPress={confirmDelivery}
+              disabled={!qrVerified || !signName}
+              style={{ marginTop: 16, marginBottom: 0 }}
+            />
+          </Card>
+        )}
+
+        {/* Scan Camera Viewfinder Modal */}
+        <Modal visible={scanning} transparent animationType="fade">
+          <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.85)', alignItems: 'center', justifyContent: 'center' }}>
+            <View style={{ width: '80%', padding: 24, backgroundColor: colors.surface, borderRadius: radius.lg, alignItems: 'center' }}>
+              <Text style={{ fontSize: 18, fontWeight: '850', color: colors.text, marginBottom: 6 }}>Verifying Cargo Barcode</Text>
+              <Text style={{ fontSize: 12, color: colors.sub, marginBottom: 20 }}>Point camera scanner box at package label</Text>
+
+              {/* Scanner Grid Simulator */}
+              <View style={{ width: 180, height: 180, borderWidth: 2, borderColor: colors.accent, borderRadius: 10, position: 'relative', overflow: 'hidden', alignItems: 'center', justifyContent: 'center', backgroundColor: colors.bg }}>
+                <View style={{ width: '90%', height: 2, backgroundColor: colors.accent, position: 'absolute', top: `${scanProgress}%` }} />
+                <Text style={{ fontSize: 44 }}>📦</Text>
+              </View>
+
+              <Text style={{ fontSize: 13, fontWeight: '700', color: colors.accent, marginTop: 20 }}>
+                Scanning... {scanProgress}%
+              </Text>
             </View>
           </View>
-        ))}
+        </Modal>
       </ScrollView>
     </SafeAreaView>
   );
