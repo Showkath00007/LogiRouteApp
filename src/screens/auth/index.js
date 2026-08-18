@@ -552,25 +552,235 @@ export function ResetPasswordScreen({ navigation }) {
 
 // S10 — Profile Setup
 export function ProfileSetupScreen({ navigation }) {
-  const [selectedMaterial, setSelectedMaterial] = useState('Steel');
+  const [step, setStep] = useState(1);
+  const [companyName, setCompanyName] = useState('');
+  const [city, setCity] = useState('');
+  const [avatarPreset, setAvatarPreset] = useState('🏢');
+  const [gstNumber, setGstNumber] = useState('');
+  const [businessCategory, setBusinessCategory] = useState('Manufacturing');
+  const [selectedMaterials, setSelectedMaterials] = useState(['Steel']);
+  const [selectedVehicles, setSelectedVehicles] = useState(['Standard Truck']);
+
+  const nextStep = () => {
+    if (step === 1) {
+      if (!companyName.trim() || !city.trim()) {
+        Alert.alert('Fields Required', 'Please enter company name and city location.');
+        return;
+      }
+      setStep(2);
+    } else if (step === 2) {
+      if (gstNumber && gstNumber.length !== 15) {
+        Alert.alert('Invalid GSTIN', 'GST number must be exactly 15 characters.');
+        return;
+      }
+      setStep(3);
+    }
+  };
+
+  const prevStep = () => {
+    if (step > 1) setStep(step - 1);
+  };
+
+  const handleFinish = async () => {
+    try {
+      await saveUserProfile({
+        companyName: companyName.trim(),
+        city: city.trim(),
+        avatar: avatarPreset,
+        gstin: gstNumber.toUpperCase().trim(),
+        category: businessCategory,
+        materials: selectedMaterials,
+        vehicles: selectedVehicles,
+        setupCompleted: true
+      });
+      Alert.alert('Profile Configured! 🎉', 'Welcome to LogiRoute app.', [
+        { text: 'Enter Dashboard', onPress: () => navigation.replace('CompanyDashboard') }
+      ]);
+    } catch (e) {
+      Alert.alert('Error saving profile', e.message);
+    }
+  };
+
+  const toggleMaterial = (id) => {
+    if (selectedMaterials.includes(id)) {
+      setSelectedMaterials(selectedMaterials.filter(m => m !== id));
+    } else {
+      setSelectedMaterials([...selectedMaterials, id]);
+    }
+  };
+
+  const toggleVehicle = (id) => {
+    if (selectedVehicles.includes(id)) {
+      setSelectedVehicles(selectedVehicles.filter(v => v !== id));
+    } else {
+      setSelectedVehicles([...selectedVehicles, id]);
+    }
+  };
+
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: colors.bg }}>
       <ScrollView contentContainerStyle={screen} keyboardShouldPersistTaps="handled">
-        <Text style={h1}>Setup Profile</Text>
-        <Text style={subText}>Complete your account</Text>
-        <TouchableOpacity style={s.avatar}>
-          <Text style={{ fontSize: 32 }}>📷</Text>
-        </TouchableOpacity>
-        <Input placeholder="Company Name" />
-        <Input placeholder="GST Number" />
-        <Input placeholder="City" />
-        <Text style={s.label}>PRIMARY MATERIAL</Text>
-        <View style={{ flexDirection: 'row', flexWrap: 'wrap', marginBottom: 20 }}>
-          {MATERIALS.map(m => (
-            <Chip key={m.id} label={m.id} icon={m.icon} selected={selectedMaterial === m.id} color={m.color} onPress={() => setSelectedMaterial(m.id)} />
-          ))}
+        {/* Progress Step Header */}
+        <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+            {step > 1 && (
+              <TouchableOpacity onPress={prevStep} style={{ width: 32, height: 32, borderRadius: 16, backgroundColor: colors.surface2, alignItems: 'center', justifyContent: 'center' }}>
+                <Text style={{ color: colors.text, fontSize: 16 }}>←</Text>
+              </TouchableOpacity>
+            )}
+            <Text style={{ fontSize: 13, color: colors.accent, fontWeight: '800' }}>STEP {step} OF 3</Text>
+          </View>
+          {/* Progress dots bar */}
+          <View style={{ flexDirection: 'row', gap: 6 }}>
+            {[1, 2, 3].map(i => (
+              <View key={i} style={{ width: 16, height: 6, borderRadius: 3, backgroundColor: step >= i ? colors.accent : colors.border }} />
+            ))}
+          </View>
         </View>
-        <Btn label="Save & Continue →" onPress={() => navigation.replace('CompanyDashboard')} />
+
+        {step === 1 && (
+          <>
+            <Text style={h1}>Company Profile</Text>
+            <Text style={subText}>Setup basic details to personalize your account</Text>
+            
+            <Text style={s.label}>SELECT CORPORATE LOGO</Text>
+            <View style={{ flexDirection: 'row', gap: 12, justifyContent: 'center', marginBottom: 20 }}>
+              {['🏢', '🏭', '📦', '🚛'].map(preset => (
+                <TouchableOpacity
+                  key={preset}
+                  onPress={() => setAvatarPreset(preset)}
+                  style={{
+                    width: 60,
+                    height: 60,
+                    borderRadius: 30,
+                    backgroundColor: avatarPreset === preset ? colors.accentLight : colors.surface2,
+                    borderWidth: 2,
+                    borderColor: avatarPreset === preset ? colors.accent : colors.border,
+                    alignItems: 'center',
+                    justifyContent: 'center'
+                  }}
+                >
+                  <Text style={{ fontSize: 32 }}>{preset}</Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+
+            <Input
+              placeholder="Company Name (e.g. Acme Steel)"
+              value={companyName}
+              onChangeText={setCompanyName}
+            />
+            <Input
+              placeholder="City Location (e.g. Pune)"
+              value={city}
+              onChangeText={setCity}
+            />
+            
+            <Btn label="Continue →" onPress={nextStep} style={{ marginTop: 10 }} />
+          </>
+        )}
+
+        {step === 2 && (
+          <>
+            <Text style={h1}>Business Compliance</Text>
+            <Text style={subText}>Configure tax identification for dispatch invoices</Text>
+
+            <Input
+              placeholder="GST Number (Optional, 15-char ID)"
+              value={gstNumber}
+              onChangeText={setGstNumber}
+              maxLength={15}
+              autoCapitalize="characters"
+            />
+
+            <Text style={s.label}>BUSINESS CATEGORY</Text>
+            <View style={{ flexDirection: 'row', gap: 8, flexWrap: 'wrap', marginBottom: 20 }}>
+              {['Manufacturing', 'Trading', 'Logistics', 'Retail'].map(cat => (
+                <TouchableOpacity
+                  key={cat}
+                  onPress={() => setBusinessCategory(cat)}
+                  style={{
+                    backgroundColor: businessCategory === cat ? colors.accentLight : colors.surface2,
+                    borderWidth: 1.5,
+                    borderColor: businessCategory === cat ? colors.accent : colors.border,
+                    borderRadius: radius.md,
+                    paddingVertical: 10,
+                    paddingHorizontal: 16
+                  }}
+                >
+                  <Text style={{ fontSize: 12, fontWeight: businessCategory === cat ? '750' : '450', color: businessCategory === cat ? colors.accent : colors.text }}>
+                    {cat}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+
+            <Btn label="Continue →" onPress={nextStep} />
+          </>
+        )}
+
+        {step === 3 && (
+          <>
+            <Text style={h1}>Onboarding Preferences</Text>
+            <Text style={subText}>Choose your primary transit parameters to finalize account configuration</Text>
+
+            <Text style={s.label}>PREFERRED FREIGHT MATERIALS</Text>
+            <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 16 }}>
+              {MATERIALS.map(m => {
+                const isSelected = selectedMaterials.includes(m.id);
+                return (
+                  <TouchableOpacity
+                    key={m.id}
+                    onPress={() => toggleMaterial(m.id)}
+                    style={{
+                      flexDirection: 'row',
+                      alignItems: 'center',
+                      gap: 6,
+                      backgroundColor: isSelected ? m.color + '22' : colors.surface2,
+                      borderWidth: 1.5,
+                      borderColor: isSelected ? m.color : colors.border,
+                      borderRadius: radius.full,
+                      paddingVertical: 8,
+                      paddingHorizontal: 14
+                    }}
+                  >
+                    <Text style={{ fontSize: 16 }}>{m.icon}</Text>
+                    <Text style={{ fontSize: 12, fontWeight: isSelected ? '700' : '400', color: isSelected ? m.color : colors.text }}>
+                      {m.id}
+                    </Text>
+                  </TouchableOpacity>
+                );
+              })}
+            </View>
+
+            <Text style={s.label}>PREFERRED TRANSIT VEHICLES</Text>
+            <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 20 }}>
+              {['Standard Truck', 'Reefer Truck', 'Container Trailer', 'Mini Tempo'].map(v => {
+                const isSelected = selectedVehicles.includes(v);
+                return (
+                  <TouchableOpacity
+                    key={v}
+                    onPress={() => toggleVehicle(v)}
+                    style={{
+                      backgroundColor: isSelected ? colors.accentLight : colors.surface2,
+                      borderWidth: 1.5,
+                      borderColor: isSelected ? colors.accent : colors.border,
+                      borderRadius: radius.full,
+                      paddingVertical: 8,
+                      paddingHorizontal: 14
+                    }}
+                  >
+                    <Text style={{ fontSize: 12, fontWeight: isSelected ? '700' : '400', color: isSelected ? colors.accent : colors.text }}>
+                      {v}
+                    </Text>
+                  </TouchableOpacity>
+                );
+              })}
+            </View>
+
+            <Btn label="Save & Setup Account 🎉" onPress={handleFinish} />
+          </>
+        )}
       </ScrollView>
     </SafeAreaView>
   );
