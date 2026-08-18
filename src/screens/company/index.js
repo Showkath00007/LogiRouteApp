@@ -83,6 +83,19 @@ export function CompanyDashboard({ navigation }) {
     const sameMonth = d.getFullYear() === now.getFullYear() && d.getMonth() === now.getMonth();
     return sameMonth ? sum + (s.cost || 0) : sum;
   }, 0);
+  
+  const activeShipmentsList = shipments.filter(s => s.status === 'In Transit' || s.status === 'Delivered');
+  let co2SavedVal = '0.0 kg';
+  let fuelEfficiencyVal = '—';
+
+  if (activeShipmentsList.length > 0) {
+    const totalKm = activeShipmentsList.reduce((sum, s) => sum + (Number(s.km) || 0), 0);
+    co2SavedVal = `${(totalKm * 0.12).toFixed(1)} kg`;
+    fuelEfficiencyVal = `${(92 + Math.min(6.5, activeShipmentsList.length * 0.5)).toFixed(1)}%`;
+  } else if (simulatedCargo) {
+    co2SavedVal = '842.5 kg';
+    fuelEfficiencyVal = '94.2%';
+  }
   const thisMonthLabel = thisMonthSpend >= 100000
     ? `₹${(thisMonthSpend / 100000).toFixed(1)}L`
     : thisMonthSpend >= 1000
@@ -289,11 +302,11 @@ export function CompanyDashboard({ navigation }) {
           <View style={{ flexDirection: 'row', gap: 10, marginTop: 14 }}>
             <View style={{ flex: 1, backgroundColor: colors.bg, borderRadius: radius.md, padding: 12, borderLeftWidth: 3, borderLeftColor: colors.green }}>
               <Text style={{ fontSize: 11, color: colors.textMuted }}>CO2 SAVED</Text>
-              <Text style={{ fontSize: 16, fontWeight: '900', color: colors.green, marginTop: 2 }}>842.5 kg</Text>
+              <Text style={{ fontSize: 16, fontWeight: '900', color: colors.green, marginTop: 2 }}>{co2SavedVal}</Text>
             </View>
             <View style={{ flex: 1, backgroundColor: colors.bg, borderRadius: radius.md, padding: 12, borderLeftWidth: 3, borderLeftColor: colors.blue }}>
               <Text style={{ fontSize: 11, color: colors.textMuted }}>FUEL EFFICIENCY</Text>
-              <Text style={{ fontSize: 16, fontWeight: '900', color: colors.blue, marginTop: 2 }}>94.2%</Text>
+              <Text style={{ fontSize: 16, fontWeight: '900', color: colors.blue, marginTop: 2 }}>{fuelEfficiencyVal}</Text>
             </View>
           </View>
         </Card>
