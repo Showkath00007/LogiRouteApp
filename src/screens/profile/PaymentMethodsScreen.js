@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, ScrollView, SafeAreaView, TouchableOpacity, Alert, ActivityIndicator } from 'react-native';
+import { View, Text, ScrollView, SafeAreaView, TouchableOpacity, Alert, ActivityIndicator, Modal } from 'react-native';
 import { colors, radius, shadow } from '../../theme';
 import { BackBtn, Card, SectionLabel, Btn, Input } from '../../components';
 import { saveUserProfile, getUserProfile } from '../../config/firebaseService';
@@ -20,7 +20,11 @@ export default function PaymentMethodsScreen({ navigation }) {
   const [showAddBank, setShowAddBank] = useState(false);
   const [newBankLabel, setNewBankLabel] = useState('');
   const [newBankNumber, setNewBankNumber] = useState('');
-  const [newBankIfsc, setNewBankIfsc] = useState('');
+  // OTP Verification states
+  const [verifyingUpiObj, setVerifyingUpiObj] = useState(null);
+  const [showOtpModal, setShowOtpModal] = useState(false);
+  const [otpInput, setOtpInput] = useState('');
+  const [verifying, setVerifying] = useState(false);
 
   useEffect(() => {
     async function loadData() {
@@ -86,15 +90,37 @@ export default function PaymentMethodsScreen({ navigation }) {
       primary: upiAccounts.length === 0
     };
 
-    setUpiAccounts(prev => [...prev, newObj]);
-    if (upiAccounts.length === 0) {
-      setSelected(newObj.id);
+    setVerifyingUpiObj(newObj);
+    setOtpInput('');
+    setShowOtpModal(true);
+    Alert.alert('🔐 OTP Sent', `A 6-digit verification code has been sent to the mobile number registered with your UPI ID ${formattedUpi}.`);
+  };
+
+  const handleVerifyOtp = () => {
+    if (otpInput.trim() !== '123456') {
+      Alert.alert('Verification Failed', 'Invalid OTP code. Please enter the correct OTP (hint: 123456).');
+      return;
     }
 
-    // Reset inputs
-    setNewUpiId('');
-    setNewUpiApp('');
-    setShowAddUpi(false);
+    setVerifying(true);
+    setTimeout(() => {
+      setVerifying(false);
+      setShowOtpModal(false);
+      
+      const newObj = { ...verifyingUpiObj };
+      setUpiAccounts(prev => [...prev, newObj]);
+      if (upiAccounts.length === 0 || !selected) {
+        setSelected(newObj.id);
+      }
+      
+      Alert.alert('✅ UPI Linked', `UPI ID ${newObj.label} has been verified and successfully linked!`);
+      
+      setVerifyingUpiObj(null);
+      setOtpInput('');
+      setNewUpiId('');
+      setNewUpiApp('');
+      setShowAddUpi(false);
+    }, 1000);
   };
 
   const handleAddBank = () => {
@@ -299,6 +325,67 @@ export default function PaymentMethodsScreen({ navigation }) {
 
         <Btn label="Save Changes ✓" onPress={handleSave} loading={saving} style={{ marginTop: 10 }} />
       </ScrollView>
+
+      {/* UPI Verification OTP Modal */}
+      <Modal
+        visible={showOtpModal}
+        transparent={true}
+        animationType="fade"
+        onRequestClose={() => setShowOtpModal(false)}
+      >
+        <View style={{
+          flex: 1,
+          backgroundColor: 'rgba(0,0,0,0.6)',
+          justifyContent: 'center',
+          alignItems: 'center',
+          padding: 20
+        }}>
+          <View style={{
+            backgroundColor: colors.surface,
+            borderRadius: radius.lg,
+            width: '100%',
+            maxWidth: 380,
+            padding: 24,
+            borderWidth: 1.5,
+            borderColor: colors.border,
+            ...shadow.lg
+          }}>
+            <Text style={{ fontSize: 18, fontWeight: '900', color: colors.text, marginBottom: 6 }}>🔒 Verify UPI ID</Text>
+            <Text style={{ fontSize: 13, color: colors.textSub, marginBottom: 16 }}>
+              A 6-digit OTP code has been simulated for your UPI link request. Enter the OTP code to verify ownership.
+            </Text>
+
+            <Input
+              label="OTP Code (Hint: 123456)"
+              placeholder="Enter 6-digit code"
+              value={otpInput}
+              onChangeText={setOtpInput}
+              keyboardType="numeric"
+              maxLength={6}
+              style={{ marginBottom: 18 }}
+            />
+
+            <View style={{ flexDirection: 'row', gap: 10 }}>
+              <Btn
+                label="Cancel"
+                onPress={() => {
+                  setShowOtpModal(false);
+                  setVerifyingUpiObj(null);
+                  setOtpInput('');
+                }}
+                variant="ghost"
+                style={{ flex: 1 }}
+              />
+              <Btn
+                label="Verify & Link"
+                onPress={handleVerifyOtp}
+                loading={verifying}
+                style={{ flex: 1 }}
+              />
+            </View>
+          </View>
+        </View>
+      </Modal>
     </SafeAreaView>
   );
 }
