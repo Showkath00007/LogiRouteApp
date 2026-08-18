@@ -27,6 +27,7 @@ export function CompanyDashboard({ navigation }) {
   const [alerts, setAlerts] = useState([]);
   const [profile, setProfile] = useState(null);
   const [truckPos, setTruckPos] = useState(0);
+  const [simulatedCargo, setSimulatedCargo] = useState(false);
 
   useEffect(() => {
     const timer = setInterval(() => {
@@ -62,6 +63,14 @@ export function CompanyDashboard({ navigation }) {
     const unsub = listenAllNotifications(setAlerts);
     return unsub;
   }, []);
+
+  const activeShipment = shipments.find(s => s.status === 'In Transit') || (simulatedCargo ? {
+    id: 'sim_8942',
+    from: 'Chennai Hub',
+    to: 'Mumbai Port',
+    material: 'Electronics',
+    status: 'In Transit'
+  } : null);
 
   const activeCount = shipments.filter(s => s.status !== 'Delivered').length;
   const unreadAlerts = alerts.filter(a => a.unread === true).length;
@@ -169,61 +178,89 @@ export function CompanyDashboard({ navigation }) {
         </TouchableOpacity>
 
         <SectionLabel label="Live Fleet & Route Visualizer" />
-        <Card style={{ marginBottom: 16, padding: 16 }}>
-          <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
-            <View>
-              <Text style={{ fontSize: 14, fontWeight: '850', color: colors.text }}>Active Cargo: LR-8942</Text>
-              <Text style={{ fontSize: 11, color: colors.textSub, marginTop: 2 }}>Route: Chennai Hub ➔ Mumbai Port</Text>
+        {!activeShipment ? (
+          <Card style={{ marginBottom: 16, padding: 20, alignItems: 'center', justifyContent: 'center', borderStyle: 'dashed', borderWidth: 1.5, borderColor: colors.border }}>
+            <Text style={{ fontSize: 32, marginBottom: 8 }}>🚚</Text>
+            <Text style={{ fontSize: 14, fontWeight: '700', color: colors.text, marginBottom: 4 }}>No Active Cargo in Transit</Text>
+            <Text style={{ fontSize: 12, color: colors.textSub, textAlign: 'center', lineHeight: 18, marginBottom: 12 }}>
+              Create a new shipment or mark one as "In Transit" to view its live path animation and telemetry.
+            </Text>
+            <Btn
+              label="Simulate Transit Cargo 🧪"
+              onPress={() => setSimulatedCargo(true)}
+              variant="outline"
+              style={{ marginBottom: 0, paddingVertical: 8, paddingHorizontal: 16 }}
+            />
+          </Card>
+        ) : (
+          <Card style={{ marginBottom: 16, padding: 16 }}>
+            <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+              <View style={{ flex: 1 }}>
+                <Text style={{ fontSize: 14, fontWeight: '850', color: colors.text }}>
+                  Active Cargo: {activeShipment.id.startsWith('sim') ? 'LR-SIM8942' : `LR-${activeShipment.id.substring(0, 4).toUpperCase()}`}
+                </Text>
+                <Text style={{ fontSize: 11, color: colors.textSub, marginTop: 2 }}>
+                  Route: {activeShipment.from} ➔ {activeShipment.to}
+                </Text>
+              </View>
+              <View style={{ alignItems: 'flex-end', gap: 6 }}>
+                <View style={{ backgroundColor: colors.accentLight, paddingHorizontal: 8, paddingVertical: 3, borderRadius: 6 }}>
+                  <Text style={{ fontSize: 11, fontWeight: '800', color: colors.accent }}>IN TRANSIT</Text>
+                </View>
+                {activeShipment.id.startsWith('sim') && (
+                  <TouchableOpacity onPress={() => setSimulatedCargo(false)}>
+                    <Text style={{ fontSize: 10, color: colors.red, fontWeight: '700' }}>[Stop Sim]</Text>
+                  </TouchableOpacity>
+                )}
+              </View>
             </View>
-            <View style={{ backgroundColor: colors.accentLight, paddingHorizontal: 8, paddingVertical: 3, borderRadius: 6 }}>
-              <Text style={{ fontSize: 11, fontWeight: '800', color: colors.accent }}>IN TRANSIT</Text>
-            </View>
-          </View>
 
-          {/* Animated Route Line */}
-          <View style={{ height: 40, justifyContent: 'center', marginVertical: 8, position: 'relative' }}>
-            {/* Background dashed route line */}
-            <View style={{ height: 4, backgroundColor: colors.border, borderRadius: 2, width: '100%' }} />
-            
-            {/* Active route path highlighting */}
-            <View style={{ height: 4, backgroundColor: colors.accent, borderRadius: 2, width: `${truckPos}%`, position: 'absolute', left: 0 }} />
+            {/* Animated Route Line */}
+            <View style={{ height: 40, justifyContent: 'center', marginVertical: 8, position: 'relative' }}>
+              <View style={{ height: 4, backgroundColor: colors.border, borderRadius: 2, width: '100%' }} />
+              
+              <View style={{ height: 4, backgroundColor: colors.accent, borderRadius: 2, width: `${truckPos}%`, position: 'absolute', left: 0 }} />
 
-            {/* Checkpoint Nodes */}
-            <View style={{ position: 'absolute', left: 0, width: 12, height: 12, borderRadius: 6, backgroundColor: colors.accent, borderWidth: 2, borderColor: colors.surface }} />
-            <Text style={{ position: 'absolute', left: -4, top: 22, fontSize: 10, fontWeight: '700', color: colors.text }}>MAA</Text>
+              {/* Checkpoint Nodes */}
+              <View style={{ position: 'absolute', left: 0, width: 12, height: 12, borderRadius: 6, backgroundColor: colors.accent, borderWidth: 2, borderColor: colors.surface }} />
+              <Text style={{ position: 'absolute', left: -4, top: 22, fontSize: 10, fontWeight: '700', color: colors.text }}>
+                {activeShipment.from.substring(0, 3).toUpperCase()}
+              </Text>
 
-            <View style={{ position: 'absolute', left: '50%', marginLeft: -6, width: 12, height: 12, borderRadius: 6, backgroundColor: truckPos >= 50 ? colors.accent : colors.border, borderWidth: 2, borderColor: colors.surface }} />
-            <Text style={{ position: 'absolute', left: '46%', top: 22, fontSize: 10, fontWeight: '700', color: colors.textSub }}>BLR</Text>
+              <View style={{ position: 'absolute', left: '50%', marginLeft: -6, width: 12, height: 12, borderRadius: 6, backgroundColor: truckPos >= 50 ? colors.accent : colors.border, borderWidth: 2, borderColor: colors.surface }} />
+              <Text style={{ position: 'absolute', left: '46%', top: 22, fontSize: 10, fontWeight: '700', color: colors.textSub }}>BLR</Text>
 
-            <View style={{ position: 'absolute', right: 0, width: 12, height: 12, borderRadius: 6, backgroundColor: truckPos >= 100 ? colors.accent : colors.border, borderWidth: 2, borderColor: colors.surface }} />
-            <Text style={{ position: 'absolute', right: -4, top: 22, fontSize: 10, fontWeight: '700', color: colors.textSub }}>BOM</Text>
+              <View style={{ position: 'absolute', right: 0, width: 12, height: 12, borderRadius: 6, backgroundColor: truckPos >= 100 ? colors.accent : colors.border, borderWidth: 2, borderColor: colors.surface }} />
+              <Text style={{ position: 'absolute', right: -4, top: 22, fontSize: 10, fontWeight: '700', color: colors.textSub }}>
+                {activeShipment.to.substring(0, 3).toUpperCase()}
+              </Text>
 
-            {/* Animated Truck Indicator */}
-            <View style={{ position: 'absolute', left: `${truckPos}%`, marginLeft: -12, top: -10 }}>
-              <Text style={{ fontSize: 20 }}>🚛</Text>
+              <View style={{ position: 'absolute', left: `${truckPos}%`, marginLeft: -12, top: -10 }}>
+                <Text style={{ fontSize: 20 }}>🚛</Text>
+              </View>
             </View>
-          </View>
 
-          {/* Telemetry info */}
-          <View style={{ flexDirection: 'row', justifyContent: 'space-between', borderTopWidth: 1.5, borderColor: colors.border, paddingTop: 12, marginTop: 8 }}>
-            <View style={{ alignItems: 'center' }}>
-              <Text style={{ fontSize: 11, color: colors.textMuted }}>SPEED</Text>
-              <Text style={{ fontSize: 13, fontWeight: '800', color: colors.text }}>64 km/h</Text>
+            {/* Telemetry info */}
+            <View style={{ flexDirection: 'row', justifyContent: 'space-between', borderTopWidth: 1.5, borderColor: colors.border, paddingTop: 12, marginTop: 8 }}>
+              <View style={{ alignItems: 'center' }}>
+                <Text style={{ fontSize: 11, color: colors.textMuted }}>SPEED</Text>
+                <Text style={{ fontSize: 13, fontWeight: '800', color: colors.text }}>64 km/h</Text>
+              </View>
+              <View style={{ alignItems: 'center' }}>
+                <Text style={{ fontSize: 11, color: colors.textMuted }}>ETA</Text>
+                <Text style={{ fontSize: 13, fontWeight: '800', color: colors.text }}>2.5 hrs</Text>
+              </View>
+              <View style={{ alignItems: 'center' }}>
+                <Text style={{ fontSize: 11, color: colors.textMuted }}>WEATHER</Text>
+                <Text style={{ fontSize: 13, fontWeight: '800', color: colors.green }}>Clear ☀️</Text>
+              </View>
+              <View style={{ alignItems: 'center' }}>
+                <Text style={{ fontSize: 11, color: colors.textMuted }}>CARGO</Text>
+                <Text style={{ fontSize: 13, fontWeight: '800', color: colors.text }}>{activeShipment.material}</Text>
+              </View>
             </View>
-            <View style={{ alignItems: 'center' }}>
-              <Text style={{ fontSize: 11, color: colors.textMuted }}>ETA</Text>
-              <Text style={{ fontSize: 13, fontWeight: '800', color: colors.text }}>2.5 hrs</Text>
-            </View>
-            <View style={{ alignItems: 'center' }}>
-              <Text style={{ fontSize: 11, color: colors.textMuted }}>WEATHER</Text>
-              <Text style={{ fontSize: 13, fontWeight: '800', color: colors.green }}>Clear ☀️</Text>
-            </View>
-            <View style={{ alignItems: 'center' }}>
-              <Text style={{ fontSize: 11, color: colors.textMuted }}>TEMP</Text>
-              <Text style={{ fontSize: 13, fontWeight: '800', color: colors.text }}>31°C</Text>
-            </View>
-          </View>
-        </Card>
+          </Card>
+        )}
 
         <SectionLabel label="Fleet Sustainability & Savings" />
         <Card style={{ marginBottom: 16, padding: 16 }}>
