@@ -1442,6 +1442,7 @@ export function ProfileScreen({ navigation }) {
 
   const menuItems = [
     { icon: '✏️', label: t('editProfile'), sub: t('editProfileSub'), route: 'EditProfile' },
+    { icon: '🪄', label: 'Setup Wizard', sub: 'Re-run onboarding configuration', route: 'ProfileSetup' },
     { icon: '🏢', label: t('companyDetails'), sub: t('companyDetailsSub'), route: 'CompanyDetails' },
     { icon: '🪪', label: t('kycDocs'), sub: `${t('kycDocsSub')} • ${profile?.verified ? t('verifiedBadge') + ' ✓' : t('pendingBadge')}`, color: colors.green, route: 'KYCDocuments' },
     { icon: '💳', label: t('paymentMethods'), sub: t('paymentMethodsSub'), route: 'PaymentMethods' },
