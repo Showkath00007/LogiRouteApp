@@ -1,8 +1,54 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, ScrollView, SafeAreaView, TouchableOpacity, Alert, ActivityIndicator, Modal } from 'react-native';
+import { View, Text, ScrollView, SafeAreaView, TouchableOpacity, Alert, ActivityIndicator, Modal, Platform } from 'react-native';
 import { colors, radius, shadow } from '../../theme';
 import { BackBtn, Card, SectionLabel, Btn, Input } from '../../components';
 import { saveUserProfile, getUserProfile } from '../../config/firebaseService';
+
+const showAlert = (title, message) => {
+  if (Platform.OS === 'web') {
+    alert(`${title}\n\n${message}`);
+  } else {
+    Alert.alert(title, message);
+  }
+};
+
+async function sendTwilioSMS(to, body) {
+  const sid = process.env.EXPO_PUBLIC_TWILIO_ACCOUNT_SID;
+  const token = process.env.EXPO_PUBLIC_TWILIO_AUTH_TOKEN;
+  const from = process.env.EXPO_PUBLIC_TWILIO_PHONE_NUMBER;
+
+  if (!sid || !token || !from) {
+    throw new Error('Twilio configuration keys are missing in the .env file. Please check EXPO_PUBLIC_TWILIO_ACCOUNT_SID, EXPO_PUBLIC_TWILIO_AUTH_TOKEN, and EXPO_PUBLIC_TWILIO_PHONE_NUMBER.');
+  }
+
+  const url = `https://api.twilio.com/2010-04-01/Accounts/${sid}/Messages.json`;
+  const authHeader = 'Basic ' + btoa(`${sid}:${token}`);
+
+  const details = {
+    To: to,
+    From: from,
+    Body: body,
+  };
+
+  const formBody = Object.keys(details)
+    .map(key => encodeURIComponent(key) + '=' + encodeURIComponent(details[key]))
+    .join('&');
+
+  const response = await fetch(url, {
+    method: 'POST',
+    headers: {
+      'Authorization': authHeader,
+      'Content-Type': 'application/x-www-form-urlencoded',
+    },
+    body: formBody,
+  });
+
+  const resJson = await response.json();
+  if (!response.ok) {
+    throw new Error(resJson.message || 'Failed to send SMS via Twilio.');
+  }
+  return resJson;
+}
 
 export default function PaymentMethodsScreen({ navigation }) {
   const [selected, setSelected] = useState(null);
@@ -16,6 +62,7 @@ export default function PaymentMethodsScreen({ navigation }) {
   const [showAddUpi, setShowAddUpi] = useState(false);
   const [newUpiId, setNewUpiId] = useState('');
   const [newUpiApp, setNewUpiApp] = useState('');
+  const [newUpiPhone, setNewUpiPhone] = useState('');
 
   const [showAddBank, setShowAddBank] = useState(false);
   const [newBankLabel, setNewBankLabel] = useState('');
@@ -24,6 +71,7 @@ export default function PaymentMethodsScreen({ navigation }) {
   const [verifyingUpiObj, setVerifyingUpiObj] = useState(null);
   const [showOtpModal, setShowOtpModal] = useState(false);
   const [otpInput, setOtpInput] = useState('');
+  const [sentOtpCode, setSentOtpCode] = useState('');
   const [verifying, setVerifying] = useState(false);
 
   useEffect(() => {
@@ -50,7 +98,7 @@ export default function PaymentMethodsScreen({ navigation }) {
 
   const handleSave = async () => {
     if (bankAccounts.length === 0) {
-      Alert.alert('Action Required', 'Please add a bank account first.');
+      showAlert('Action Required', 'Please add a bank account first.');
       return;
     }
     setSaving(true);
@@ -60,26 +108,43 @@ export default function PaymentMethodsScreen({ navigation }) {
         bankAccounts,
         selectedUpiId: selected
       });
-      Alert.alert('✅ Success', 'Payment methods updated successfully!');
+      showAlert('✅ Success', 'Payment methods updated successfully!');
       navigation.goBack();
     } catch (e) {
-      Alert.alert('Error', 'Could not save payment methods. Please try again.');
+      showAlert('Error', 'Could not save payment methods. Please try again.');
     } finally {
       setSaving(false);
     }
   };
 
-  const handleAddUpi = () => {
+  const handleAddUpi = async () => {
     const formattedUpi = newUpiId.trim();
     const appName = newUpiApp.trim() || 'UPI App';
+    let phone = newUpiPhone.trim();
 
     if (!formattedUpi) {
-      Alert.alert('Validation Error', 'Please enter a UPI ID.');
+      showAlert('Validation Error', 'Please enter a UPI ID.');
       return;
     }
     if (!formattedUpi.includes('@')) {
-      Alert.alert('Invalid UPI ID', 'UPI ID must contain the "@" symbol (e.g. name@okaxis).');
+      showAlert('Invalid UPI ID', 'UPI ID must contain the "@" symbol (e.g. name@okaxis).');
       return;
+    }
+    if (!phone) {
+      showAlert('Validation Error', 'Please enter your UPI-linked mobile number.');
+      return;
+    }
+    
+    // Automatically format 10-digit number to E.164 (prepend +91)
+    if (!phone.startsWith('+')) {
+      if (phone.length === 10) {
+        phone = '+91' + phone;
+      } else if (phone.length === 11 && phone.startsWith('0')) {
+        phone = '+91' + phone.substring(1);
+      } else {
+        showAlert('Invalid Mobile Number', 'Please enter a valid 10-digit mobile number.');
+        return;
+      }
     }
 
     const newObj = {
@@ -90,15 +155,31 @@ export default function PaymentMethodsScreen({ navigation }) {
       primary: upiAccounts.length === 0
     };
 
+    const generatedCode = String(Math.floor(100000 + Math.random() * 900000));
+    setSentOtpCode(generatedCode);
     setVerifyingUpiObj(newObj);
     setOtpInput('');
-    setShowOtpModal(true);
-    Alert.alert('🔐 OTP Sent', `A 6-digit verification code has been sent to the mobile number registered with your UPI ID ${formattedUpi}.`);
+
+    try {
+      setSaving(true);
+      await sendTwilioSMS(phone, `Your LogiRoute UPI Verification OTP is: ${generatedCode}. Do not share this with anyone.`);
+      setSaving(false);
+      setShowOtpModal(true);
+      showAlert('🔐 OTP Sent', `A 6-digit verification code has been successfully sent to ${phone}.`);
+    } catch (e) {
+      setSaving(false);
+      showAlert(
+        '⚠️ SMS Delivery Failed',
+        `${e.message}\n\n(Temporary Fallback: Use simulated OTP 123456 to bypass configuration if you have not configured Twilio credentials yet).`
+      );
+      setSentOtpCode('123456');
+      setShowOtpModal(true);
+    }
   };
 
   const handleVerifyOtp = () => {
-    if (otpInput.trim() !== '123456') {
-      Alert.alert('Verification Failed', 'Invalid OTP code. Please enter the correct OTP (hint: 123456).');
+    if (otpInput.trim() !== sentOtpCode) {
+      showAlert('Verification Failed', 'Invalid OTP code. Please enter the correct OTP code.');
       return;
     }
 
@@ -113,12 +194,13 @@ export default function PaymentMethodsScreen({ navigation }) {
         setSelected(newObj.id);
       }
       
-      Alert.alert('✅ UPI Linked', `UPI ID ${newObj.label} has been verified and successfully linked!`);
+      showAlert('✅ UPI Linked', `UPI ID ${newObj.label} has been verified and successfully linked!`);
       
       setVerifyingUpiObj(null);
       setOtpInput('');
       setNewUpiId('');
       setNewUpiApp('');
+      setNewUpiPhone('');
       setShowAddUpi(false);
     }, 1000);
   };
@@ -129,15 +211,15 @@ export default function PaymentMethodsScreen({ navigation }) {
     const ifsc = newBankIfsc.trim().toUpperCase();
 
     if (!bankLabel || !rawNumber || !ifsc) {
-      Alert.alert('Validation Error', 'Please fill out all bank details.');
+      showAlert('Validation Error', 'Please fill out all bank details.');
       return;
     }
     if (rawNumber.length < 9 || isNaN(rawNumber)) {
-      Alert.alert('Invalid Account Number', 'Bank account number must be at least 9 numeric digits.');
+      showAlert('Invalid Account Number', 'Bank account number must be at least 9 numeric digits.');
       return;
     }
     if (ifsc.length !== 11) {
-      Alert.alert('Invalid IFSC Code', 'IFSC code must be exactly 11 alphanumeric characters.');
+      showAlert('Invalid IFSC Code', 'IFSC code must be exactly 11 alphanumeric characters.');
       return;
     }
 
@@ -237,6 +319,15 @@ export default function PaymentMethodsScreen({ navigation }) {
               placeholder="e.g. kadiyala@okicici"
               value={newUpiId}
               onChangeText={setNewUpiId}
+              style={{ marginBottom: 12 }}
+            />
+
+            <Input
+              label="Linked Mobile Number"
+              placeholder="e.g. +919392859818"
+              value={newUpiPhone}
+              onChangeText={setNewUpiPhone}
+              keyboardType="phone-pad"
               style={{ marginBottom: 12 }}
             />
 
@@ -356,7 +447,7 @@ export default function PaymentMethodsScreen({ navigation }) {
             </Text>
 
             <Input
-              label="OTP Code (Hint: 123456)"
+              label={sentOtpCode === '123456' ? "OTP Code (Hint: 123456)" : "OTP Code (Sent to mobile)"}
               placeholder="Enter 6-digit code"
               value={otpInput}
               onChangeText={setOtpInput}
