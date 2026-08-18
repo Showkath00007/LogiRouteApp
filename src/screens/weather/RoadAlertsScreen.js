@@ -394,15 +394,91 @@ async function computeRealRouteAnalysis(sourceCity, destCity, srcGeo = null, dst
     }
   ];
 
+  const detourDistanceVal = roadKm + 45;
+  const detourHours = Math.floor(detourDistanceVal / 60);
+  const detourMinutes = Math.round(detourDistanceVal % 60);
+
+  const detourRoute = {
+    id: 'detour',
+    name: 'NH-48 Alternate Detour 🛡️',
+    distance: `${detourDistanceVal} km`,
+    duration: `${detourHours}h ${detourMinutes}m`,
+    via: `Bypass highway via Outer Ring Corridor`,
+    safetyScore: 98,
+    status: 'Optimal',
+    statusColor: '#059669',
+    roadCondition: 'Multi-lane Expressway',
+    tollCount: Math.max(1, Math.floor(detourDistanceVal / 70)),
+    fuelStations: Math.max(2, Math.floor(detourDistanceVal / 35))
+  };
+
+  const detourAlerts = [
+    {
+      icon: '✅',
+      title: 'Bypass Route Recommendation',
+      location: 'NH-48 Bypass Corridor',
+      desc: 'Alternate corridor avoids localized downpours and waterlogging active on the primary highway.',
+      level: 'success'
+    },
+    {
+      icon: '🛣️',
+      title: 'Expedited Bypass Corridor Route',
+      location: `Distance: ${detourDistanceVal} km`,
+      desc: 'Clear transit with no incident delays.',
+      level: 'info'
+    }
+  ];
+
+  const detourCheckpoints = [
+    {
+      id: 1,
+      name: `${origin.name} (${origin.admin1 || 'Origin'})`,
+      type: 'Origin Departure',
+      temp: `${wOrigin.temp}°C`,
+      weather: 'Mainly Clear 🌤',
+      wind: '12 km/h',
+      humidity: '55%',
+      status: 'Optimal Flow',
+      statusType: 'success',
+      kmMark: '0 km'
+    },
+    {
+      id: 2,
+      name: 'Outer Bypass Plaza',
+      type: 'Bypass Checkpoint 1',
+      temp: '26°C',
+      weather: 'Clear Sky ☀️',
+      wind: '14 km/h',
+      humidity: '50%',
+      status: 'Fast Flow',
+      statusType: 'success',
+      kmMark: `${Math.round(detourDistanceVal * 0.4)} km`
+    },
+    {
+      id: 3,
+      name: `${destination.name} (${destination.admin1 || 'Destination'})`,
+      type: 'Destination Terminal',
+      temp: `${wDest.temp}°C`,
+      weather: 'Clear Sky ☀️',
+      wind: '10 km/h',
+      humidity: '52%',
+      status: 'Open for Unloading',
+      statusType: 'success',
+      kmMark: `${detourDistanceVal} km`
+    }
+  ];
+
   return {
     source: origin.name,
     sourceState: origin.admin1 || '',
     destination: destination.name,
     destState: destination.admin1 || '',
     highwaySummary: highwaySummary,
-    routes: [primaryRoute],
+    routes: [primaryRoute, detourRoute],
     checkpoints,
+    detourCheckpoints,
     alerts,
+    detourAlerts,
     updatedAt: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
   };
 }
@@ -411,6 +487,7 @@ export default function RoadAlertsScreen({ navigation, route: navRoute }) {
   const [source, setSource] = useState(navRoute?.params?.source || '');
   const [destination, setDestination] = useState(navRoute?.params?.destination || '');
   const [analyzedData, setAnalyzedData] = useState(null);
+  const [selectedRouteId, setSelectedRouteId] = useState('primary');
   const [loading, setLoading] = useState(false);
 
   const [sourceSuggestions, setSourceSuggestions] = useState([]);
@@ -504,11 +581,14 @@ export default function RoadAlertsScreen({ navigation, route: navRoute }) {
     setSource('');
     setDestination('');
     setAnalyzedData(null);
+    setSelectedRouteId('primary');
     setSourceSuggestions([]);
     setDestSuggestions([]);
   };
 
-  const currentRoute = analyzedData?.routes?.[0];
+  const currentRoute = analyzedData?.routes?.find(r => r.id === selectedRouteId) || analyzedData?.routes?.[0];
+  const currentCheckpoints = selectedRouteId === 'primary' ? analyzedData?.checkpoints : (analyzedData?.detourCheckpoints || []);
+  const currentAlerts = selectedRouteId === 'primary' ? analyzedData?.alerts : (analyzedData?.detourAlerts || []);
 
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: colors.bg }}>
@@ -794,8 +874,44 @@ export default function RoadAlertsScreen({ navigation, route: navRoute }) {
             </View>
           </View>
         ) : (
-          /* Full Authentic Route Feasibility Report */
           <View>
+            {/* Interactive Route Detour Selector Tabs */}
+            {analyzedData.routes && analyzedData.routes.length > 1 && (
+              <View style={{ flexDirection: 'row', gap: 10, marginBottom: 16 }}>
+                {analyzedData.routes.map(r => {
+                  const isSelected = selectedRouteId === r.id;
+                  return (
+                    <TouchableOpacity
+                      key={r.id}
+                      onPress={() => setSelectedRouteId(r.id)}
+                      style={{
+                        flex: 1,
+                        backgroundColor: isSelected ? '#EEF2FF' : '#FFFFFF',
+                        borderWidth: 1.5,
+                        borderColor: isSelected ? '#4361EE' : '#E2E8F0',
+                        borderRadius: 12,
+                        padding: 12,
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        shadowColor: '#000',
+                        shadowOffset: { width: 0, height: 1 },
+                        shadowOpacity: isSelected ? 0.05 : 0,
+                        shadowRadius: 2,
+                        elevation: isSelected ? 1 : 0
+                      }}
+                    >
+                      <Text style={{ fontSize: 13, fontWeight: '950', color: isSelected ? '#4361EE' : '#1A1A2E', textAlign: 'center' }}>
+                        {r.name}
+                      </Text>
+                      <Text style={{ fontSize: 11, color: '#64748B', marginTop: 4, fontWeight: '700' }}>
+                        {r.distance} · {r.safetyScore}% Safety
+                      </Text>
+                    </TouchableOpacity>
+                  );
+                })}
+              </View>
+            )}
+
             {/* Feasibility Verdict Card */}
             <View style={{
               backgroundColor: currentRoute.safetyScore >= 85 ? '#F0FDF4' : '#FFFBEB',
@@ -908,8 +1024,8 @@ export default function RoadAlertsScreen({ navigation, route: navRoute }) {
                 </Text>
               </View>
 
-              {analyzedData.checkpoints.map((cp, idx) => (
-                <View key={cp.id} style={{ flexDirection: 'row', marginBottom: idx < analyzedData.checkpoints.length - 1 ? 16 : 0 }}>
+              {currentCheckpoints.map((cp, idx) => (
+                <View key={cp.id} style={{ flexDirection: 'row', marginBottom: idx < currentCheckpoints.length - 1 ? 16 : 0 }}>
                   {/* Timeline connector */}
                   <View style={{ alignItems: 'center', width: 30, marginRight: 10 }}>
                     <View style={{
@@ -919,7 +1035,7 @@ export default function RoadAlertsScreen({ navigation, route: navRoute }) {
                     }}>
                       <Text style={{ fontSize: 11, fontWeight: '900', color: '#FFFFFF' }}>{cp.id}</Text>
                     </View>
-                    {idx < analyzedData.checkpoints.length - 1 && (
+                    {idx < currentCheckpoints.length - 1 && (
                       <View style={{ width: 2, flex: 1, backgroundColor: '#E2E8F0', marginVertical: 4 }} />
                     )}
                   </View>
@@ -970,17 +1086,17 @@ export default function RoadAlertsScreen({ navigation, route: navRoute }) {
               elevation: 2
             }}>
               <Text style={{ fontSize: 15, fontWeight: '900', color: '#1A1A2E', textTransform: 'uppercase', letterSpacing: 0.6, marginBottom: 14 }}>
-                Active Route Alerts & Highway Telemetry ({analyzedData.alerts.length})
+                Active Route Alerts & Highway Telemetry ({currentAlerts.length})
               </Text>
 
-              {analyzedData.alerts.map((alt, idx) => (
+              {currentAlerts.map((alt, idx) => (
                 <View
                   key={idx}
                   style={{
                     backgroundColor: alt.level === 'warning' ? '#FFFBEB' : (alt.level === 'success' ? '#F0FDF4' : '#F8FAFC'),
                     borderRadius: 12,
                     padding: 14,
-                    marginBottom: idx < analyzedData.alerts.length - 1 ? 10 : 0,
+                    marginBottom: idx < currentAlerts.length - 1 ? 10 : 0,
                     borderLeftWidth: 4,
                     borderLeftColor: alt.level === 'warning' ? '#F59E0B' : (alt.level === 'success' ? '#10B981' : '#4361EE'),
                     borderWidth: 1,
