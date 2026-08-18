@@ -43,6 +43,7 @@ import SavedRoutesScreen from './src/screens/route/SavedRoutesScreen';
 import CompanyDetailsScreen from './src/screens/profile/CompanyDetailsScreen';
 import KYCDocumentsScreen from './src/screens/profile/KYCDocumentsScreen';
 import PaymentMethodsScreen from './src/screens/profile/PaymentMethodsScreen';
+import ThemeCustomizerScreen from './src/screens/profile/ThemeCustomizerScreen';
 import BookTransportScreen from './src/screens/booking/BookTransportScreen';
 import SelectDriverScreen from './src/screens/booking/SelectDriverScreen';
 import BookingSummaryScreen from './src/screens/booking/BookingSummaryScreen';
@@ -143,6 +144,7 @@ export default function App() {
           <Stack.Screen name="CompanyDetails" component={CompanyDetailsScreen} />
           <Stack.Screen name="KYCDocuments" component={KYCDocumentsScreen} />
           <Stack.Screen name="PaymentMethods" component={PaymentMethodsScreen} />
+          <Stack.Screen name="ThemeCustomizer" component={ThemeCustomizerScreen} />
           <Stack.Screen name="AdminPanel" component={AdminPanelScreen} />
         </Stack.Navigator>
       </NavigationContainer>

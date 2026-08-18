@@ -1,6 +1,7 @@
 import { getProfile, saveProfile } from '../../config/UserStore';
 import { translate } from '../../config/i18n';
 import { useLang } from '../../context/LanguageContext';
+import { useTheme } from '../../context/ThemeContext';
 import * as Print from 'expo-print';
 import * as Sharing from 'expo-sharing';
 import * as FileSystem from 'expo-file-system';
@@ -12,7 +13,7 @@ import { MOCK_DRIVERS, MOCK_WEATHER, MOCK_HISTORY } from '../../data';
 import { auth } from '../../config/firebase';
 import { signOut } from 'firebase/auth';
 import { getUserProfile, listenNotifications, listenBookings, createBooking, listenShipments } from '../../config/firebaseService';
-import { sendBookingRequest, listenAllNotifications, markAnyNotificationRead, markAllNotificationsReadUnified } from '../../config/DriverService';
+import { sendBookingRequest, listenAllNotifications, markAnyNotificationRead, markAllNotificationsReadUnified, simulateNewNotification } from '../../config/DriverService';
 
 const screen = (pt = 60) => ({ padding: 20, paddingTop: pt, flexGrow: 1 });
 const h1 = { fontSize: 22, fontWeight: '900', color: colors.text, letterSpacing: -0.5, marginBottom: 4 };
@@ -1066,6 +1067,7 @@ export function FeedbackScreen({ navigation }) {
 // ════════════════════════════════════════════════════════
 
 export function ProfileScreen({ navigation }) {
+  const { colors } = useTheme();
   const { t } = useLang();
   const [profile, setProfile] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -1106,6 +1108,7 @@ export function ProfileScreen({ navigation }) {
     { icon: '🏢', label: t('companyDetails'), sub: t('companyDetailsSub'), route: 'CompanyDetails' },
     { icon: '🪪', label: t('kycDocs'), sub: `${t('kycDocsSub')} • ${profile?.verified ? t('verifiedBadge') + ' ✓' : t('pendingBadge')}`, color: colors.green, route: 'KYCDocuments' },
     { icon: '💳', label: t('paymentMethods'), sub: t('paymentMethodsSub'), route: 'PaymentMethods' },
+    { icon: '🎨', label: 'Theme Customizer', sub: 'Personalize portal colors', route: 'ThemeCustomizer' },
     { icon: '🔔', label: t('notificationPrefs'), sub: '', route: 'Notifications' },
     { icon: '⚙️', label: t('settings'), sub: '', route: 'Settings' },
     { icon: '❓', label: t('helpSupport'), sub: '', route: 'HelpSupport' },
@@ -1349,6 +1352,7 @@ export function SettingsScreen({ navigation }) {
 }
 
 export function NotificationsScreen({ navigation }) {
+  const { colors } = useTheme();
   const [notifications, setNotifications] = useState([]);
   const [loading, setLoading] = useState(true);
 
@@ -1404,6 +1408,37 @@ export function NotificationsScreen({ navigation }) {
             </TouchableOpacity>
           )}
         </View>
+
+        {/* Simulator Panel */}
+        <Card style={{ marginBottom: 20, borderColor: colors.accent, borderWidth: 1.5, padding: 14 }}>
+          <Text style={{ fontSize: 12, fontWeight: '900', color: colors.text, marginBottom: 10, letterSpacing: 0.5 }}>🧪 LIVE ALERTS SIMULATOR</Text>
+          <View style={{ flexDirection: 'row', gap: 10 }}>
+            <Btn
+              label="Simulate Delay ⏱️"
+              onPress={async () => {
+                await simulateNewNotification(
+                  '⏱️ Transit Delay Alert',
+                  'Heavy congestion on NH-48 near Pune has delayed active shipment LR-8942 by 35 minutes.',
+                  '⏱️',
+                  colors.orange
+                );
+              }}
+              style={{ flex: 1, marginBottom: 0, paddingVertical: 8 }}
+            />
+            <Btn
+              label="Simulate weather ⛈️"
+              onPress={async () => {
+                await simulateNewNotification(
+                  '⛈️ Weather Alert',
+                  'Rainstorms detected on Bengaluru highway route. Speed limits reduced to 50 km/h for safety.',
+                  '⛈️',
+                  colors.blue
+                );
+              }}
+              style={{ flex: 1, marginBottom: 0, paddingVertical: 8 }}
+            />
+          </View>
+        </Card>
         {loading ? (
           <ActivityIndicator color={colors.accent} style={{ marginVertical: 20 }} />
         ) : notifications.length === 0 ? (

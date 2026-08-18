@@ -8,6 +8,7 @@ import { MOCK_TEAM, MATERIALS, apiAutocomplete } from '../../data';
 import { listenShipments, createShipment, getShipments, getUserProfile } from '../../config/firebaseService';
 import { listenCompanyFleet, listenAllNotifications, postOpenJob, listenCompanyJobs, confirmJobApplicant, listenCompanyTeam } from '../../config/DriverService';
 import { getProfile } from '../../config/UserStore';
+import { useTheme } from '../../context/ThemeContext';
 
 const screen = (pt = 60) => ({ padding: 20, paddingTop: pt, flexGrow: 1 });
 const h1 = { fontSize: 22, fontWeight: '900', color: colors.text, letterSpacing: -0.5, marginBottom: 4 };
@@ -18,12 +19,21 @@ const TRANSPORT_COLOR = { truck: colors.orange, train: colors.blue, ship: colors
 
 // S11 — Company Dashboard
 export function CompanyDashboard({ navigation }) {
+  const { colors } = useTheme();
   const { t } = useLang();
   const [activeTab, setActiveTab] = useState('home');
   const [shipments, setShipments] = useState([]);
   const [loading, setLoading] = useState(true);
   const [alerts, setAlerts] = useState([]);
   const [profile, setProfile] = useState(null);
+  const [truckPos, setTruckPos] = useState(0);
+
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setTruckPos(prev => (prev >= 100 ? 0 : prev + 1));
+    }, 180);
+    return () => clearInterval(timer);
+  }, []);
 
   useEffect(() => {
     const loadProfile = async () => {
@@ -157,6 +167,99 @@ export function CompanyDashboard({ navigation }) {
             <Text style={{ fontSize: 18, color: colors.accent, fontWeight: '900', marginLeft: 8 }}>→</Text>
           </View>
         </TouchableOpacity>
+
+        <SectionLabel label="Live Fleet & Route Visualizer" />
+        <Card style={{ marginBottom: 16, padding: 16 }}>
+          <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+            <View>
+              <Text style={{ fontSize: 14, fontWeight: '850', color: colors.text }}>Active Cargo: LR-8942</Text>
+              <Text style={{ fontSize: 11, color: colors.textSub, marginTop: 2 }}>Route: Chennai Hub ➔ Mumbai Port</Text>
+            </View>
+            <View style={{ backgroundColor: colors.accentLight, paddingHorizontal: 8, paddingVertical: 3, borderRadius: 6 }}>
+              <Text style={{ fontSize: 11, fontWeight: '800', color: colors.accent }}>IN TRANSIT</Text>
+            </View>
+          </View>
+
+          {/* Animated Route Line */}
+          <View style={{ height: 40, justifyContent: 'center', marginVertical: 8, position: 'relative' }}>
+            {/* Background dashed route line */}
+            <View style={{ height: 4, backgroundColor: colors.border, borderRadius: 2, width: '100%' }} />
+            
+            {/* Active route path highlighting */}
+            <View style={{ height: 4, backgroundColor: colors.accent, borderRadius: 2, width: `${truckPos}%`, position: 'absolute', left: 0 }} />
+
+            {/* Checkpoint Nodes */}
+            <View style={{ position: 'absolute', left: 0, width: 12, height: 12, borderRadius: 6, backgroundColor: colors.accent, borderWidth: 2, borderColor: colors.surface }} />
+            <Text style={{ position: 'absolute', left: -4, top: 22, fontSize: 10, fontWeight: '700', color: colors.text }}>MAA</Text>
+
+            <View style={{ position: 'absolute', left: '50%', marginLeft: -6, width: 12, height: 12, borderRadius: 6, backgroundColor: truckPos >= 50 ? colors.accent : colors.border, borderWidth: 2, borderColor: colors.surface }} />
+            <Text style={{ position: 'absolute', left: '46%', top: 22, fontSize: 10, fontWeight: '700', color: colors.textSub }}>BLR</Text>
+
+            <View style={{ position: 'absolute', right: 0, width: 12, height: 12, borderRadius: 6, backgroundColor: truckPos >= 100 ? colors.accent : colors.border, borderWidth: 2, borderColor: colors.surface }} />
+            <Text style={{ position: 'absolute', right: -4, top: 22, fontSize: 10, fontWeight: '700', color: colors.textSub }}>BOM</Text>
+
+            {/* Animated Truck Indicator */}
+            <View style={{ position: 'absolute', left: `${truckPos}%`, marginLeft: -12, top: -10 }}>
+              <Text style={{ fontSize: 20 }}>🚛</Text>
+            </View>
+          </View>
+
+          {/* Telemetry info */}
+          <View style={{ flexDirection: 'row', justifyContent: 'space-between', borderTopWidth: 1.5, borderColor: colors.border, paddingTop: 12, marginTop: 8 }}>
+            <View style={{ alignItems: 'center' }}>
+              <Text style={{ fontSize: 11, color: colors.textMuted }}>SPEED</Text>
+              <Text style={{ fontSize: 13, fontWeight: '800', color: colors.text }}>64 km/h</Text>
+            </View>
+            <View style={{ alignItems: 'center' }}>
+              <Text style={{ fontSize: 11, color: colors.textMuted }}>ETA</Text>
+              <Text style={{ fontSize: 13, fontWeight: '800', color: colors.text }}>2.5 hrs</Text>
+            </View>
+            <View style={{ alignItems: 'center' }}>
+              <Text style={{ fontSize: 11, color: colors.textMuted }}>WEATHER</Text>
+              <Text style={{ fontSize: 13, fontWeight: '800', color: colors.green }}>Clear ☀️</Text>
+            </View>
+            <View style={{ alignItems: 'center' }}>
+              <Text style={{ fontSize: 11, color: colors.textMuted }}>TEMP</Text>
+              <Text style={{ fontSize: 13, fontWeight: '800', color: colors.text }}>31°C</Text>
+            </View>
+          </View>
+        </Card>
+
+        <SectionLabel label="Fleet Sustainability & Savings" />
+        <Card style={{ marginBottom: 16, padding: 16 }}>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 14 }}>
+            <View style={{
+              width: 54,
+              height: 54,
+              borderRadius: 27,
+              backgroundColor: colors.green + '15',
+              alignItems: 'center',
+              justifyContent: 'center',
+              borderWidth: 1.5,
+              borderColor: colors.green
+            }}>
+              <Text style={{ fontSize: 28 }}>🌿</Text>
+            </View>
+            <View style={{ flex: 1 }}>
+              <Text style={{ fontSize: 15, fontWeight: '800', color: colors.text }}>Eco-Route Optimization</Text>
+              <Text style={{ fontSize: 12, color: colors.textSub, marginTop: 2 }}>
+                Smart algorithms selected greener freight pathways, lowering total fuel burn.
+              </Text>
+            </View>
+          </View>
+
+          {/* Stats Breakdown */}
+          <View style={{ flexDirection: 'row', gap: 10, marginTop: 14 }}>
+            <View style={{ flex: 1, backgroundColor: colors.bg, borderRadius: radius.md, padding: 12, borderLeftWidth: 3, borderLeftColor: colors.green }}>
+              <Text style={{ fontSize: 11, color: colors.textMuted }}>CO2 SAVED</Text>
+              <Text style={{ fontSize: 16, fontWeight: '900', color: colors.green, marginTop: 2 }}>842.5 kg</Text>
+            </View>
+            <View style={{ flex: 1, backgroundColor: colors.bg, borderRadius: radius.md, padding: 12, borderLeftWidth: 3, borderLeftColor: colors.blue }}>
+              <Text style={{ fontSize: 11, color: colors.textMuted }}>FUEL EFFICIENCY</Text>
+              <Text style={{ fontSize: 16, fontWeight: '900', color: colors.blue, marginTop: 2 }}>94.2%</Text>
+            </View>
+          </View>
+        </Card>
 
         <SectionLabel label="Recent Shipments" />
         {loading ? (

@@ -510,6 +510,21 @@ export async function markAllNotificationsReadUnified() {
   await Promise.all(tasks);
 }
 
+export async function simulateNewNotification(title, message, icon = '🔔', color = '#4F46E5') {
+  const user = auth.currentUser;
+  if (!user) return;
+  const notifRef = push(ref(db, `users/${user.uid}/notifications`));
+  await set(notifRef, {
+    id: notifRef.key,
+    title,
+    message,
+    icon,
+    color,
+    unread: true,
+    createdAt: Date.now(),
+  });
+}
+
 // ============================================================
 // TEAM — drivers this company has actually worked with
 // ============================================================
