@@ -5,19 +5,12 @@ import { BackBtn, Card, SectionLabel, Btn, Input } from '../../components';
 import { saveUserProfile, getUserProfile } from '../../config/firebaseService';
 
 export default function PaymentMethodsScreen({ navigation }) {
-  const [selected, setSelected] = useState('upi1');
+  const [selected, setSelected] = useState(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
 
-  const [upiAccounts, setUpiAccounts] = useState([
-    { id: 'upi1', icon: '📱', label: 'kadiyala@okicici', app: 'iMobile Pay', primary: true },
-    { id: 'upi2', icon: '📱', label: 'kadiyala@ybl', app: 'PhonePe', primary: false },
-  ]);
-
-  const [bankAccounts, setBankAccounts] = useState([
-    { id: 'bank1', icon: '🏦', label: 'SBI Savings', number: 'XXXX XXXX 7890', ifsc: 'SBIN0001234' },
-    { id: 'bank2', icon: '🏦', label: 'ICICI Current', number: 'XXXX XXXX 4321', ifsc: 'ICIC0001234' },
-  ]);
+  const [upiAccounts, setUpiAccounts] = useState([]);
+  const [bankAccounts, setBankAccounts] = useState([]);
 
   // Form states for manual additions
   const [showAddUpi, setShowAddUpi] = useState(false);
@@ -52,6 +45,10 @@ export default function PaymentMethodsScreen({ navigation }) {
   }, []);
 
   const handleSave = async () => {
+    if (bankAccounts.length === 0) {
+      Alert.alert('Action Required', 'Please add a bank account first.');
+      return;
+    }
     setSaving(true);
     try {
       await saveUserProfile({
@@ -154,7 +151,34 @@ export default function PaymentMethodsScreen({ navigation }) {
         <Text style={{ fontSize: 24, fontWeight: '900', color: colors.text, marginBottom: 4 }}>Payment Methods</Text>
         <Text style={{ fontSize: 13, color: colors.sub, marginBottom: 20 }}>Manage UPI & bank accounts</Text>
 
+        {bankAccounts.length === 0 && (
+          <View style={{
+            backgroundColor: '#FFF8F2',
+            borderWidth: 1.5,
+            borderColor: '#FFC085',
+            borderRadius: radius.md,
+            padding: 14,
+            marginBottom: 20,
+            flexDirection: 'row',
+            alignItems: 'center',
+            gap: 10
+          }}>
+            <Text style={{ fontSize: 20 }}>⚠️</Text>
+            <View style={{ flex: 1 }}>
+              <Text style={{ fontSize: 13, fontWeight: '800', color: '#D97706' }}>Action Required</Text>
+              <Text style={{ fontSize: 11, fontWeight: '600', color: '#B45309', marginTop: 2 }}>
+                Please add at least one Bank Account first before configuring payment details.
+              </Text>
+            </View>
+          </View>
+        )}
+
         <SectionLabel label="UPI Accounts" />
+        {upiAccounts.length === 0 && (
+          <Card style={{ marginBottom: 10, borderStyle: 'dashed', borderColor: colors.border, borderWidth: 1.5, padding: 16, alignItems: 'center' }}>
+            <Text style={{ fontSize: 13, color: colors.textMuted, fontWeight: '600' }}>No UPI Accounts added yet.</Text>
+          </Card>
+        )}
         {upiAccounts.map(upi => (
           <TouchableOpacity key={upi.id} onPress={() => setSelected(upi.id)}>
             <Card style={{ borderColor: selected === upi.id ? colors.accent : colors.border, marginBottom: 10 }}>
@@ -212,6 +236,11 @@ export default function PaymentMethodsScreen({ navigation }) {
         )}
 
         <SectionLabel label="Bank Accounts" />
+        {bankAccounts.length === 0 && (
+          <Card style={{ marginBottom: 10, borderStyle: 'dashed', borderColor: colors.border, borderWidth: 1.5, padding: 16, alignItems: 'center' }}>
+            <Text style={{ fontSize: 13, color: colors.textMuted, fontWeight: '600' }}>No Bank Accounts added yet.</Text>
+          </Card>
+        )}
         {bankAccounts.map(bank => (
           <Card key={bank.id} style={{ marginBottom: 10 }}>
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
