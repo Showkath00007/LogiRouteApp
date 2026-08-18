@@ -34,7 +34,17 @@ export default function ChatScreen({ navigation, route }) {
         const list = Object.values(data).sort((a, b) => a.createdAt - b.createdAt);
         setMessages(list);
       } else {
-        setMessages([]);
+        // Automatically inject a friendly driver greeting on first view
+        const initRef = push(ref(db, `chats/${roomId}/messages`));
+        set(initRef, {
+          id: initRef.key,
+          from: 'driver_uid',
+          senderName: driverName,
+          senderType: 'driver',
+          text: `Hello! Rajesh here. I am preparing the truck for ${shipment.split('➔')[0] || 'transit'}. Let me know if you have any specific loading instruction!`,
+          time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+          createdAt: Date.now() - 5000,
+        });
       }
       setLoading(false);
       setTimeout(() => scrollRef.current?.scrollToEnd({ animated: true }), 200);
@@ -45,7 +55,6 @@ export default function ChatScreen({ navigation, route }) {
     onValue(typingRef, snap => {
       if (snap.exists()) {
         const typingData = snap.val();
-        // Show typing if someone other than current user is typing
         const othersTyping = Object.entries(typingData)
           .some(([key, val]) => key !== uid && val === true);
         setIsTyping(othersTyping);
@@ -57,6 +66,49 @@ export default function ChatScreen({ navigation, route }) {
       off(typingRef);
     };
   }, [roomId]);
+
+  // Contextual simulated responder for driver replies
+  useEffect(() => {
+    if (messages.length === 0) return;
+    const lastMsg = messages[messages.length - 1];
+
+    if (lastMsg.senderType === 'company') {
+      const typingTimer = setTimeout(() => {
+        setIsTyping(true);
+
+        const lowerText = (lastMsg.text || '').toLowerCase();
+        let replyText = `Understood. Proceeding with the shipping dispatch guidelines!`;
+
+        if (lowerText.includes('where') || lowerText.includes('status') || lowerText.includes('location') || lowerText.includes('reach')) {
+          replyText = `Currently tracking on the highway, around 40 km from the next city hub. All telemetry looks clear.`;
+        } else if (lowerText.includes('delay') || lowerText.includes('traffic') || lowerText.includes('late')) {
+          replyText = `Ran into a minor scan at the checkpost. Moving again in 10 minutes.`;
+        } else if (lowerText.includes('safe') || lowerText.includes('care') || lowerText.includes('damage') || lowerText.includes('secure')) {
+          replyText = `Rest assured, cargo is tightly strapped and fully waterproof-sealed.`;
+        } else if (lowerText.includes('weather') || lowerText.includes('rain')) {
+          replyText = `Weather is clear, road visibility is good. No issues here.`;
+        }
+
+        const replyTimer = setTimeout(async () => {
+          const newRef = push(ref(db, `chats/${roomId}/messages`));
+          await set(newRef, {
+            id: newRef.key,
+            from: 'driver_uid',
+            senderName: driverName,
+            senderType: 'driver',
+            text: replyText,
+            time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+            createdAt: Date.now(),
+          });
+          setIsTyping(false);
+        }, 1800);
+
+        return () => clearTimeout(replyTimer);
+      }, 1200);
+
+      return () => clearTimeout(typingTimer);
+    }
+  }, [messages, roomId, driverName]);
 
   // Update typing indicator
   const handleTyping = (text) => {

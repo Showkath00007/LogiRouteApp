@@ -646,6 +646,18 @@ export function ShipmentDetailScreen({ navigation, route }) {
           </View>
         </Card>
         {s.progress > 0 && <><ProgressBar percent={s.progress} /><Text style={{ textAlign: 'center', fontSize: 12, color: colors.sub, marginBottom: 16 }}>{s.progress}% complete</Text></>}
+        {s.driver ? (
+          <Btn
+            label="💬 Chat with Driver"
+            onPress={() => navigation.navigate('Chat', {
+              driverName: s.driver,
+              shipment: `${s.from} ➔ ${s.to}`,
+              chatId: `chat_${s.id}`
+            })}
+            variant="outline"
+            style={{ marginBottom: 10 }}
+          />
+        ) : null}
         <Btn label="📍 Track Live" onPress={() => navigation.navigate('LiveTrack')} variant="blue" />
         <Btn label="View Timeline" onPress={() => navigation.navigate('DeliveryStatus')} variant="outline" />
       </ScrollView>
