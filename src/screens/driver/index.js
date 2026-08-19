@@ -667,22 +667,56 @@ export function EarningsScreen({ navigation }) {
   const [trips, setTrips] = useState([]);
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
+  const [fuelCost, setFuelCost] = useState('');
+  const [isUploadingSlip, setIsUploadingSlip] = useState(false);
+  const [fuelSlips, setFuelSlips] = useState([]);
+  
+  const [withdrawAmount, setWithdrawAmount] = useState('');
+  const [isSubmittingCashOut, setIsSubmittingCashOut] = useState(false);
+  const [cashOutRequests, setCashOutRequests] = useState([]);
+
+  const uid = getDriverUid();
+
+  const loadData = () => {
     getDriverProfile().then(setDriver);
-    const uid = getDriverUid();
     try {
-      const r = ref(db, `driverNotifications/${uid}`);
-      onValue(r, snap => {
-        if (!snap.exists()) { setTrips([]); setLoading(false); return; }
+      const tripsRef = ref(db, `driverNotifications/${uid}`);
+      onValue(tripsRef, snap => {
+        if (!snap.exists()) { setTrips([]); return; }
         const accepted = Object.values(snap.val())
           .filter(n => n.type === 'booking_request' && n.accepted === true);
         setTrips(accepted);
-        setLoading(false);
-      }, () => { setTrips([]); setLoading(false); });
-    } catch(e) { setTrips([]); setLoading(false); }
+      });
+
+      const fuelRef = ref(db, `driverFuelSlips/${uid}`);
+      onValue(fuelRef, snap => {
+        if (!snap.exists()) { setFuelSlips([]); return; }
+        setFuelSlips(Object.values(snap.val()).reverse());
+      });
+
+      const cashoutRef = ref(db, `driverCashOuts/${uid}`);
+      onValue(cashoutRef, snap => {
+        if (!snap.exists()) { setCashOutRequests([]); return; }
+        setCashOutRequests(Object.values(snap.val()).reverse());
+      });
+
+      setLoading(false);
+    } catch(e) { 
+      setTrips([]); 
+      setLoading(false); 
+    }
+  };
+
+  useEffect(() => {
+    loadData();
   }, []);
 
   const totalEarned = trips.reduce((sum, t) => sum + (t.cost || 0), 0);
+  const totalWithdrawn = cashOutRequests
+    .filter(r => r.status === 'approved')
+    .reduce((sum, r) => sum + parseFloat(r.amount || 0), 0);
+  
+  const availableBalance = Math.max(0, totalEarned - totalWithdrawn);
   const totalTrips = trips.length;
 
   const days = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
@@ -695,18 +729,160 @@ export function EarningsScreen({ navigation }) {
   });
   const maxVal = Math.max(...weekly, 1);
 
+  const handleFuelUpload = async () => {
+    if (!fuelCost.trim() || isNaN(fuelCost)) {
+      Alert.alert('Invalid Cost', 'Please enter a valid fuel cost amount.');
+      return;
+    }
+    setIsUploadingSlip(true);
+    setTimeout(async () => {
+      try {
+        const newSlipRef = push(ref(db, `driverFuelSlips/${uid}`));
+        const slipId = newSlipRef.key;
+        await set(newSlipRef, {
+          id: slipId,
+          amount: parseFloat(fuelCost),
+          receiptImage: 'https://images.unsplash.com/photo-1554415707-6e8cfc93fe23?w=500',
+          createdAt: new Date().toISOString(),
+          status: 'pending',
+          driverName: driver?.name || 'Driver'
+        });
+        
+        await set(ref(db, `globalFuelSlips/${slipId}`), {
+          id: slipId,
+          driverUid: uid,
+          amount: parseFloat(fuelCost),
+          receiptImage: 'https://images.unsplash.com/photo-1554415707-6e8cfc93fe23?w=500',
+          createdAt: new Date().toISOString(),
+          status: 'pending',
+          driverName: driver?.name || 'Driver'
+        });
+
+        Alert.alert('Fuel Slip Uploaded! ⛽', 'Your fuel slip has been logged and sent to the logistics office for verification.');
+        setFuelCost('');
+      } catch (e) {
+        Alert.alert('Error', e.message);
+      } finally {
+        setIsUploadingSlip(false);
+      }
+    }, 1500);
+  };
+
+  const handleCashOut = async () => {
+    const amt = parseFloat(withdrawAmount);
+    if (!withdrawAmount.trim() || isNaN(amt) || amt <= 0) {
+      Alert.alert('Invalid Amount', 'Please enter a valid cash-out amount.');
+      return;
+    }
+    if (amt > availableBalance) {
+      Alert.alert('Insufficient Balance', 'Requested amount exceeds your available balance.');
+      return;
+    }
+    setIsSubmittingCashOut(true);
+    try {
+      const newCashoutRef = push(ref(db, `driverCashOuts/${uid}`));
+      const cashoutId = newCashoutRef.key;
+      const requestData = {
+        id: cashoutId,
+        driverUid: uid,
+        amount: amt,
+        status: 'pending',
+        createdAt: new Date().toISOString(),
+        driverName: driver?.name || 'Driver'
+      };
+      await set(newCashoutRef, requestData);
+
+      await set(ref(db, `globalCashOuts/${cashoutId}`), requestData);
+
+      Alert.alert('Cash-Out Requested 💳', 'Your payout request is submitted to the finance desk.');
+      setWithdrawAmount('');
+    } catch (e) {
+      Alert.alert('Error', e.message);
+    } finally {
+      setIsSubmittingCashOut(false);
+    }
+  };
+
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: colors.bg }}>
       <ScrollView contentContainerStyle={screen()}>
         <BackBtn onPress={() => navigation.goBack()} />
-        <Text style={h1}>Earnings</Text>
+        <Text style={h1}>Earnings & Wallet</Text>
+        <Text style={sub}>Track trip revenue, log fuel costs, and request payouts</Text>
 
         <Card style={{ backgroundColor: colors.accent, marginBottom: 16 }}>
-          <Text style={{ fontSize: fonts.xs, color: colors.white + 'BB', fontWeight: '700', letterSpacing: 1.5 }}>TOTAL EARNED</Text>
-          <Text style={{ fontSize: 38, fontWeight: '900', color: colors.white, marginVertical: 4 }}>₹{totalEarned.toLocaleString()}</Text>
-          <Text style={{ fontSize: fonts.sm, color: colors.white + 'CC' }}>
-            {totalTrips === 0 ? 'No trips completed yet' : `From ${totalTrips} completed trip${totalTrips > 1 ? 's' : ''}`}
-          </Text>
+          <Text style={{ fontSize: fonts.xs, color: colors.white + 'BB', fontWeight: '700', letterSpacing: 1.5 }}>AVAILABLE TO WITHDRAW</Text>
+          <Text style={{ fontSize: 38, fontWeight: '900', color: colors.white, marginVertical: 4 }}>₹{availableBalance.toLocaleString()}</Text>
+          <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginTop: 4 }}>
+            <Text style={{ fontSize: fonts.xs, color: colors.white + 'CC' }}>Total Earned: ₹{totalEarned.toLocaleString()}</Text>
+            <Text style={{ fontSize: fonts.xs, color: colors.white + 'CC' }}>Paid Out: ₹{totalWithdrawn.toLocaleString()}</Text>
+          </View>
+        </Card>
+
+        <Card style={{ marginBottom: 16, padding: 16 }}>
+          <SectionLabel label="WITHDRAW EARNINGS" />
+          <View style={{ flexDirection: 'row', gap: 10, marginTop: 8 }}>
+            <Input
+              placeholder="Enter amount (₹)"
+              value={withdrawAmount}
+              onChangeText={setWithdrawAmount}
+              keyboardType="numeric"
+              style={{ flex: 1, marginBottom: 0 }}
+            />
+            <TouchableOpacity
+              onPress={handleCashOut}
+              disabled={isSubmittingCashOut}
+              style={{
+                backgroundColor: colors.accent,
+                paddingHorizontal: 20,
+                borderRadius: radius.md,
+                alignItems: 'center',
+                justifyContent: 'center'
+              }}
+            >
+              {isSubmittingCashOut ? (
+                <ActivityIndicator color={colors.white} />
+              ) : (
+                <Text style={{ color: colors.white, fontWeight: '800', fontSize: fonts.sm }}>Cash Out 💳</Text>
+              )}
+            </TouchableOpacity>
+          </View>
+        </Card>
+
+        <Card style={{ marginBottom: 16, padding: 16 }}>
+          <SectionLabel label="LOG FUEL PURCHASE" />
+          <Text style={{ fontSize: fonts.xs, color: colors.textSub, marginBottom: 8 }}>Submit slips to claim corporate fuel refunds</Text>
+          <View style={{ flexDirection: 'row', gap: 10 }}>
+            <Input
+              placeholder="Fuel cost in ₹ (e.g. 4500)"
+              value={fuelCost}
+              onChangeText={setFuelCost}
+              keyboardType="numeric"
+              style={{ flex: 1, marginBottom: 0 }}
+            />
+            <TouchableOpacity
+              onPress={handleFuelUpload}
+              disabled={isUploadingSlip}
+              style={{
+                backgroundColor: colors.purple,
+                paddingHorizontal: 16,
+                borderRadius: radius.md,
+                alignItems: 'center',
+                justifyContent: 'center',
+                flexDirection: 'row',
+                gap: 6
+              }}
+            >
+              {isUploadingSlip ? (
+                <ActivityIndicator color={colors.white} />
+              ) : (
+                <>
+                  <Text style={{ fontSize: 16 }}>📸</Text>
+                  <Text style={{ color: colors.white, fontWeight: '800', fontSize: fonts.sm }}>Upload Slip</Text>
+                </>
+              )}
+            </TouchableOpacity>
+          </View>
         </Card>
 
         <View style={{ flexDirection: 'row', gap: 10, marginBottom: 16 }}>
@@ -714,24 +890,57 @@ export function EarningsScreen({ navigation }) {
           <StatCard icon="🛣️" value={totalTrips} label="Total Trips" color={colors.blue} style={{ flex: 1 }} />
         </View>
 
-        <Card style={{ marginBottom: 16 }}>
-          <SectionLabel label="This Week" />
-          {totalTrips === 0 ? (
-            <View style={{ alignItems: 'center', padding: 20 }}>
-              <Text style={{ fontSize: 32, marginBottom: 8 }}>📊</Text>
-              <Text style={{ color: colors.textMuted, fontSize: fonts.sm, textAlign: 'center' }}>
-                Earnings chart will appear after your first completed trip
-              </Text>
-            </View>
+        <Card style={{ marginBottom: 20 }}>
+          <SectionLabel label="TRANSACTION & VERIFICATION LOG" />
+          
+          <Text style={{ fontSize: 11, fontWeight: '800', color: colors.textSub, marginVertical: 8, letterSpacing: 0.5 }}>FUEL REFUNDS ({fuelSlips.length})</Text>
+          {fuelSlips.length === 0 ? (
+            <Text style={{ fontSize: 12, color: colors.textMuted, marginVertical: 4 }}>No fuel slips submitted yet.</Text>
           ) : (
-            <View style={{ flexDirection: 'row', alignItems: 'flex-end', height: 80, gap: 6 }}>
-              {weekly.map((v, i) => (
-                <View key={i} style={{ flex: 1, alignItems: 'center', gap: 4 }}>
-                  <View style={{ width: '100%', height: Math.max((v / maxVal) * 64, v > 0 ? 4 : 0), backgroundColor: colors.accent + (v > 0 ? 'FF' : '30'), borderRadius: 4 }} />
-                  <Text style={{ fontSize: 9, color: colors.textMuted }}>{days[i]}</Text>
+            fuelSlips.map((item, idx) => (
+              <View key={idx} style={{ flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 10, borderBottomWidth: 1, borderColor: colors.border }}>
+                <View>
+                  <Text style={{ fontSize: fonts.base, fontWeight: '750', color: colors.text }}>₹{item.amount.toLocaleString()}</Text>
+                  <Text style={{ fontSize: 10, color: colors.textMuted, marginTop: 2 }}>{new Date(item.createdAt).toLocaleDateString()}</Text>
                 </View>
-              ))}
-            </View>
+                <View style={{
+                  backgroundColor: item.status === 'approved' ? '#D1FAE5' : (item.status === 'rejected' ? '#FEE2E2' : '#FEF3C7'),
+                  paddingHorizontal: 8, paddingVertical: 4, borderRadius: 6
+                }}>
+                  <Text style={{
+                    fontSize: 10, fontWeight: '900',
+                    color: item.status === 'approved' ? '#065F46' : (item.status === 'rejected' ? '#991B1B' : '#92400E')
+                  }}>
+                    {item.status === 'approved' ? '✓ APPROVED' : (item.status === 'rejected' ? '✕ REJECTED' : '⏳ PENDING')}
+                  </Text>
+                </View>
+              </View>
+            ))
+          )}
+
+          <Text style={{ fontSize: 11, fontWeight: '800', color: colors.textSub, marginTop: 14, marginBottom: 8, letterSpacing: 0.5 }}>CASHOUT PAYOUTS ({cashOutRequests.length})</Text>
+          {cashOutRequests.length === 0 ? (
+            <Text style={{ fontSize: 12, color: colors.textMuted, marginVertical: 4 }}>No cashouts requested yet.</Text>
+          ) : (
+            cashOutRequests.map((item, idx) => (
+              <View key={idx} style={{ flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 10, borderBottomWidth: idx < cashOutRequests.length - 1 ? 1 : 0, borderColor: colors.border }}>
+                <View>
+                  <Text style={{ fontSize: fonts.base, fontWeight: '750', color: colors.text }}>₹{item.amount.toLocaleString()}</Text>
+                  <Text style={{ fontSize: 10, color: colors.textMuted, marginTop: 2 }}>{new Date(item.createdAt).toLocaleDateString()}</Text>
+                </View>
+                <View style={{
+                  backgroundColor: item.status === 'approved' ? '#D1FAE5' : '#FEF3C7',
+                  paddingHorizontal: 8, paddingVertical: 4, borderRadius: 6
+                }}>
+                  <Text style={{
+                    fontSize: 10, fontWeight: '900',
+                    color: item.status === 'approved' ? '#065F46' : '#991B1B'
+                  }}>
+                    {item.status === 'approved' ? '✓ PAID OUT' : '⏳ PENDING'}
+                  </Text>
+                </View>
+              </View>
+            ))
           )}
         </Card>
       </ScrollView>

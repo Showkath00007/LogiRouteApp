@@ -10,7 +10,8 @@ import { View, Text, StyleSheet, ScrollView, SafeAreaView, TouchableOpacity, Ale
 import { colors, radius, shadow } from '../../theme';
 import { Btn, Card, StatCard, Badge, SectionLabel, BackBtn, Divider, ListItem, Input, CostHero, ProgressBar, NotifCard } from '../../components';
 import { MOCK_DRIVERS, MOCK_WEATHER, MOCK_HISTORY } from '../../data';
-import { auth } from '../../config/firebase';
+import { auth, db } from '../../config/firebase';
+import { ref, set, update, onValue } from 'firebase/database';
 import { signOut } from 'firebase/auth';
 import { getUserProfile, listenNotifications, listenBookings, createBooking, listenShipments } from '../../config/firebaseService';
 import { sendBookingRequest, listenAllNotifications, markAnyNotificationRead, markAllNotificationsReadUnified, simulateNewNotification } from '../../config/DriverService';
@@ -1443,6 +1444,7 @@ export function ProfileScreen({ navigation }) {
   const menuItems = [
     { icon: '✏️', label: t('editProfile'), sub: t('editProfileSub'), route: 'EditProfile' },
     { icon: '🪄', label: 'Setup Wizard', sub: 'Re-run onboarding configuration', route: 'ProfileSetup' },
+    { icon: '💸', label: 'Payout Release Hub', sub: 'Approve driver fuel slips & cash-outs', route: 'PayoutRelease' },
     { icon: '🏢', label: t('companyDetails'), sub: t('companyDetailsSub'), route: 'CompanyDetails' },
     { icon: '🪪', label: t('kycDocs'), sub: `${t('kycDocsSub')} • ${profile?.verified ? t('verifiedBadge') + ' ✓' : t('pendingBadge')}`, color: colors.green, route: 'KYCDocuments' },
     { icon: '💳', label: t('paymentMethods'), sub: t('paymentMethodsSub'), route: 'PaymentMethods' },
@@ -1914,6 +1916,285 @@ export function HelpSupportScreen({ navigation }) {
 
           <Btn label="Submit Ticket 🎟️" onPress={handleSubmitTicket} loading={submitting} style={{ marginTop: 8 }} />
         </Card>
+      </ScrollView>
+    </SafeAreaView>
+  );
+}
+
+// S99 — Payout Release Hub for Company manager
+export function PayoutReleaseScreen({ navigation }) {
+  const [activeTab, setActiveTab] = useState('cashouts'); // 'cashouts' or 'fuelslips'
+  const [cashouts, setCashouts] = useState([]);
+  const [fuelslips, setFuelslips] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  // Modal for displaying receipt mockup
+  const [selectedReceipt, setSelectedReceipt] = useState(null);
+
+  useEffect(() => {
+    try {
+      const cashoutsRef = ref(db, 'globalCashOuts');
+      onValue(cashoutsRef, snap => {
+        if (!snap.exists()) { setCashouts([]); return; }
+        setCashouts(Object.values(snap.val()).reverse());
+      });
+
+      const fuelRef = ref(db, 'globalFuelSlips');
+      onValue(fuelRef, snap => {
+        if (!snap.exists()) { setFuelslips([]); return; }
+        setFuelslips(Object.values(snap.val()).reverse());
+      });
+
+      setLoading(false);
+    } catch (e) {
+      setLoading(false);
+    }
+  }, []);
+
+  const handleApproveCashout = async (item) => {
+    try {
+      await update(ref(db, `globalCashOuts/${item.id}`), { status: 'approved' });
+      await update(ref(db, `driverCashOuts/${item.driverUid}/${item.id}`), { status: 'approved' });
+
+      Alert.alert('Payout Released! 💳', `Approved ₹${item.amount.toLocaleString()} payout to driver ${item.driverName || 'Driver'}.`);
+    } catch (e) {
+      Alert.alert('Error', e.message);
+    }
+  };
+
+  const handleApproveFuel = async (item) => {
+    try {
+      await update(ref(db, `globalFuelSlips/${item.id}`), { status: 'approved' });
+      await update(ref(db, `driverFuelSlips/${item.driverUid}/${item.id}`), { status: 'approved' });
+
+      Alert.alert('Refund Approved! ⛽', `Approved ₹${item.amount.toLocaleString()} fuel refund to ${item.driverName}.`);
+    } catch (e) {
+      Alert.alert('Error', e.message);
+    }
+  };
+
+  const handleRejectFuel = async (item) => {
+    try {
+      await update(ref(db, `globalFuelSlips/${item.id}`), { status: 'rejected' });
+      await update(ref(db, `driverFuelSlips/${item.driverUid}/${item.id}`), { status: 'rejected' });
+
+      Alert.alert('Refund Rejected ✕', `Rejected fuel slip refund of ₹${item.amount.toLocaleString()} for ${item.driverName}.`);
+    } catch (e) {
+      Alert.alert('Error', e.message);
+    }
+  };
+
+  return (
+    <SafeAreaView style={{ flex: 1, backgroundColor: colors.bg }}>
+      <ScrollView contentContainerStyle={screen()}>
+        <BackBtn onPress={() => navigation.goBack()} />
+        <Text style={h1}>Payout Release Hub</Text>
+        <Text style={sub}>Audit driver expense invoices and authorize payout cash-outs</Text>
+
+        {/* Custom Tab Selector */}
+        <View style={{ flexDirection: 'row', gap: 10, marginBottom: 16 }}>
+          {[
+            { id: 'cashouts', label: 'Cash-Outs 💳', data: cashouts },
+            { id: 'fuelslips', label: 'Fuel Slips ⛽', data: fuelslips }
+          ].map(t => (
+            <TouchableOpacity
+              key={t.id}
+              onPress={() => setActiveTab(t.id)}
+              style={{
+                flex: 1,
+                paddingVertical: 12,
+                borderRadius: radius.md,
+                backgroundColor: activeTab === t.id ? colors.accentLight : colors.surface,
+                borderWidth: 1.5,
+                borderColor: activeTab === t.id ? colors.accent : colors.border,
+                alignItems: 'center'
+              }}
+            >
+              <Text style={{ fontSize: 13, fontWeight: '800', color: activeTab === t.id ? colors.accent : colors.textSub }}>
+                {t.label} ({t.data.filter(x => x.status === 'pending').length})
+              </Text>
+            </TouchableOpacity>
+          ))}
+        </View>
+
+        {loading ? (
+          <ActivityIndicator color={colors.accent} style={{ marginTop: 40 }} />
+        ) : (
+          <Card>
+            {activeTab === 'cashouts' ? (
+              <View>
+                <SectionLabel label="PENDING CASHOUT PAYOUTS" />
+                {cashouts.length === 0 ? (
+                  <Text style={{ color: colors.textMuted, fontSize: 13, paddingVertical: 12 }}>No payouts registered.</Text>
+                ) : (
+                  cashouts.map((item, idx) => (
+                    <View key={idx} style={{ paddingVertical: 14, borderBottomWidth: idx < cashouts.length - 1 ? 1 : 0, borderColor: colors.border }}>
+                      <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+                        <View>
+                          <Text style={{ fontSize: 15, fontWeight: '800', color: colors.text }}>{item.driverName}</Text>
+                          <Text style={{ fontSize: 11, color: colors.textMuted }}>Requested: {new Date(item.createdAt).toLocaleDateString()}</Text>
+                        </View>
+                        <Text style={{ fontSize: 18, fontWeight: '900', color: colors.accent }}>₹{item.amount.toLocaleString()}</Text>
+                      </View>
+                      
+                      {item.status === 'pending' ? (
+                        <TouchableOpacity
+                          onPress={() => handleApproveCashout(item)}
+                          style={{
+                            backgroundColor: colors.accent,
+                            paddingVertical: 8,
+                            borderRadius: radius.sm,
+                            alignItems: 'center',
+                            marginTop: 4
+                          }}
+                        >
+                          <Text style={{ color: colors.white, fontSize: 12, fontWeight: '800' }}>Approve & Pay Payout ✓</Text>
+                        </TouchableOpacity>
+                      ) : (
+                        <View style={{ backgroundColor: '#D1FAE5', paddingVertical: 6, borderRadius: radius.sm, alignItems: 'center' }}>
+                          <Text style={{ color: '#065F46', fontSize: 11, fontWeight: '900' }}>✓ RELEASED & PAID</Text>
+                        </View>
+                      )}
+                    </View>
+                  ))
+                )}
+              </View>
+            ) : (
+              <View>
+                <SectionLabel label="DRIVER FUEL SLIPS CLAIMS" />
+                {fuelslips.length === 0 ? (
+                  <Text style={{ color: colors.textMuted, fontSize: 13, paddingVertical: 12 }}>No fuel claims registered.</Text>
+                ) : (
+                  fuelslips.map((item, idx) => (
+                    <View key={idx} style={{ paddingVertical: 14, borderBottomWidth: idx < fuelslips.length - 1 ? 1 : 0, borderColor: colors.border }}>
+                      <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+                        <View>
+                          <Text style={{ fontSize: 15, fontWeight: '800', color: colors.text }}>{item.driverName}</Text>
+                          <Text style={{ fontSize: 11, color: colors.textMuted }}>Submitted: {new Date(item.createdAt).toLocaleDateString()}</Text>
+                        </View>
+                        <Text style={{ fontSize: 18, fontWeight: '900', color: colors.purple }}>₹{item.amount.toLocaleString()}</Text>
+                      </View>
+
+                      <View style={{ flexDirection: 'row', gap: 8, marginTop: 4 }}>
+                        <TouchableOpacity
+                          onPress={() => setSelectedReceipt(item)}
+                          style={{
+                            flex: 1,
+                            backgroundColor: colors.surface2,
+                            borderWidth: 1,
+                            borderColor: colors.border,
+                            paddingVertical: 8,
+                            borderRadius: radius.sm,
+                            alignItems: 'center'
+                          }}
+                        >
+                          <Text style={{ color: colors.textSub, fontSize: 12, fontWeight: '750' }}>View Receipt 📸</Text>
+                        </TouchableOpacity>
+
+                        {item.status === 'pending' ? (
+                          <>
+                            <TouchableOpacity
+                              onPress={() => handleApproveFuel(item)}
+                              style={{
+                                flex: 1,
+                                backgroundColor: colors.accent,
+                                paddingVertical: 8,
+                                borderRadius: radius.sm,
+                                alignItems: 'center'
+                              }}
+                            >
+                              <Text style={{ color: colors.white, fontSize: 12, fontWeight: '800' }}>Approve ✓</Text>
+                            </TouchableOpacity>
+                            <TouchableOpacity
+                              onPress={() => handleRejectFuel(item)}
+                              style={{
+                                flex: 1,
+                                backgroundColor: colors.red + '15',
+                                borderWidth: 1,
+                                borderColor: colors.red,
+                                paddingVertical: 8,
+                                borderRadius: radius.sm,
+                                alignItems: 'center'
+                              }}
+                            >
+                              <Text style={{ color: colors.red, fontSize: 12, fontWeight: '800' }}>Reject ✕</Text>
+                            </TouchableOpacity>
+                          </>
+                        ) : (
+                          <View style={{
+                            flex: 2,
+                            backgroundColor: item.status === 'approved' ? '#D1FAE5' : '#FEE2E2',
+                            borderRadius: radius.sm,
+                            alignItems: 'center',
+                            justifyContent: 'center'
+                          }}>
+                            <Text style={{
+                              color: item.status === 'approved' ? '#065F46' : '#991B1B',
+                              fontSize: 11, fontWeight: '900'
+                            }}>
+                              {item.status === 'approved' ? '✓ REFUNDED' : '✕ REJECTED'}
+                            </Text>
+                          </View>
+                        )}
+                      </View>
+                    </View>
+                  ))
+                )}
+              </View>
+            )}
+          </Card>
+        )}
+
+        {/* Receipt Verification Modal */}
+        <Modal
+          visible={!!selectedReceipt}
+          transparent
+          animationType="fade"
+          onRequestClose={() => setSelectedReceipt(null)}
+        >
+          <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.65)', justifyContent: 'center', alignItems: 'center', padding: 20 }}>
+            <View style={{ backgroundColor: colors.surface, width: '100%', borderRadius: radius.lg, padding: 20, borderWidth: 1, borderColor: colors.border }}>
+              <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+                <Text style={{ fontSize: 16, fontWeight: '900', color: colors.text }}>Verify Fuel Invoice</Text>
+                <TouchableOpacity onPress={() => setSelectedReceipt(null)}>
+                  <Text style={{ fontSize: 20, color: colors.textMuted }}>✕</Text>
+                </TouchableOpacity>
+              </View>
+              
+              {selectedReceipt && (
+                <View>
+                  <Text style={{ fontSize: 13, color: colors.textSub, marginBottom: 8 }}>
+                    Driver: <Text style={{ fontWeight: '800', color: colors.text }}>{selectedReceipt.driverName}</Text>
+                  </Text>
+                  <Text style={{ fontSize: 13, color: colors.textSub, marginBottom: 12 }}>
+                    Claim Value: <Text style={{ fontWeight: '900', color: colors.purple }}>₹{selectedReceipt.amount.toLocaleString()}</Text>
+                  </Text>
+
+                  {/* Simulated Receipt Slip Photo Visualizer */}
+                  <View style={{ height: 220, borderRadius: radius.md, overflow: 'hidden', borderWidth: 1, borderColor: colors.border, marginBottom: 16, backgroundColor: colors.surface2, alignItems: 'center', justifyContent: 'center' }}>
+                    <Image
+                      source={{ uri: selectedReceipt.receiptImage }}
+                      style={{ width: '100%', height: '100%' }}
+                      resizeMode="cover"
+                    />
+                    {/* Simulated details overlay stamp */}
+                    <View style={{ position: 'absolute', bottom: 10, left: 10, backgroundColor: 'rgba(0,0,0,0.7)', padding: 6, borderRadius: 4 }}>
+                      <Text style={{ color: '#FFFFFF', fontSize: 9, fontFamily: 'monospace' }}>
+                        STATION: HP AUTO HUB{'\n'}
+                        DATE: {new Date(selectedReceipt.createdAt).toLocaleDateString()}{'\n'}
+                        VOLUME: 42.5 LITERS{'\n'}
+                        AUTH CODE: #F-9023
+                      </Text>
+                    </View>
+                  </View>
+
+                  <Btn label="Close Receipt Verification" onPress={() => setSelectedReceipt(null)} />
+                </View>
+              )}
+            </View>
+          </View>
+        </Modal>
+
       </ScrollView>
     </SafeAreaView>
   );

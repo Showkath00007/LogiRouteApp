@@ -73,6 +73,7 @@ import ProfileScreen from '../screens/profile/ProfileScreen';
 import SettingsScreen from '../screens/profile/SettingsScreen';
 import NotificationsScreen from '../screens/profile/NotificationsScreen';
 import HelpSupportScreen from '../screens/profile/HelpSupportScreen';
+import PayoutReleaseScreen from '../screens/remaining/PayoutReleaseScreen';
 
 const Stack = createNativeStackNavigator();
 
@@ -154,6 +155,7 @@ export default function AppNavigator() {
         <Stack.Screen name="Settings" component={SettingsScreen} />
         <Stack.Screen name="Notifications" component={NotificationsScreen} />
         <Stack.Screen name="HelpSupport" component={HelpSupportScreen} />
+        <Stack.Screen name="PayoutRelease" component={PayoutReleaseScreen} />
       </Stack.Navigator>
     </NavigationContainer>
   );

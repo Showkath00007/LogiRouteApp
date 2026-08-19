@@ -65,6 +65,7 @@ import ProfileScreen from './src/screens/profile/ProfileScreen';
 import SettingsScreen from './src/screens/profile/SettingsScreen';
 import NotificationsScreen from './src/screens/profile/NotificationsScreen';
 import HelpSupportScreen from './src/screens/profile/HelpSupportScreen';
+import PayoutReleaseScreen from './src/screens/remaining/PayoutReleaseScreen';
 import ChatScreen from './src/screens/ChatScreen';
 import QRScannerScreen from './src/screens/QRScannerScreen';
 import EditProfileScreen from './src/screens/profile/EditProfileScreen';
@@ -146,6 +147,7 @@ export default function App() {
           <Stack.Screen name="PaymentMethods" component={PaymentMethodsScreen} />
           <Stack.Screen name="ThemeCustomizer" component={ThemeCustomizerScreen} />
           <Stack.Screen name="AdminPanel" component={AdminPanelScreen} />
+          <Stack.Screen name="PayoutRelease" component={PayoutReleaseScreen} />
         </Stack.Navigator>
       </NavigationContainer>
     </NotificationProvider></OfflineProvider></LanguageProvider></ThemeProvider>
