@@ -18,7 +18,7 @@ export default function EditProfileScreen({ navigation }) {
       try {
         const fb = await getUserProfile().catch(() => null);
         const local = await getProfile().catch(() => null);
-        const data = { ...local, ...fb, avatar: local?.avatar || fb?.avatar };
+        const data = { ...local, ...fb, avatar: fb?.avatar || local?.avatar };
         setForm({
           name: data.name || '',
           company: data.company || '',

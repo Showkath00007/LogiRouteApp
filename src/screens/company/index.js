@@ -41,7 +41,7 @@ export function CompanyDashboard({ navigation }) {
       try {
         const local = await getProfile().catch(() => null);
         const fb = await getUserProfile().catch(() => null);
-        setProfile({ ...local, ...fb, avatar: local?.avatar || fb?.avatar });
+        setProfile({ ...local, ...fb, avatar: fb?.avatar || local?.avatar });
       } catch (e) {
         // Ignored
       }

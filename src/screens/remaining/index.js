@@ -1415,7 +1415,7 @@ export function ProfileScreen({ navigation }) {
       try {
         const local = await getProfile();
         const fb = await getUserProfile().catch(() => null);
-        setProfile({ ...local, ...fb, avatar: local?.avatar || fb?.avatar });
+        setProfile({ ...local, ...fb, avatar: fb?.avatar || local?.avatar });
       } catch (e) {
         const local = await getProfile();
         setProfile(local);
