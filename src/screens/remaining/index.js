@@ -6,7 +6,7 @@ import * as Print from 'expo-print';
 import * as Sharing from 'expo-sharing';
 import * as FileSystem from 'expo-file-system';
 import React, { useState, useEffect, useRef } from 'react';
-import { View, Text, StyleSheet, ScrollView, SafeAreaView, TouchableOpacity, Alert, ActivityIndicator, TextInput, Modal, Image } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, SafeAreaView, TouchableOpacity, Alert, ActivityIndicator, TextInput, Modal, Image, Platform } from 'react-native';
 import { colors, radius, shadow } from '../../theme';
 import { Btn, Card, StatCard, Badge, SectionLabel, BackBtn, Divider, ListItem, Input, CostHero, ProgressBar, NotifCard } from '../../components';
 import { MOCK_DRIVERS, MOCK_WEATHER, MOCK_HISTORY } from '../../data';
