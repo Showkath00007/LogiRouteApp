@@ -1,4 +1,3 @@
-import React from 'react';
 import { View, Text, ScrollView, SafeAreaView, TouchableOpacity } from 'react-native';
 import { colors as baseColors, radius, shadow } from '../../theme';
 import { BackBtn, Card, Btn } from '../../components';
