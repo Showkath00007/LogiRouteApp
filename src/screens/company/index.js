@@ -116,6 +116,7 @@ export function CompanyDashboard({ navigation }) {
   };
 
   return (
+    <SafeAreaView style={{ flex: 1, backgroundColor: colors.bg }}>
       <ScrollView contentContainerStyle={screen(60)}>
         <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
           <View>
@@ -123,7 +124,7 @@ export function CompanyDashboard({ navigation }) {
             <Text style={{ fontSize: 22, fontWeight: '900', color: colors.text }}>Kadiyala Logistics</Text>
           </View>
           <TouchableOpacity onPress={() => navigation.navigate('Profile')} style={{ width: 44, height: 44, backgroundColor: colors.accent, borderRadius: radius.full, alignItems: 'center', justifyContent: 'center', overflow: 'hidden' }}>
-            {profile?.avatar ? (
+            {profile?.avatar && !(Platform.OS !== 'web' && profile.avatar.startsWith('blob:')) ? (
               <Image source={{ uri: profile.avatar }} style={{ width: 44, height: 44 }} />
             ) : (
               <Text style={{ fontSize: 20 }}>🏢</Text>

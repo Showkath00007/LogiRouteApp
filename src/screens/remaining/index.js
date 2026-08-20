@@ -1462,7 +1462,7 @@ export function ProfileScreen({ navigation }) {
         <BackBtn onPress={() => navigation.goBack()} style={{ alignSelf: 'flex-start', marginBottom: 8 }} />
         <View style={{ alignItems: 'center', paddingVertical: 20 }}>
           <View style={{ width: 80, height: 80, borderRadius: 40, backgroundColor: colors.accent, alignItems: 'center', justifyContent: 'center', marginBottom: 12, overflow: 'hidden', borderWidth: 2, borderColor: colors.accent + '33' }}>
-            {profile?.avatar ? (
+            {profile?.avatar && !(Platform.OS !== 'web' && profile.avatar.startsWith('blob:')) ? (
               <Image source={{ uri: profile.avatar }} style={{ width: 80, height: 80 }} />
             ) : (
               <Text style={{ fontSize: 40 }}>👤</Text>

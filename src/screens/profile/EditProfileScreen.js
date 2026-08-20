@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, ScrollView, SafeAreaView, TouchableOpacity, Alert, ActivityIndicator, Image } from 'react-native';
+import { View, Text, ScrollView, SafeAreaView, TouchableOpacity, Alert, ActivityIndicator, Image, Platform } from 'react-native';
 import { colors } from '../../theme';
 import { BackBtn, Input, Btn, SectionLabel } from '../../components';
 import { getProfile, saveProfile } from '../../config/UserStore';
@@ -100,7 +100,7 @@ export default function EditProfileScreen({ navigation }) {
         <BackBtn onPress={() => navigation.goBack()} />
         <Text style={{ fontSize: 24, fontWeight: '900', color: colors.text, marginBottom: 20 }}>Edit Profile</Text>
         <TouchableOpacity onPress={pickImage} style={{ width: 90, height: 90, borderRadius: 45, backgroundColor: colors.accent, alignItems: 'center', justifyContent: 'center', alignSelf: 'center', marginBottom: 24, borderWidth: 3, borderColor: colors.accent + '55' }}>
-          {form.avatar ? (
+          {form.avatar && !(Platform.OS !== 'web' && form.avatar.startsWith('blob:')) ? (
             <Image source={{ uri: form.avatar }} style={{ width: 84, height: 84, borderRadius: 42 }} />
           ) : (
             <Text style={{ fontSize: 38 }}>👤</Text>
