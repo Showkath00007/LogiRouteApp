@@ -49,11 +49,14 @@ export default function EditProfileScreen({ navigation }) {
         mediaTypes: ImagePicker.MediaTypeOptions.Images,
         allowsEditing: true,
         aspect: [1, 1],
-        quality: 1,
+        quality: 0.6,
+        base64: true,
       });
 
       if (!result.canceled && result.assets && result.assets.length > 0) {
-        set('avatar', result.assets[0].uri);
+        const mime = result.assets[0].mimeType || 'image/jpeg';
+        const base64Str = `data:${mime};base64,${result.assets[0].base64}`;
+        set('avatar', base64Str);
       }
     } catch (e) {
       Alert.alert('Error', 'Could not open image library.');
