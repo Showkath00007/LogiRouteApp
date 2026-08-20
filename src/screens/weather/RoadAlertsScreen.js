@@ -1,7 +1,7 @@
 import React, { useState, useRef } from 'react';
 import {
   View, Text, ScrollView, SafeAreaView, TouchableOpacity,
-  TextInput, ActivityIndicator, Alert
+  TextInput, ActivityIndicator, Alert, Platform, Dimensions
 } from 'react-native';
 import { colors, radius, shadow } from '../../theme';
 import { BackBtn } from '../../components';
@@ -489,6 +489,19 @@ export default function RoadAlertsScreen({ navigation, route: navRoute }) {
   const [analyzedData, setAnalyzedData] = useState(null);
   const [selectedRouteId, setSelectedRouteId] = useState('primary');
   const [loading, setLoading] = useState(false);
+  const [windowWidth, setWindowWidth] = useState(Dimensions.get('window').width);
+
+  React.useEffect(() => {
+    const onChange = ({ window }) => {
+      setWindowWidth(window.width);
+    };
+    const subscription = Dimensions.addEventListener('change', onChange);
+    return () => {
+      if (subscription?.remove) subscription.remove();
+    };
+  }, []);
+
+  const isDesktopWeb = Platform.OS === 'web' && windowWidth > 768;
 
   const [sourceSuggestions, setSourceSuggestions] = useState([]);
   const [destSuggestions, setDestSuggestions] = useState([]);
@@ -589,6 +602,293 @@ export default function RoadAlertsScreen({ navigation, route: navRoute }) {
   const currentRoute = analyzedData?.routes?.find(r => r.id === selectedRouteId) || analyzedData?.routes?.[0];
   const currentCheckpoints = selectedRouteId === 'primary' ? analyzedData?.checkpoints : (analyzedData?.detourCheckpoints || []);
   const currentAlerts = selectedRouteId === 'primary' ? analyzedData?.alerts : (analyzedData?.detourAlerts || []);
+
+  if (isDesktopWeb) {
+    return (
+      <SafeAreaView style={{ flex: 1, backgroundColor: colors.bg }}>
+        <View style={{ flexDirection: 'row', flex: 1 }}>
+          {/* Left search control panel */}
+          <View style={{
+            width: 380,
+            backgroundColor: colors.surface,
+            borderRightWidth: 1.5,
+            borderRightColor: colors.border,
+            padding: 24,
+            justifyContent: 'space-between'
+          }}>
+            <View>
+              {/* Back button & Title */}
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 24 }}>
+                <BackBtn onPress={() => navigation.goBack()} style={{ marginBottom: 0 }} />
+                <View>
+                  <Text style={{ fontSize: 18, fontWeight: '900', color: colors.text }}>Route Radar</Text>
+                  <Text style={{ fontSize: 11, color: colors.textSub }}>Weather & Feasibility</Text>
+                </View>
+              </View>
+
+              {/* Source Input */}
+              <Text style={{ fontSize: 12, fontWeight: '850', color: colors.textSub, marginBottom: 6 }}>SOURCE TERMINAL</Text>
+              <View style={{ position: 'relative', zIndex: 10, marginBottom: 16 }}>
+                <TextInput
+                  placeholder="Enter source city (e.g. Chennai)"
+                  value={source}
+                  onChangeText={handleSourceChange}
+                  style={{
+                    backgroundColor: colors.bg,
+                    borderWidth: 1.5,
+                    borderColor: colors.border,
+                    borderRadius: radius.md,
+                    padding: 12,
+                    fontSize: 14,
+                    color: colors.text,
+                    fontWeight: '600'
+                  }}
+                />
+                {searchingSource && <ActivityIndicator color={colors.accent} style={{ position: 'absolute', right: 12, top: 12 }} />}
+                {sourceSuggestions.length > 0 && (
+                  <View style={{
+                    position: 'absolute',
+                    top: 52,
+                    left: 0,
+                    right: 0,
+                    backgroundColor: '#FFFFFF',
+                    borderRadius: radius.md,
+                    borderWidth: 1.5,
+                    borderColor: colors.border,
+                    elevation: 5,
+                    zIndex: 20
+                  }}>
+                    {sourceSuggestions.map((item, idx) => (
+                      <TouchableOpacity
+                        key={idx}
+                        onPress={() => {
+                          setSource(item.name);
+                          setSourceSuggestions([]);
+                        }}
+                        style={{ padding: 12, borderBottomWidth: idx < sourceSuggestions.length - 1 ? 1 : 0, borderColor: colors.border }}
+                      >
+                        <Text style={{ fontSize: 13, fontWeight: '700', color: colors.text }}>{item.name}</Text>
+                        <Text style={{ fontSize: 11, color: colors.textSub }}>{item.state || 'India'}</Text>
+                      </TouchableOpacity>
+                    ))}
+                  </View>
+                )}
+              </View>
+
+              {/* Destination Input */}
+              <Text style={{ fontSize: 12, fontWeight: '850', color: colors.textSub, marginBottom: 6 }}>DESTINATION HUB</Text>
+              <View style={{ position: 'relative', zIndex: 5, marginBottom: 24 }}>
+                <TextInput
+                  placeholder="Enter destination city (e.g. Mumbai)"
+                  value={destination}
+                  onChangeText={handleDestChange}
+                  style={{
+                    backgroundColor: colors.bg,
+                    borderWidth: 1.5,
+                    borderColor: colors.border,
+                    borderRadius: radius.md,
+                    padding: 12,
+                    fontSize: 14,
+                    color: colors.text,
+                    fontWeight: '600'
+                  }}
+                />
+                {searchingDest && <ActivityIndicator color={colors.accent} style={{ position: 'absolute', right: 12, top: 12 }} />}
+                {destSuggestions.length > 0 && (
+                  <View style={{
+                    position: 'absolute',
+                    top: 52,
+                    left: 0,
+                    right: 0,
+                    backgroundColor: '#FFFFFF',
+                    borderRadius: radius.md,
+                    borderWidth: 1.5,
+                    borderColor: colors.border,
+                    elevation: 5,
+                    zIndex: 20
+                  }}>
+                    {destSuggestions.map((item, idx) => (
+                      <TouchableOpacity
+                        key={idx}
+                        onPress={() => {
+                          setDestination(item.name);
+                          setDestSuggestions([]);
+                        }}
+                        style={{ padding: 12, borderBottomWidth: idx < destSuggestions.length - 1 ? 1 : 0, borderColor: colors.border }}
+                      >
+                        <Text style={{ fontSize: 13, fontWeight: '700', color: colors.text }}>{item.name}</Text>
+                        <Text style={{ fontSize: 11, color: colors.textSub }}>{item.state || 'India'}</Text>
+                      </TouchableOpacity>
+                    ))}
+                  </View>
+                )}
+              </View>
+
+              <TouchableOpacity
+                onPress={analyzeHighwayRoute}
+                disabled={loading}
+                style={{
+                  backgroundColor: colors.accent,
+                  padding: 14,
+                  borderRadius: radius.md,
+                  alignItems: 'center',
+                  justifyContent: 'center'
+                }}
+              >
+                {loading ? (
+                  <ActivityIndicator color="#FFFFFF" />
+                ) : (
+                  <Text style={{ color: '#FFFFFF', fontWeight: '800', fontSize: 14 }}>Check Highway Safety 🔍</Text>
+                )}
+              </TouchableOpacity>
+            </View>
+
+            {analyzedData && (
+              <TouchableOpacity
+                onPress={clearInputs}
+                style={{
+                  backgroundColor: '#FFF0F2',
+                  padding: 12,
+                  borderRadius: radius.md,
+                  alignItems: 'center'
+                }}
+              >
+                <Text style={{ color: colors.red, fontWeight: '800', fontSize: 13 }}>Reset Route Path ✕</Text>
+              </TouchableOpacity>
+            )}
+          </View>
+
+          {/* Right details scroll panel */}
+          <ScrollView contentContainerStyle={{ padding: 30, flexGrow: 1 }} style={{ flex: 1 }}>
+            {!analyzedData ? (
+              <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', paddingVertical: 80 }}>
+                <Text style={{ fontSize: 44, marginBottom: 12 }}>🛣️</Text>
+                <Text style={{ fontSize: 18, fontWeight: '900', color: colors.text, marginBottom: 6 }}>Enter Corridor Terminals</Text>
+                <Text style={{ fontSize: 13, color: colors.textSub, textAlign: 'center', maxWidth: 400, lineHeight: 20 }}>
+                  Verify real-time highway radar maps, high wind advisories, intermediate weather checkpoints, and safety ratings.
+                </Text>
+              </View>
+            ) : (
+              <View style={{ maxWidth: 900, alignSelf: 'center', width: '100%' }}>
+                {/* Result Heading */}
+                <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
+                  <View>
+                    <Text style={{ fontSize: 13, color: '#64748B', fontWeight: '700' }}>SAFETY ANALYSIS REPORT</Text>
+                    <Text style={{ fontSize: 24, fontWeight: '900', color: colors.text }}>
+                      {analyzedData.source} ➔ {analyzedData.destination}
+                    </Text>
+                  </View>
+                  <View style={{
+                    backgroundColor: analyzedData.safetyScore >= 80 ? '#D1FAE5' : '#FEF3C7',
+                    paddingHorizontal: 12, paddingVertical: 6, borderRadius: 8
+                  }}>
+                    <Text style={{ fontSize: 13, fontWeight: '900', color: analyzedData.safetyScore >= 80 ? '#065F46' : '#92400E' }}>
+                      {analyzedData.safetyScore}% Safety Rating
+                    </Text>
+                  </View>
+                </View>
+
+                {/* Alternate Detours Tabs */}
+                <View style={{ flexDirection: 'row', backgroundColor: '#F1F5F9', padding: 4, borderRadius: 10, marginBottom: 20 }}>
+                  {analyzedData.routes.map(r => (
+                    <TouchableOpacity
+                      key={r.id}
+                      onPress={() => setSelectedRouteId(r.id)}
+                      style={{
+                        flex: 1,
+                        paddingVertical: 10,
+                        alignItems: 'center',
+                        borderRadius: 8,
+                        backgroundColor: selectedRouteId === r.id ? '#FFFFFF' : 'transparent',
+                        shadowColor: '#000',
+                        shadowOffset: { width: 0, height: 2 },
+                        shadowOpacity: selectedRouteId === r.id ? 0.05 : 0,
+                        shadowRadius: 4
+                      }}
+                    >
+                      <Text style={{ fontSize: 13, fontWeight: '800', color: selectedRouteId === r.id ? colors.accent : colors.textSub }}>
+                        {r.name}
+                      </Text>
+                      <Text style={{ fontSize: 10, color: colors.textMuted, marginTop: 2 }}>
+                        {r.distance} • Safety {r.id === 'primary' ? analyzedData.safetyScore : 98}%
+                      </Text>
+                    </TouchableOpacity>
+                  ))}
+                </View>
+
+                <View style={{ flexDirection: 'row', gap: 20 }}>
+                  {/* Left Column: Milestones Timeline */}
+                  <View style={{ flex: 1 }}>
+                    <SectionLabel label="Checkpoints Timeline" />
+                    <View style={{ backgroundColor: '#FFFFFF', borderRadius: 18, padding: 20, borderWidth: 1, borderColor: '#E2E8F0' }}>
+                      {currentCheckpoints.map((cp, idx) => (
+                        <View key={idx} style={{ flexDirection: 'row', gap: 14 }}>
+                          <View style={{ alignItems: 'center' }}>
+                            <View style={{ width: 14, height: 14, borderRadius: 7, backgroundColor: cp.statusType === 'warning' ? '#F59E0B' : '#10B981', borderOuterWidth: 3, borderColor: '#FFFFFF', elevation: 2 }} />
+                            {idx < currentCheckpoints.length - 1 && (
+                              <View style={{ width: 2, flex: 1, backgroundColor: '#E2E8F0', marginVertical: 4 }} />
+                            )}
+                          </View>
+                          <View style={{ flex: 1, backgroundColor: '#F8FAFC', borderRadius: 12, padding: 12, marginBottom: idx < currentCheckpoints.length - 1 ? 12 : 0 }}>
+                            <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 4 }}>
+                              <Text style={{ fontSize: 14, fontWeight: '800', color: '#1A1A2E' }}>{cp.name}</Text>
+                              <Text style={{ fontSize: 10, fontWeight: '800', color: '#4361EE' }}>{cp.kmMark}</Text>
+                            </View>
+                            <Text style={{ fontSize: 12, color: colors.textSub, fontWeight: '600' }}>
+                              🌡️ {cp.temp}°C · {cp.weather} · 💨 {cp.wind} km/h
+                            </Text>
+                          </View>
+                        </View>
+                      ))}
+                    </View>
+                  </View>
+
+                  {/* Right Column: Warnings & Advisories */}
+                  <View style={{ flex: 1, gap: 20 }}>
+                    <SectionLabel label="Safety Alerts" />
+                    <View style={{ backgroundColor: '#FFFFFF', borderRadius: 18, padding: 20, borderWidth: 1, borderColor: '#E2E8F0' }}>
+                      {currentAlerts.length === 0 ? (
+                        <Text style={{ color: colors.textMuted, textAlign: 'center', paddingVertical: 12 }}>No warning alerts detected.</Text>
+                      ) : (
+                        currentAlerts.map((alt, idx) => (
+                          <View
+                            key={idx}
+                            style={{
+                              backgroundColor: alt.level === 'warning' ? '#FFFBEB' : '#F8FAFC',
+                              borderRadius: 12,
+                              padding: 14,
+                              marginBottom: idx < currentAlerts.length - 1 ? 10 : 0,
+                              borderLeftWidth: 4,
+                              borderLeftColor: alt.level === 'warning' ? '#F59E0B' : '#4361EE'
+                            }}
+                          >
+                            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 4 }}>
+                              <Text style={{ fontSize: 18 }}>{alt.icon}</Text>
+                              <Text style={{ fontSize: 13, fontWeight: '800', color: '#1A1A2E' }}>{alt.title}</Text>
+                            </View>
+                            <Text style={{ fontSize: 11, fontWeight: '750', color: '#64748B', marginBottom: 4 }}>📍 {alt.location}</Text>
+                            <Text style={{ fontSize: 12, color: '#4A5568', lineHeight: 16 }}>{alt.desc}</Text>
+                          </View>
+                        ))
+                      )}
+                    </View>
+
+                    <SectionLabel label="Dispatch Advisory" />
+                    <View style={{ backgroundColor: '#1E293B', borderRadius: 16, padding: 18 }}>
+                      <Text style={{ fontSize: 13, color: '#E2E8F0', lineHeight: 20 }}>
+                        • <Text style={{ fontWeight: '800', color: '#93C5FD' }}>Transit:</Text> {currentRoute.duration} with {currentRoute.tollCount} FASTag tolls.{'\n'}
+                        • <Text style={{ fontWeight: '800', color: '#93C5FD' }}>Driver Guidance:</Text> Adhere to standard 80 km/h highway speed limits; check tire pressures at midpoint corridors.
+                      </Text>
+                    </View>
+                  </View>
+                </View>
+              </View>
+            )}
+          </ScrollView>
+        </View>
+      </SafeAreaView>
+    );
+  }
 
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: colors.bg }}>
