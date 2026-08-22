@@ -708,7 +708,7 @@ export function RouteMapScreen({ navigation, route }) {
               {/* Bottom Active Drive Bar */}
               <div id="nav-bottom" style="display:none;">
                 <div class="speedo-badge">
-                  <span class="speedo-val" id="speedo-val">64</span>
+                  <span class="speedo-val" id="speedo-val">0</span>
                   <span class="speedo-unit">KM/H</span>
                 </div>
                 <div style="text-align: center;">
@@ -795,10 +795,12 @@ export function RouteMapScreen({ navigation, route }) {
                   map.fitBounds(routeLine.getBounds(), { padding: [50, 50] });
                 }
 
-                // In-App Turn-by-Turn Navigation Engine Simulation
+                // In-App Turn-by-Turn Navigation Engine GPS Tracking
                 let navActive = false;
-                let navTimer = null;
                 let navCarMarker = null;
+                let watchId = null;
+                let lastPos = null;
+                let lastTime = null;
 
                 function startInAppNav() {
                   navActive = true;
@@ -820,17 +822,51 @@ export function RouteMapScreen({ navigation, route }) {
                     navCarMarker = L.marker([${srcLat}, ${srcLon}], { icon: carIcon }).addTo(map);
                   }
 
-                  let speed = 62;
-                  navTimer = setInterval(() => {
-                    speed = Math.floor(58 + Math.random() * 12);
-                    const el = document.getElementById('speedo-val');
-                    if (el) el.innerText = speed;
-                  }, 2000);
+                  const el = document.getElementById('speedo-val');
+                  if (el) el.innerText = '0';
+
+                  // Watch device GPS position and calculate real speed
+                  if (navigator.geolocation) {
+                    watchId = navigator.geolocation.watchPosition((position) => {
+                      const coords = position.coords;
+                      let speedKmh = 0;
+                      
+                      if (coords.speed !== null && coords.speed !== undefined && coords.speed > 0) {
+                        speedKmh = Math.round(coords.speed * 3.6);
+                      } else if (lastPos && lastTime) {
+                        const dt = (position.timestamp - lastTime) / 1000;
+                        if (dt > 0.5) {
+                          const dist = map.distance(
+                            [lastPos.latitude, lastPos.longitude],
+                            [coords.latitude, coords.longitude]
+                          );
+                          speedKmh = Math.round((dist / dt) * 3.6);
+                        }
+                      }
+                      
+                      if (speedKmh > 120) speedKmh = 0; // Filter jumps
+                      if (el) el.innerText = speedKmh;
+                      
+                      lastPos = coords;
+                      lastTime = position.timestamp;
+                      
+                      if (navCarMarker) {
+                        navCarMarker.setLatLng([coords.latitude, coords.longitude]);
+                        map.setView([coords.latitude, coords.longitude], 16);
+                      }
+                    }, (err) => {
+                      console.warn("GPS Speed track error:", err);
+                    }, {
+                      enableHighAccuracy: true,
+                      maximumAge: 1000,
+                      timeout: 5000
+                    });
+                  }
                 }
 
                 function stopInAppNav() {
                   navActive = false;
-                  if (navTimer) clearInterval(navTimer);
+                  if (watchId) navigator.geolocation.clearWatch(watchId);
                   document.getElementById('overview-card').style.display = 'flex';
                   document.getElementById('nav-hud').style.display = 'none';
                   document.getElementById('nav-bottom').style.display = 'none';
