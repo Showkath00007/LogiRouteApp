@@ -122,6 +122,13 @@ export const INDIAN_CITIES = {
   visakhapatnam: { name: 'Visakhapatnam', state: 'Andhra Pradesh', coords: [83.2185, 17.6868] },
   coimbatore: { name: 'Coimbatore', state: 'Tamil Nadu', coords: [76.9558, 11.0168] },
   madurai: { name: 'Madurai', state: 'Tamil Nadu', coords: [78.1198, 9.9252] },
+  guntakal: { name: 'Guntakal', state: 'Andhra Pradesh', coords: [77.3673, 15.1678] },
+  anantapur: { name: 'Anantapur', state: 'Andhra Pradesh', coords: [77.6006, 14.6819] },
+  tirupati: { name: 'Tirupati', state: 'Andhra Pradesh', coords: [79.4192, 13.6288] },
+  vijayawada: { name: 'Vijayawada', state: 'Andhra Pradesh', coords: [80.6480, 16.5062] },
+  guntur: { name: 'Guntur', state: 'Andhra Pradesh', coords: [80.4365, 16.3067] },
+  kadapa: { name: 'Kadapa', state: 'Andhra Pradesh', coords: [78.8242, 14.4673] },
+  kurnool: { name: 'Kurnool', state: 'Andhra Pradesh', coords: [78.0357, 15.8281] },
 };
 
 export function getCityDetails(name = '') {
