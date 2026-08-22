@@ -188,6 +188,19 @@ export function DriverDashboard({ navigation }) {
 
   const handleAcceptBooking = async (booking) => {
     const uid = getDriverUid();
+    if (Platform.OS === 'web') {
+      const yes = window.confirm(`Accept Booking?\n\n${booking.from} → ${booking.to}\n${booking.material}\nCost: ₹${booking.cost?.toLocaleString()}`);
+      if (yes) {
+        const ok = await respondToBooking(booking.bookingId, uid, true);
+        window.alert(ok ? '✅ Accepted!\n\nYou have accepted the booking.' : 'Error updating booking.');
+        if (ok) loadDriver();
+      } else {
+        const ok = await respondToBooking(booking.bookingId, uid, false);
+        window.alert(ok ? '❌ Declined!\n\nBooking request declined.' : 'Error updating booking.');
+        loadDriver();
+      }
+      return;
+    }
     Alert.alert(
       'Accept Booking?',
       `${booking.from} → ${booking.to}\n${booking.material}\nCost: ₹${booking.cost?.toLocaleString()}`,
@@ -254,7 +267,13 @@ export function DriverDashboard({ navigation }) {
                       await respondToBooking(bookingId, uid, true);
                       try { await update(ref(db, `driverNotifications/${uid}/${req.id}`), { responded: true, accepted: true }); } catch(e) {}
                       setBookingRequests(prev => prev.filter(b => b.id !== req.id));
-                      Alert.alert('✅ Accepted!', 'Booking accepted. Get ready to depart!');
+                      const title = '✅ Accepted!';
+                      const msg = 'Booking accepted. Get ready to depart!';
+                      if (Platform.OS === 'web') {
+                        window.alert(`${title}\n\n${msg}`);
+                      } else {
+                        Alert.alert(title, msg);
+                      }
                     }} style={{ flex: 1 }} />
                     <Btn label="✗ Decline" onPress={async () => {
                       const uid = getDriverUid();
@@ -262,7 +281,13 @@ export function DriverDashboard({ navigation }) {
                       await respondToBooking(bookingId, uid, false);
                       try { await update(ref(db, `driverNotifications/${uid}/${req.id}`), { responded: true, accepted: false }); } catch(e) {}
                       setBookingRequests(prev => prev.filter(b => b.id !== req.id));
-                      Alert.alert('Declined', 'Booking request declined.');
+                      const title = 'Declined';
+                      const msg = 'Booking request declined.';
+                      if (Platform.OS === 'web') {
+                        window.alert(`${title}\n\n${msg}`);
+                      } else {
+                        Alert.alert(title, msg);
+                      }
                     }} variant="ghost" style={{ flex: 1 }} />
                   </View>
                 </View>
@@ -609,10 +634,45 @@ export function JobsScreen({ navigation }) {
 
   const handleRespond = async (job, accepted) => {
     const uid = getDriverUid();
-    await respondToBooking(job.bookingId || job.id, uid, accepted);
+    const bookingId = job.bookingId || job.id;
+    
+    // 1. Respond to the booking record
+    await respondToBooking(bookingId, uid, accepted);
+    
+    // 2. Update driver's notification to responded
     await update(ref(db, `driverNotifications/${uid}/${job.id}`), { responded: true, accepted });
+    
+    // 3. Notify the company
+    if (job.companyUid) {
+      try {
+        const notifRef = push(ref(db, `driverNotifications/${job.companyUid}`));
+        await set(notifRef, {
+          id: notifRef.key,
+          type: accepted ? 'booking_accepted' : 'booking_rejected',
+          bookingId,
+          title: accepted ? '✅ Driver Accepted!' : '❌ Driver Declined',
+          message: accepted
+            ? 'Your driver has accepted the booking and is on the way.'
+            : 'The driver declined. Please select another driver.',
+          read: false,
+          createdAt: Date.now(),
+        });
+      } catch (e) {
+        console.warn('Error notifying company:', e);
+      }
+    }
+    
+    // 4. Update state to trigger animate/dismiss
     setRequests(prev => prev.map(r => r.id === job.id ? {...r, responded: true, accepted} : r));
-    Alert.alert(accepted ? '✅ Accepted!' : '❌ Declined', accepted ? 'Booking confirmed. Get ready!' : 'Booking declined.');
+    
+    // 5. Alert user with platform safety
+    const title = accepted ? '✅ Accepted!' : '❌ Declined';
+    const message = accepted ? 'Booking confirmed. Get ready!' : 'Booking declined.';
+    if (Platform.OS === 'web') {
+      window.alert(`${title}\n\n${message}`);
+    } else {
+      Alert.alert(title, message);
+    }
   };
 
   const handleApply = async (job) => {
@@ -659,13 +719,13 @@ export function JobsScreen({ navigation }) {
         {loading ? (
           <View style={{ alignItems: 'center', marginTop: 40 }}><ActivityIndicator color={colors.accent} size="large" /><Text style={{ color: colors.textSub, marginTop: 12 }}>Loading...</Text></View>
         ) : activeTab === 'requests' ? (
-          requests.length === 0 ? (
+          requests.filter(r => !r.responded).length === 0 ? (
             <View style={{ alignItems: 'center', marginTop: 60 }}>
               <Text style={{ fontSize: 48, marginBottom: 16 }}>📭</Text>
               <Text style={{ fontSize: fonts.lg, fontWeight: '800', color: colors.text }}>No Requests Yet</Text>
               <Text style={{ fontSize: fonts.sm, color: colors.textSub, textAlign: 'center', marginTop: 8 }}>Direct booking requests from companies appear here.</Text>
             </View>
-          ) : requests.map((job, i) => (
+          ) : requests.filter(r => !r.responded).map((job, i) => (
             <Card key={job.id||i} style={{ marginBottom: 14, borderColor: job.responded ? colors.border : colors.orange+'44', borderWidth: job.responded ? 1.5 : 2 }}>
               {!job.responded && <View style={{ backgroundColor: colors.orange+'18', borderRadius: 8, padding: 6, marginBottom: 10, alignItems: 'center' }}><Text style={{ fontSize: fonts.xs, fontWeight: '800', color: colors.orange }}>🔔 ACTION REQUIRED</Text></View>}
               <Text style={{ fontSize: fonts.md, fontWeight: '900', color: colors.text, marginBottom: 4 }}>{job.from} → {job.to}</Text>
