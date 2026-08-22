@@ -771,17 +771,19 @@ export function WeatherScreen({ navigation }) {
     setQuery(text);
     if (text.length >= 2) {
       try {
-        const res = await fetch(`https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(text)}&format=json&countrycodes=in&limit=6`, {
-          headers: { 'User-Agent': 'LogiRouteApp' }
-        });
-        const list = await res.json();
-        if (list && list.length > 0) {
-          setSuggestions(list.map(item => ({
-            name: item.display_name.split(',')[0],
-            display: item.display_name,
-            lat: parseFloat(item.lat),
-            lon: parseFloat(item.lon)
-          })));
+        const res = await fetch(`https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(text)}&count=10&language=en&format=json`);
+        const data = await res.json();
+        if (data.results && data.results.length > 0) {
+          setSuggestions(
+            data.results
+              .filter(r => r.country_code === 'IN' || r.country === 'India')
+              .map(r => ({
+                name: r.name,
+                display: `${r.name}, ${r.admin1 || 'India'}`,
+                lat: r.latitude,
+                lon: r.longitude
+              }))
+          );
           return;
         }
       } catch (e) {

@@ -68,21 +68,21 @@ async function searchGeocodedLocations(query) {
   const trimmed = query.trim().toLowerCase();
   
   try {
-    const res = await fetch(`https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(query)}&format=json&countrycodes=in&limit=5`, {
-      headers: { 'User-Agent': 'LogiRouteApp' }
-    });
-    const list = await res.json();
-    if (list && list.length > 0) {
-      return list.map(item => ({
-        id: item.place_id ? String(item.place_id) : String(item.osm_id),
-        name: item.display_name.split(',')[0],
-        admin1: item.display_name.split(',').slice(1).join(',').trim(),
-        district: '',
-        country: 'India',
-        latitude: parseFloat(item.lat),
-        longitude: parseFloat(item.lon),
-        display: item.display_name
-      }));
+    const res = await fetch(`https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(query)}&count=10&language=en&format=json`);
+    const data = await res.json();
+    if (data.results && data.results.length > 0) {
+      return data.results
+        .filter(r => r.country_code === 'IN' || r.country === 'India')
+        .map(r => ({
+          id: String(r.id),
+          name: r.name,
+          admin1: r.admin1 || 'India',
+          district: r.admin2 || '',
+          country: 'India',
+          latitude: r.latitude,
+          longitude: r.longitude,
+          display: `${r.name}, ${r.admin1 || 'India'}`
+        }));
     }
   } catch (err) {
     console.log('Live geocoder error, falling back to local database:', err);

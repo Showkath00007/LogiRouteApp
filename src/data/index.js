@@ -229,27 +229,16 @@ export async function apiAutocomplete(query) {
   const normalized = query.toLowerCase().trim();
 
   try {
-    const res = await fetch(`https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(query)}&format=json&countrycodes=in&limit=6`, {
-      headers: { 'User-Agent': 'LogiRouteApp' }
-    });
-    const list = await res.json();
-    if (list && list.length > 0) {
-      return list.map(item => {
-        const parts = item.display_name.split(',');
-        const name = parts[0].trim();
-        let state = '';
-        for (let j = parts.length - 2; j >= 1; j--) {
-          const val = parts[j].trim();
-          if (isNaN(val) && val.toLowerCase() !== 'india' && val.toLowerCase() !== 'in') {
-            state = val;
-            break;
-          }
-        }
-        return state ? `${name}, ${state}` : `${name}, India`;
-      });
+    const res = await fetch(`https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(query)}&count=10&language=en&format=json`);
+    const data = await res.json();
+    if (data.results && data.results.length > 0) {
+      return data.results
+        .filter(r => r.country_code === 'IN' || r.country === 'India')
+        .map(r => `${r.name}, ${r.admin1 || 'India'}`)
+        .slice(0, 6);
     }
   } catch (err) {
-    console.log('Autocomplete Nominatim API error:', err);
+    console.log('Autocomplete Open-Meteo Geocoding API error:', err);
   }
   
   return Object.values(INDIAN_CITIES)
