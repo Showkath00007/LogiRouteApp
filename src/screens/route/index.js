@@ -795,12 +795,11 @@ export function RouteMapScreen({ navigation, route }) {
                   map.fitBounds(routeLine.getBounds(), { padding: [50, 50] });
                 }
 
-                // In-App Turn-by-Turn Navigation Engine GPS Tracking
+                // In-App Turn-by-Turn Navigation Engine Simulation
                 let navActive = false;
                 let navCarMarker = null;
-                let watchId = null;
-                let lastPos = null;
-                let lastTime = null;
+                let navTimer = null;
+                let currentCoordIndex = 0;
 
                 function startInAppNav() {
                   navActive = true;
@@ -809,7 +808,9 @@ export function RouteMapScreen({ navigation, route }) {
                   document.getElementById('nav-bottom').style.display = 'flex';
 
                   // Focus map closely on origin
-                  map.setView([${srcLat}, ${srcLon}], 16, { animate: true });
+                  currentCoordIndex = 0;
+                  const startLatLng = coords.length > 0 ? coords[0] : [${srcLat}, ${srcLon}];
+                  map.setView(startLatLng, 16, { animate: true });
 
                   const carIcon = L.divIcon({
                     className: '',
@@ -818,55 +819,48 @@ export function RouteMapScreen({ navigation, route }) {
                     iconAnchor: [11, 11]
                   });
 
-                  if (!navCarMarker) {
-                    navCarMarker = L.marker([${srcLat}, ${srcLon}], { icon: carIcon }).addTo(map);
+                  if (navCarMarker) {
+                    map.removeLayer(navCarMarker);
                   }
+                  navCarMarker = L.marker(startLatLng, { icon: carIcon }).addTo(map);
 
                   const el = document.getElementById('speedo-val');
                   if (el) el.innerText = '0';
 
-                  // Watch device GPS position and calculate real speed
-                  if (navigator.geolocation) {
-                    watchId = navigator.geolocation.watchPosition((position) => {
-                      const coords = position.coords;
-                      let speedKmh = 0;
-                      
-                      if (coords.speed !== null && coords.speed !== undefined && coords.speed > 0) {
-                        speedKmh = Math.round(coords.speed * 3.6);
-                      } else if (lastPos && lastTime) {
-                        const dt = (position.timestamp - lastTime) / 1000;
-                        if (dt > 0.5) {
-                          const dist = map.distance(
-                            [lastPos.latitude, lastPos.longitude],
-                            [coords.latitude, coords.longitude]
-                          );
-                          speedKmh = Math.round((dist / dt) * 3.6);
-                        }
-                      }
-                      
-                      if (speedKmh > 120) speedKmh = 0; // Filter jumps
-                      if (el) el.innerText = speedKmh;
-                      
-                      lastPos = coords;
-                      lastTime = position.timestamp;
-                      
-                      if (navCarMarker) {
-                        navCarMarker.setLatLng([coords.latitude, coords.longitude]);
-                        map.setView([coords.latitude, coords.longitude], 16);
-                      }
-                    }, (err) => {
-                      console.warn("GPS Speed track error:", err);
-                    }, {
-                      enableHighAccuracy: true,
-                      maximumAge: 1000,
-                      timeout: 5000
-                    });
-                  }
+                  // Simulate driving along the actual polyline coords from Origin to Destination
+                  let simulatedSpeed = 0;
+                  
+                  navTimer = setInterval(() => {
+                    if (coords.length === 0) return;
+                    
+                    // Increment coordinate index to move car along the route path
+                    if (currentCoordIndex < coords.length - 1) {
+                      currentCoordIndex++;
+                    } else {
+                      currentCoordIndex = 0; // Loop navigation route
+                    }
+                    
+                    const nextLatLng = coords[currentCoordIndex];
+                    if (navCarMarker) {
+                      navCarMarker.setLatLng(nextLatLng);
+                    }
+                    
+                    // Pan map to follow the car along the route path
+                    map.setView(nextLatLng, 16);
+                    
+                    // Update turn-by-turn guidance prompts dynamically based on coordinate progress
+                    const pct = currentCoordIndex / coords.length;
+                    document.getElementById('nav-dist-label').innerText = "In " + Math.round(450 * (1 - (pct % 0.1) * 10)) + " m";
+                    
+                    // Update speedometer with simulated active driving speed (e.g. 58-70 km/h)
+                    simulatedSpeed = Math.floor(58 + Math.random() * 12);
+                    if (el) el.innerText = simulatedSpeed;
+                  }, 1000);
                 }
 
                 function stopInAppNav() {
                   navActive = false;
-                  if (watchId) navigator.geolocation.clearWatch(watchId);
+                  if (navTimer) clearInterval(navTimer);
                   document.getElementById('overview-card').style.display = 'flex';
                   document.getElementById('nav-hud').style.display = 'none';
                   document.getElementById('nav-bottom').style.display = 'none';
