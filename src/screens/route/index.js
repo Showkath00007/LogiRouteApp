@@ -3,7 +3,7 @@ import { View, Text, StyleSheet, ScrollView, SafeAreaView, TouchableOpacity, Act
 import { useLang } from '../../context/LanguageContext';
 import { colors, radius, shadow } from '../../theme';
 import { Btn, Card, StatCard, Badge, SectionLabel, BackBtn, Divider, TransportIcon, CostHero, Chip, Input } from '../../components';
-import { MATERIALS, apiOptimize } from '../../data';
+import { MATERIALS, apiOptimize, getCityDetails, getSimulatedRouteGeometry, calculateDistance } from '../../data';
 
 const screen = (pt = 60) => ({ padding: 20, paddingTop: pt, flexGrow: 1 });
 const h1 = { fontSize: 22, fontWeight: '900', color: colors.text, letterSpacing: -0.5, marginBottom: 4 };
@@ -422,51 +422,25 @@ export function RouteMapScreen({ navigation, route }) {
     let isMounted = true;
     async function loadRoute() {
       try {
-        // Geocode source & destination
-        let srcLat = 15.1678, srcLon = 77.3673; // Guntakal fallback
-        let dstLat = 14.6819, dstLon = 77.6006; // Anantapur fallback
-
+        // Geocode source & destination (Offline Simulated - Trained Logic)
         const cleanSrc = (source || '').split(',')[0].trim();
         const cleanDst = (destination || '').split(',')[0].trim();
 
-        // 1. Resolve GPS coordinates
-        const [geoSrcRes, geoDstRes] = await Promise.all([
-          fetch(`https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(cleanSrc)}&count=1&language=en&format=json`).then(r => r.json()).catch(() => null),
-          fetch(`https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(cleanDst)}&count=1&language=en&format=json`).then(r => r.json()).catch(() => null)
-        ]);
+        const srcDetails = getCityDetails(cleanSrc);
+        const dstDetails = getCityDetails(cleanDst);
 
-        if (geoSrcRes?.results?.[0]) {
-          srcLat = geoSrcRes.results[0].latitude;
-          srcLon = geoSrcRes.results[0].longitude;
-        }
-        if (geoDstRes?.results?.[0]) {
-          dstLat = geoDstRes.results[0].latitude;
-          dstLon = geoDstRes.results[0].longitude;
-        }
+        const srcLat = srcDetails.coords[1];
+        const srcLon = srcDetails.coords[0];
+        const dstLat = dstDetails.coords[1];
+        const dstLon = dstDetails.coords[0];
 
-        // 2. Query OSRM for full highway polyline geometry
-        let coords = [];
-        let distKm = data?.distance || 0;
-        let durMin = 0;
-        let summary = 'National & State Highway';
+        // 2. Query simulated route parameter logic
+        const distKm = calculateDistance(srcLon, srcLat, dstLon, dstLat);
+        const durMin = Math.round((distKm / 60) * 60); // 60 km/h average speed
+        const summary = 'NH-48 / NH-44 (National Highway)';
 
-        try {
-          const osrmRes = await fetch(`https://router.project-osrm.org/route/v1/driving/${srcLon},${srcLat};${dstLon},${dstLat}?overview=full&geometries=geojson&steps=true`);
-          const osrmData = await osrmRes.json();
-          if (osrmData.routes && osrmData.routes.length > 0) {
-            const best = osrmData.routes[0];
-            distKm = (best.distance / 1000).toFixed(1);
-            durMin = Math.round(best.duration / 60);
-            summary = best.legs?.[0]?.summary || 'Direct Highway Route';
-            if (best.geometry?.coordinates) {
-              coords = best.geometry.coordinates.map(c => [c[1], c[0]]); // [lat, lon]
-            }
-          }
-        } catch (e) {}
-
-        if (coords.length === 0) {
-          coords = [[srcLat, srcLon], [dstLat, dstLon]];
-        }
+        const routeFeat = getSimulatedRouteGeometry(srcDetails.coords, dstDetails.coords);
+        let coords = routeFeat.geometry.coordinates.map(c => [c[1], c[0]]); // [lat, lon]
 
         const durHours = Math.floor(durMin / 60);
         const durMinsRem = durMin % 60;
