@@ -457,8 +457,12 @@ export function RegisterScreen({ navigation }) {
   );
 }
 
-// S07 — OTP
 export function OTPScreen({ navigation }) {
+  const [otp, setOtp] = useState('123456');
+
+  const chars = otp.split('');
+  const boxes = Array(6).fill('').map((_, i) => chars[i] || '');
+
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: colors.bg }}>
       <ScrollView contentContainerStyle={[screen, { alignItems: 'center' }]}>
@@ -466,14 +470,40 @@ export function OTPScreen({ navigation }) {
         <Text style={{ fontSize: 56, marginVertical: 20 }}>📱</Text>
         <Text style={h1}>Verify Phone</Text>
         <Text style={{ fontSize: 13, color: colors.sub, marginBottom: 4 }}>OTP sent to your number</Text>
-        <Text style={{ fontSize: 12, color: colors.muted, marginBottom: 24 }}>Valid for 5 minutes</Text>
+        <Text style={{ fontSize: 12, color: colors.muted, marginBottom: 24 }}>
+          Valid for 5 minutes (Simulated Code: <Text style={{ fontWeight: '800', color: colors.accent }}>123456</Text>)
+        </Text>
         <View style={s.otpRow}>
-          {['', '', '', '', '', ''].map((v, i) => (
-            <View key={i} style={[s.otpBox]}>
+          {boxes.map((v, i) => (
+            <View key={i} style={[s.otpBox, v !== '' && s.otpBoxFilled]}>
               <Text style={{ fontSize: 22, fontWeight: '900', color: colors.accent }}>{v}</Text>
             </View>
           ))}
         </View>
+
+        <TextInput
+          style={{
+            height: 48,
+            width: '80%',
+            borderColor: colors.border,
+            borderWidth: 1.5,
+            borderRadius: 8,
+            marginTop: 20,
+            paddingHorizontal: 12,
+            color: colors.text,
+            textAlign: 'center',
+            fontSize: 16,
+            fontWeight: '600',
+            backgroundColor: colors.surface2
+          }}
+          placeholder="Type OTP here (or use default 123456)"
+          placeholderTextColor={colors.muted}
+          value={otp}
+          onChangeText={setOtp}
+          maxLength={6}
+          keyboardType="numeric"
+        />
+
         <View style={{ width: '100%', marginTop: 24 }}>
           <Btn label="Verify OTP ✓" onPress={() => navigation.navigate('ProfileSetup')} />
         </View>
