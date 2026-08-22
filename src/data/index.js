@@ -111,6 +111,7 @@ export const INDIAN_CITIES = {
   delhi: { name: 'Delhi', state: 'Delhi', coords: [77.1025, 28.7041] },
   bengaluru: { name: 'Bengaluru', state: 'Karnataka', coords: [77.5946, 12.9716] },
   bangalore: { name: 'Bengaluru', state: 'Karnataka', coords: [77.5946, 12.9716] },
+  banglore: { name: 'Bengaluru', state: 'Karnataka', coords: [77.5946, 12.9716] },
   chennai: { name: 'Chennai', state: 'Tamil Nadu', coords: [80.2707, 13.0827] },
   kolkata: { name: 'Kolkata', state: 'West Bengal', coords: [88.3639, 22.5726] },
   hyderabad: { name: 'Hyderabad', state: 'Telangana', coords: [78.4867, 17.3850] },
@@ -228,21 +229,30 @@ export async function apiAutocomplete(query) {
   if (query.length < 2) return [];
   const normalized = query.toLowerCase().trim();
 
+  // 1. Search local catalog (keys, names, and states)
+  const localMatches = Object.entries(INDIAN_CITIES)
+    .filter(([key, c]) => 
+      key.includes(normalized) || 
+      c.name.toLowerCase().includes(normalized) || 
+      c.state.toLowerCase().includes(normalized)
+    )
+    .map(([_, c]) => `${c.name}, ${c.state}`);
+
+  // 2. Query live Open-Meteo Geocoding API
+  let apiMatches = [];
   try {
     const res = await fetch(`https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(query)}&count=10&language=en&format=json`);
     const data = await res.json();
     if (data.results && data.results.length > 0) {
-      return data.results
+      apiMatches = data.results
         .filter(r => r.country_code === 'IN' || r.country === 'India')
-        .map(r => `${r.name}, ${r.admin1 || 'India'}`)
-        .slice(0, 6);
+        .map(r => `${r.name}, ${r.admin1 || 'India'}`);
     }
   } catch (err) {
     console.log('Autocomplete Open-Meteo Geocoding API error:', err);
   }
-  
-  return Object.values(INDIAN_CITIES)
-    .filter(c => c.name.toLowerCase().includes(normalized) || c.state.toLowerCase().includes(normalized))
-    .map(c => `${c.name}, ${c.state}`)
-    .slice(0, 6);
+
+  // 3. Combine both lists, preserving order and removing duplicates
+  const combined = Array.from(new Set([...localMatches, ...apiMatches]));
+  return combined.slice(0, 6);
 }
