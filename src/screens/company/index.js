@@ -133,6 +133,33 @@ export function CompanyDashboard({ navigation }) {
             )}
           </TouchableOpacity>
         </View>
+        
+        {(!profile?.gst || !profile?.pan) && (
+          <TouchableOpacity
+            onPress={() => navigation.navigate('CompanyDetails')}
+            style={{
+              backgroundColor: '#FEF2F2',
+              borderWidth: 1.5,
+              borderColor: '#FCA5A5',
+              borderRadius: 12,
+              padding: 14,
+              marginBottom: 16,
+              flexDirection: 'row',
+              alignItems: 'center',
+              gap: 12
+            }}
+            activeOpacity={0.8}
+          >
+            <Text style={{ fontSize: 24 }}>⚠️</Text>
+            <View style={{ flex: 1 }}>
+              <Text style={{ fontSize: 13, fontWeight: '900', color: '#991B1B' }}>Action Required: Complete Profile</Text>
+              <Text style={{ fontSize: 11, color: '#991B1B', marginTop: 2 }}>
+                Please enter your mandatory Company Details (GST, PAN, Address) to begin booking shipments.
+              </Text>
+            </View>
+            <Text style={{ fontSize: 16, color: '#991B1B', fontWeight: '800' }}>→</Text>
+          </TouchableOpacity>
+        )}
 
         <View style={{ flexDirection: 'row', gap: 12, marginBottom: 14 }}>
           <View style={{ flex: 1, gap: 12 }}>

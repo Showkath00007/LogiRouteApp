@@ -3,6 +3,8 @@ import { View, Text, ScrollView, SafeAreaView, Alert } from 'react-native';
 import { colors } from '../../theme';
 import { BackBtn, Input, Btn, SectionLabel } from '../../components';
 import { getProfile, saveProfile } from '../../config/UserStore';
+import { auth } from '../../config/firebase';
+import { getUserProfile, saveUserProfile } from '../../config/firebaseService';
 
 export default function CompanyDetailsScreen({ navigation }) {
   const [company, setCompany] = useState('');
@@ -17,16 +19,20 @@ export default function CompanyDetailsScreen({ navigation }) {
   useEffect(() => {
     const loadProfile = async () => {
       try {
-        const prof = await getProfile().catch(() => null);
+        const fb = await getUserProfile().catch(() => null);
+        const local = await getProfile().catch(() => null);
+        const prof = { ...local, ...fb };
         if (prof) {
+          const isRealUser = auth?.currentUser && !auth.currentUser.email.startsWith('mock');
+          
           setCompany(prof.company || (prof.name?.toLowerCase() === 'uri' ? 'Uri Logistics' : ''));
-          setGst(prof.gst || '');
-          setReg(prof.reg || '');
-          setAddress(prof.address || '');
-          setCity(prof.city || '');
-          setState(prof.state || '');
-          setPin(prof.pin || '');
-          setPan(prof.pan || '');
+          setGst(isRealUser ? (fb?.gst || '') : (prof.gst || ''));
+          setReg(isRealUser ? (fb?.reg || '') : (prof.reg || ''));
+          setAddress(isRealUser ? (fb?.address || '') : (prof.address || ''));
+          setCity(isRealUser ? (fb?.city || '') : (prof.city || ''));
+          setState(isRealUser ? (fb?.state || '') : (prof.state || ''));
+          setPin(isRealUser ? (fb?.pin || '') : (prof.pin || ''));
+          setPan(isRealUser ? (fb?.pan || '') : (prof.pan || ''));
         }
       } catch (e) {}
     };
@@ -35,7 +41,9 @@ export default function CompanyDetailsScreen({ navigation }) {
 
   const save = async () => {
     try {
-      await saveProfile({ company, gst, reg, address, city, state, pin, pan });
+      const data = { company, gst, reg, address, city, state, pin, pan };
+      await saveProfile(data);
+      await saveUserProfile(data);
       Alert.alert('Company Details Updated!');
       navigation.goBack();
     } catch (e) {
