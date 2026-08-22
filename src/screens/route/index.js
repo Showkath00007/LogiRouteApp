@@ -832,11 +832,16 @@ export function RouteMapScreen({ navigation, route }) {
                   navTimer = setInterval(() => {
                     if (coords.length === 0) return;
                     
-                    // Increment coordinate index to move car along the route path
-                    if (currentCoordIndex < coords.length - 1) {
-                      currentCoordIndex++;
-                    } else {
-                      currentCoordIndex = 0; // Loop navigation route
+                    const elSpeed = document.getElementById('speedo-val');
+                    const currentSpeed = elSpeed ? parseInt(elSpeed.innerText) || 0 : 0;
+
+                    // Only advance the coordinate index if the device is physically moving (speed > 0)
+                    if (currentSpeed > 0) {
+                      if (currentCoordIndex < coords.length - 1) {
+                        currentCoordIndex++;
+                      } else {
+                        currentCoordIndex = 0; // Loop navigation route
+                      }
                     }
                     
                     const nextLatLng = coords[currentCoordIndex];
