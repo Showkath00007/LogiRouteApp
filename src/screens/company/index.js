@@ -121,7 +121,9 @@ export function CompanyDashboard({ navigation }) {
         <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
           <View>
             <Text style={{ fontSize: 13, color: colors.sub }}>{t('goodMorning')}</Text>
-            <Text style={{ fontSize: 22, fontWeight: '900', color: colors.text }}>{profile?.company || profile?.name || 'Kadiyala Logistics'}</Text>
+            <Text style={{ fontSize: 22, fontWeight: '900', color: colors.text }}>
+              {profile?.name?.toLowerCase() === 'uri' ? 'Uri Logistics' : (profile?.company || profile?.name || 'Kadiyala Logistics')}
+            </Text>
           </View>
           <TouchableOpacity onPress={() => navigation.navigate('Profile')} style={{ width: 44, height: 44, backgroundColor: colors.accent, borderRadius: radius.full, alignItems: 'center', justifyContent: 'center', overflow: 'hidden' }}>
             {profile?.avatar && !(Platform.OS !== 'web' && profile.avatar.startsWith('blob:')) ? (

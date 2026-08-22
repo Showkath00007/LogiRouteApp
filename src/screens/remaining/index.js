@@ -1506,7 +1506,13 @@ export function ProfileScreen({ navigation }) {
     { icon: '🪄', label: 'Setup Wizard', sub: 'Re-run onboarding configuration', route: 'ProfileSetup' },
     { icon: '💸', label: 'Payout Release Hub', sub: 'Approve driver fuel slips & cash-outs', route: 'PayoutRelease' },
     { icon: '🏢', label: t('companyDetails'), sub: t('companyDetailsSub'), route: 'CompanyDetails' },
-    { icon: '🪪', label: t('kycDocs'), sub: `${t('kycDocsSub')} • ${profile?.verified ? t('verifiedBadge') + ' ✓' : t('pendingBadge')}`, color: colors.green, route: 'KYCDocuments' },
+    {
+      icon: '🪪',
+      label: profile?.type === 'company' ? 'KYC Documents' : t('kycDocs'),
+      sub: `${profile?.type === 'company' ? 'Official PAN, Aadhaar' : t('kycDocsSub')} • ${profile?.verified ? t('verifiedBadge') + ' ✓' : t('pendingBadge')}`,
+      color: colors.green,
+      route: 'KYCDocuments'
+    },
     { icon: '💳', label: t('paymentMethods'), sub: t('paymentMethodsSub'), route: 'PaymentMethods' },
     { icon: '🎨', label: 'Theme Customizer', sub: 'Personalize portal colors', route: 'ThemeCustomizer' },
     { icon: '🔔', label: t('notificationPrefs'), sub: '', route: 'Notifications' },
