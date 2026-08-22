@@ -600,14 +600,22 @@ export function ProfileSetupScreen({ navigation }) {
   useEffect(() => {
     const loadProfile = async () => {
       try {
-        const u = await getProfile().catch(() => null);
         const fb = await getUserProfile().catch(() => null);
-        const prof = { ...u, ...fb };
-        if (prof) {
-          const defaultCompany = prof.company || (prof.name?.toLowerCase() === 'uri' ? 'Uri Logistics' : '');
-          setCompanyName(defaultCompany);
-          setCity(prof.city || '');
-          if (prof.gst) setGstNumber(prof.gst);
+        const isRealUser = auth?.currentUser && !auth.currentUser.email.startsWith('mock');
+        
+        if (isRealUser && fb) {
+          const derivedCompany = fb.company || (fb.name?.toLowerCase() === 'uri' ? 'Uri Logistics' : (fb.name ? `${fb.name.charAt(0).toUpperCase() + fb.name.slice(1)} Logistics` : ''));
+          setCompanyName(derivedCompany);
+          setCity(fb.city || '');
+          setGstNumber(fb.gst || '');
+        } else if (!isRealUser) {
+          const u = await getProfile().catch(() => null);
+          if (u) {
+            const derivedCompany = u.company || (u.name?.toLowerCase() === 'uri' ? 'Uri Logistics' : (u.name ? `${u.name.charAt(0).toUpperCase() + u.name.slice(1)} Logistics` : ''));
+            setCompanyName(derivedCompany);
+            setCity(u.city || '');
+            setGstNumber(u.gst || '');
+          }
         }
       } catch (e) {}
     };

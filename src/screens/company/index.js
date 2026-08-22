@@ -127,7 +127,27 @@ export function CompanyDashboard({ navigation }) {
           <View>
             <Text style={{ fontSize: 13, color: colors.sub }}>{t('goodMorning')}</Text>
             <Text style={{ fontSize: 22, fontWeight: '900', color: colors.text }}>
-              {profile?.name?.toLowerCase() === 'uri' ? 'Uri Logistics' : (profile?.company || profile?.name || 'Kadiyala Logistics')}
+              {(() => {
+                const name = profile?.name;
+                const company = profile?.company;
+                if (name?.toLowerCase() === 'uri') return 'Uri Logistics';
+                if (company) {
+                  let comp = company.trim();
+                  if (comp.toLowerCase() === 'diwalogistics') return 'Diwa Logistics';
+                  if (comp.toLowerCase().endsWith('logistics') && !comp.includes(' ')) {
+                    const namePart = comp.slice(0, -9).trim();
+                    const capitalized = namePart.charAt(0).toUpperCase() + namePart.slice(1);
+                    return `${capitalized} Logistics`;
+                  }
+                  return comp;
+                }
+                if (name) {
+                  const namePart = name.trim();
+                  const capitalized = namePart.charAt(0).toUpperCase() + namePart.slice(1);
+                  return `${capitalized} Logistics`;
+                }
+                return 'Kadiyala Logistics';
+              })()}
             </Text>
           </View>
           <TouchableOpacity onPress={() => navigation.navigate('Profile')} style={{ width: 44, height: 44, backgroundColor: colors.accent, borderRadius: radius.full, alignItems: 'center', justifyContent: 'center', overflow: 'hidden' }}>

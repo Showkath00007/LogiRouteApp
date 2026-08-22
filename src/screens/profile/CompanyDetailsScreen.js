@@ -20,19 +20,32 @@ export default function CompanyDetailsScreen({ navigation }) {
     const loadProfile = async () => {
       try {
         const fb = await getUserProfile().catch(() => null);
-        const local = await getProfile().catch(() => null);
-        const prof = { ...local, ...fb };
-        if (prof) {
-          const isRealUser = auth?.currentUser && !auth.currentUser.email.startsWith('mock');
-          
-          setCompany(prof.company || (prof.name?.toLowerCase() === 'uri' ? 'Uri Logistics' : ''));
-          setGst(isRealUser ? (fb?.gst || '') : (prof.gst || ''));
-          setReg(isRealUser ? (fb?.reg || '') : (prof.reg || ''));
-          setAddress(isRealUser ? (fb?.address || '') : (prof.address || ''));
-          setCity(isRealUser ? (fb?.city || '') : (prof.city || ''));
-          setState(isRealUser ? (fb?.state || '') : (prof.state || ''));
-          setPin(isRealUser ? (fb?.pin || '') : (prof.pin || ''));
-          setPan(isRealUser ? (fb?.pan || '') : (prof.pan || ''));
+        const isRealUser = auth?.currentUser && !auth.currentUser.email.startsWith('mock');
+        
+        if (isRealUser) {
+          // Real users get a completely empty slate by default (no mock values!)
+          const derivedCompany = fb?.company || (fb?.name?.toLowerCase() === 'uri' ? 'Uri Logistics' : (fb?.name ? `${fb.name.charAt(0).toUpperCase() + fb.name.slice(1)} Logistics` : ''));
+          setCompany(derivedCompany);
+          setGst(fb?.gst || '');
+          setReg(fb?.reg || '');
+          setAddress(fb?.address || '');
+          setCity(fb?.city || '');
+          setState(fb?.state || '');
+          setPin(fb?.pin || '');
+          setPan(fb?.pan || '');
+        } else {
+          // Mock / Guest users load from local AsyncStorage with template fallbacks
+          const local = await getProfile().catch(() => null);
+          if (local) {
+            setCompany(local.company || '');
+            setGst(local.gst || '');
+            setReg(local.reg || '');
+            setAddress(local.address || '');
+            setCity(local.city || '');
+            setState(local.state || '');
+            setPin(local.pin || '');
+            setPan(local.pan || '');
+          }
         }
       } catch (e) {}
     };
