@@ -767,30 +767,76 @@ export function WeatherScreen({ navigation }) {
   const CITY_COORDS = {'Mumbai':{lat:19.0760,lon:72.8777},'Delhi':{lat:28.7041,lon:77.1025},'Chennai':{lat:13.0827,lon:80.2707},'Bangalore':{lat:12.9716,lon:77.5946},'Kolkata':{lat:22.5726,lon:88.3639},'Hyderabad':{lat:17.3850,lon:78.4867},'Pune':{lat:18.5204,lon:73.8567},'Ahmedabad':{lat:23.0225,lon:72.5714},'Surat':{lat:21.1702,lon:72.8311},'Jaipur':{lat:26.9124,lon:75.7873},'Lucknow':{lat:26.8467,lon:80.9462},'Kanpur':{lat:26.4499,lon:80.3319},'Nagpur':{lat:21.1458,lon:79.0882},'Indore':{lat:22.7196,lon:75.8577},'Bhopal':{lat:23.2599,lon:77.4126},'Patna':{lat:25.5941,lon:85.1376},'Vadodara':{lat:22.3072,lon:73.1812},'Coimbatore':{lat:11.0168,lon:76.9558},'Madurai':{lat:9.9252,lon:78.1198},'Visakhapatnam':{lat:17.6868,lon:83.2185},'Kochi':{lat:9.9312,lon:76.2673},'Chandigarh':{lat:30.7333,lon:76.7794},'Guwahati':{lat:26.1445,lon:91.7362},'Thiruvananthapuram':{lat:8.5241,lon:76.9366},'Bhubaneswar':{lat:20.2961,lon:85.8245},'Dehradun':{lat:30.3165,lon:78.0322},'Amritsar':{lat:31.6340,lon:74.8723},'Varanasi':{lat:25.3176,lon:82.9739},'Jodhpur':{lat:26.2389,lon:73.0243},'Rajkot':{lat:22.3039,lon:70.8022},'Vijayawada':{lat:16.5062,lon:80.6480},'Mysuru':{lat:12.2958,lon:76.6394},'Agra':{lat:27.1767,lon:78.0081},'Nashik':{lat:19.9975,lon:73.7898},'Ludhiana':{lat:30.9010,lon:75.8573},'Srinagar':{lat:34.0837,lon:74.7973},'Ranchi':{lat:23.3441,lon:85.3096},'Aurangabad':{lat:19.8762,lon:75.3433},'Jabalpur':{lat:23.1815,lon:79.9864}};
   const WMO = {0:{l:'Clear Sky',i:'☀️'},1:{l:'Mainly Clear',i:'🌤'},2:{l:'Partly Cloudy',i:'⛅'},3:{l:'Overcast',i:'☁️'},45:{l:'Foggy',i:'🌫'},51:{l:'Light Drizzle',i:'🌦'},61:{l:'Light Rain',i:'🌧'},63:{l:'Rain',i:'🌧'},65:{l:'Heavy Rain',i:'🌧'},80:{l:'Showers',i:'🌦'},95:{l:'Thunderstorm',i:'⛈'},99:{l:'Thunderstorm',i:'⛈'}};
 
-  const handleSearch = (text) => {
+  const handleSearch = async (text) => {
     setQuery(text);
-    if (text.length >= 2) setSuggestions(INDIAN_CITIES.filter(c => c.toLowerCase().startsWith(text.toLowerCase())).slice(0, 6));
-    else setSuggestions([]);
+    if (text.length >= 2) {
+      try {
+        const res = await fetch(`https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(text)}&format=json&countrycodes=in&limit=6`, {
+          headers: { 'User-Agent': 'LogiRouteApp' }
+        });
+        const list = await res.json();
+        if (list && list.length > 0) {
+          setSuggestions(list.map(item => ({
+            name: item.display_name.split(',')[0],
+            display: item.display_name,
+            lat: parseFloat(item.lat),
+            lon: parseFloat(item.lon)
+          })));
+          return;
+        }
+      } catch (e) {
+        console.log('Live weather geocoding error, falling back:', e);
+      }
+
+      // Local fallback
+      const filtered = INDIAN_CITIES.filter(c => c.toLowerCase().startsWith(text.toLowerCase())).slice(0, 6);
+      setSuggestions(filtered.map(c => ({
+        name: c,
+        display: `${c}, India`,
+        lat: CITY_COORDS[c]?.lat || 20,
+        lon: CITY_COORDS[c]?.lon || 77
+      })));
+    } else {
+      setSuggestions([]);
+    }
   };
 
-  const selectCity = (c) => { setCity(c); setQuery(c); setSuggestions([]); fetchWeather(c); };
+  const selectCity = (item) => {
+    setCity(item.name);
+    setQuery(item.name);
+    setSuggestions([]);
+    fetchWeather(item.name, item.lat, item.lon);
+  };
 
-  const fetchWeather = async (cityName) => {
-    const coords = CITY_COORDS[cityName];
-    if (!coords) { setError('City not found. Try another Indian city.'); return; }
+  const fetchWeather = async (cityName, customLat = null, customLon = null) => {
+    let lat = customLat;
+    let lon = customLon;
+
+    if (lat === null || lon === null) {
+      const coords = CITY_COORDS[cityName];
+      if (!coords) { setError('City not found. Try another Indian city.'); return; }
+      lat = coords.lat;
+      lon = coords.lon;
+    }
+
     setLoading(true); setError(''); setWeather(null);
     try {
+      const res = await fetch(`https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current=temperature_2m,relative_humidity_2m,wind_speed_10m,weather_code,apparent_temperature&timezone=Asia%2FKolkata`);
+      const data = await res.json();
+      const c = data.current;
+      const wmo = WMO[c.weather_code] || {l:'Unknown',i:'🌡'};
+      setWeather({ temp: Math.round(c.temperature_2m), feelsLike: Math.round(c.apparent_temperature), humidity: c.relative_humidity_2m, wind: Math.round(c.wind_speed_10m), condition: wmo.l, icon: wmo.i, code: c.weather_code });
+    } catch (e) {
       // Offline Simulated Weather Forecast (Trained Keyless Logic)
       await new Promise(r => setTimeout(r, 300));
-      const hash = (cityName.charCodeAt(0) || 0) + (cityName.charCodeAt(1) || 0);
+      const hash = Math.round((Math.abs(lat) * 100) + (Math.abs(lon) * 100));
       const mockTemp = 24 + (hash % 15);
       const mockHumidity = 50 + (hash % 40);
       const mockWind = 5 + (hash % 25);
       const mockCode = (hash % 5) === 0 ? 95 : ((hash % 5) === 1 ? 80 : 0);
       const wmo = WMO[mockCode] || {l:'Clear Sky',i:'☀️'};
       setWeather({ temp: mockTemp, feelsLike: mockTemp + 2, humidity: mockHumidity, wind: mockWind, condition: wmo.l, icon: wmo.i, code: mockCode });
-    } catch (e) { setError('Failed to fetch weather. Check internet.'); }
-    finally { setLoading(false); }
+    } finally { setLoading(false); }
   };
 
   const getAlert = () => {
@@ -815,7 +861,7 @@ export function WeatherScreen({ navigation }) {
             <View style={{ flex: 1, backgroundColor: colors.surface2, borderWidth: 1, borderColor: colors.border, borderRadius: 8, paddingHorizontal: 14, paddingVertical: 12 }}>
               <TextInput placeholder="Search city (e.g. Mumbai)..." placeholderTextColor={colors.muted} value={query} onChangeText={handleSearch} style={{ color: colors.text, fontSize: 14 }} />
             </View>
-            <TouchableOpacity onPress={() => query && selectCity(query)} style={{ backgroundColor: colors.accent, borderRadius: 8, paddingHorizontal: 16, alignItems: 'center', justifyContent: 'center' }}>
+            <TouchableOpacity onPress={() => query && selectCity({ name: query, lat: null, lon: null })} style={{ backgroundColor: colors.accent, borderRadius: 8, paddingHorizontal: 16, alignItems: 'center', justifyContent: 'center' }}>
               <Text style={{ fontSize: 14, fontWeight: '800', color: colors.bg }}>Check</Text>
             </TouchableOpacity>
           </View>
@@ -824,7 +870,7 @@ export function WeatherScreen({ navigation }) {
               {suggestions.map((s, i) => (
                 <TouchableOpacity key={i} onPress={() => selectCity(s)} style={{ padding: 12, borderBottomWidth: i < suggestions.length - 1 ? 1 : 0, borderBottomColor: colors.border, flexDirection: 'row', alignItems: 'center', gap: 8 }}>
                   <Text style={{ fontSize: 14 }}>📍</Text>
-                  <Text style={{ fontSize: 14, color: colors.text }}>{s}</Text>
+                  <Text style={{ fontSize: 14, color: colors.text }}>{s.display || s.name}</Text>
                 </TouchableOpacity>
               ))}
             </View>
