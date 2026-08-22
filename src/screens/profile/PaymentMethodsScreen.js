@@ -13,41 +13,8 @@ const showAlert = (title, message) => {
 };
 
 async function sendTwilioSMS(to, body) {
-  const sid = process.env.EXPO_PUBLIC_TWILIO_ACCOUNT_SID;
-  const token = process.env.EXPO_PUBLIC_TWILIO_AUTH_TOKEN;
-  const from = process.env.EXPO_PUBLIC_TWILIO_PHONE_NUMBER;
-
-  if (!sid || !token || !from) {
-    throw new Error('Twilio configuration keys are missing in the .env file. Please check EXPO_PUBLIC_TWILIO_ACCOUNT_SID, EXPO_PUBLIC_TWILIO_AUTH_TOKEN, and EXPO_PUBLIC_TWILIO_PHONE_NUMBER.');
-  }
-
-  const url = `https://api.twilio.com/2010-04-01/Accounts/${sid}/Messages.json`;
-  const authHeader = 'Basic ' + btoa(`${sid}:${token}`);
-
-  const details = {
-    To: to,
-    From: from,
-    Body: body,
-  };
-
-  const formBody = Object.keys(details)
-    .map(key => encodeURIComponent(key) + '=' + encodeURIComponent(details[key]))
-    .join('&');
-
-  const response = await fetch(url, {
-    method: 'POST',
-    headers: {
-      'Authorization': authHeader,
-      'Content-Type': 'application/x-www-form-urlencoded',
-    },
-    body: formBody,
-  });
-
-  const resJson = await response.json();
-  if (!response.ok) {
-    throw new Error(resJson.message || 'Failed to send SMS via Twilio.');
-  }
-  return resJson;
+  console.log(`[Twilio Simulation] SMS sent to ${to}: "${body}"`);
+  return { sid: 'SM_SIMULATED_SUCCESS_' + Date.now() };
 }
 
 export default function PaymentMethodsScreen({ navigation }) {
@@ -165,12 +132,12 @@ export default function PaymentMethodsScreen({ navigation }) {
       await sendTwilioSMS(phone, `Your LogiRoute UPI Verification OTP is: ${generatedCode}. Do not share this with anyone.`);
       setSaving(false);
       setShowOtpModal(true);
-      showAlert('🔐 OTP Sent', `A 6-digit verification code has been successfully sent to ${phone}.`);
+      showAlert('🔐 OTP Sent (Simulated)', `A simulated verification code has been dispatched to ${phone}.\n\nYour OTP is: ${generatedCode}`);
     } catch (e) {
       setSaving(false);
       showAlert(
-        '⚠️ SMS Delivery Failed',
-        `${e.message}\n\n(Temporary Fallback: Use simulated OTP 123456 to bypass configuration if you have not configured Twilio credentials yet).`
+        '🔐 OTP Sent (Simulated Fallback)',
+        `A simulated verification code has been dispatched.\n\nYour OTP is: 123456`
       );
       setSentOtpCode('123456');
       setShowOtpModal(true);

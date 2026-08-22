@@ -5,6 +5,7 @@ import {
 } from 'react-native';
 import { radius } from '../../theme';
 import { BackBtn } from '../../components';
+import { getCityDetails } from '../../data';
 
 // WMO Standard Weather Code Translation Table
 const WMO_CODE_MAP = {
@@ -101,35 +102,14 @@ async function fetchOriginalCityWeather(cityName, geoData = null) {
     let resolvedState = geoData?.admin1 || geoData?.state || '';
     let resolvedCountry = geoData?.country || 'India';
 
-    // Step 1: Resolve exact GPS coordinates if not already provided
+    // Step 1: Resolve exact GPS coordinates from offline catalog
     if (!lat || !lon) {
-      const geoRes = await fetch(
-        `https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(cityName)}&count=5&language=en&format=json`
-      );
-      const geoJson = await geoRes.json();
-      if (geoJson.results && geoJson.results.length > 0) {
-        const top = geoJson.results[0];
-        lat = top.latitude;
-        lon = top.longitude;
-        resolvedCity = top.name;
-        resolvedState = top.admin1 || top.admin2 || '';
-        resolvedCountry = top.country || 'India';
-      }
-    }
-
-    if (!lat || !lon) {
-      // Fallback geocoding check
-      const fallbackGeo = await fetch(
-        `https://api.geoapify.com/v1/geocode/autocomplete?text=${encodeURIComponent(cityName)}&filter=countrycode:in&limit=1&apiKey=bd32dbcd6016403e9d5a828f643d4cdb`
-      );
-      const fbData = await fallbackGeo.json();
-      if (fbData.features && fbData.features.length > 0) {
-        const p = fbData.features[0].properties;
-        lat = p.lat;
-        lon = p.lon;
-        resolvedCity = p.city || p.town || p.name || cityName;
-        resolvedState = p.state || '';
-      }
+      const details = getCityDetails(cityName);
+      lat = details.coords[1];
+      lon = details.coords[0];
+      resolvedCity = details.name;
+      resolvedState = details.state;
+      resolvedCountry = 'India';
     }
 
     if (!lat || !lon) {

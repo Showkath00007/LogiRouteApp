@@ -6,7 +6,7 @@ import {
 import { colors, radius, shadow } from '../../theme';
 import { BackBtn } from '../../components';
 
-const GEO_KEY = 'bd32dbcd6016403e9d5a828f643d4cdb';
+import { INDIAN_CITIES, getCityDetails, calculateDistance } from '../../data';
 
 // City alias normalizer for common alternate/historical Indian city spellings
 const CITY_ALIASES = {
@@ -65,70 +65,21 @@ const getWmoMeta = (code) => {
 // Dynamic Geocoder strictly filtered for Indian cities & hubs
 async function searchGeocodedLocations(query) {
   if (!query || query.trim().length < 2) return [];
-  const trimmed = query.trim();
-  const normalized = CITY_ALIASES[trimmed.toLowerCase()] || trimmed;
-
-  const results = [];
-
-  // Primary: Geoapify with filter=countrycode:in
-  try {
-    const geoUrl = `https://api.geoapify.com/v1/geocode/autocomplete?text=${encodeURIComponent(normalized)}&filter=countrycode:in&limit=8&apiKey=${GEO_KEY}`;
-    const res = await fetch(geoUrl);
-    const data = await res.json();
-    if (data.features && data.features.length > 0) {
-      data.features.forEach(f => {
-        const p = f.properties;
-        const cityName = p.city || p.town || p.village || p.county || p.name;
-        if (cityName && (p.country_code === 'in' || p.country === 'India')) {
-          results.push({
-            id: p.place_id || `${p.lat}-${p.lon}`,
-            name: cityName,
-            admin1: p.state || '',
-            district: p.county || p.state_district || '',
-            country: 'India',
-            latitude: p.lat,
-            longitude: p.lon,
-            display: p.formatted || `${cityName}, ${p.state || 'India'}`
-          });
-        }
-      });
-    }
-  } catch (e) {}
-
-  // Fallback: Open-Meteo Geocoding strictly filtered to India (country_code = IN)
-  if (results.length === 0) {
-    try {
-      const openRes = await fetch(
-        `https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(normalized)}&count=10&language=en&format=json`
-      );
-      const openData = await openRes.json();
-      if (openData.results && openData.results.length > 0) {
-        const inResults = openData.results.filter(r => (r.country_code === 'IN' || r.country === 'India'));
-        inResults.forEach(r => {
-          results.push({
-            id: r.id,
-            name: r.name,
-            admin1: r.admin1 || '',
-            district: r.admin2 || '',
-            country: 'India',
-            latitude: r.latitude,
-            longitude: r.longitude,
-            display: `${r.name}${r.admin2 ? ', ' + r.admin2 : ''}${r.admin1 ? ', ' + r.admin1 : ''}`
-          });
-        });
-      }
-    } catch (e) {}
-  }
-
-  // Deduplicate by name & state
-  const unique = [];
-  results.forEach(item => {
-    if (!unique.some(u => u.name.toLowerCase() === item.name.toLowerCase() && u.admin1.toLowerCase() === item.admin1.toLowerCase())) {
-      unique.push(item);
-    }
-  });
-
-  return unique.slice(0, 5);
+  const trimmed = query.trim().toLowerCase();
+  
+  return Object.values(INDIAN_CITIES)
+    .filter(c => c.name.toLowerCase().includes(trimmed) || c.state.toLowerCase().includes(trimmed))
+    .map(c => ({
+      id: c.name.toLowerCase(),
+      name: c.name,
+      admin1: c.state,
+      district: '',
+      country: 'India',
+      latitude: c.coords[1],
+      longitude: c.coords[0],
+      display: `${c.name}, ${c.state}`
+    }))
+    .slice(0, 5);
 }
 
 // Single coordinate resolution
@@ -138,25 +89,25 @@ async function geocodeLocation(name) {
   return list.length > 0 ? list[0] : null;
 }
 
-// Reverse geocode to find actual intermediate town names along the highway
+// Reverse geocode to find actual intermediate town names along the highway using local approximations
 async function reverseGeocodePoint(lat, lon, fallbackName) {
-  try {
-    const res = await fetch(`https://api.geoapify.com/v1/geocode/reverse?lat=${lat}&lon=${lon}&apiKey=${GEO_KEY}`);
-    const data = await res.json();
-    if (data.features && data.features.length > 0) {
-      const p = data.features[0].properties;
-      const place = p.city || p.town || p.village || p.county || p.name;
-      const road = p.street || p.highway || '';
-      if (place) {
-        return {
-          name: place,
-          state: p.state || '',
-          road: road
-        };
-      }
+  let closestCity = null;
+  let minDistance = Infinity;
+  for (const city of Object.values(INDIAN_CITIES)) {
+    const dist = calculateDistance(lon, lat, city.coords[0], city.coords[1]);
+    if (dist < minDistance) {
+      minDistance = dist;
+      closestCity = city;
     }
-  } catch (e) {}
-  return { name: fallbackName, state: '', road: '' };
+  }
+  if (closestCity && minDistance < 150) {
+    return {
+      name: closestCity.name,
+      state: closestCity.state,
+      road: 'National Highway'
+    };
+  }
+  return { name: fallbackName, state: '', road: 'National Highway' };
 }
 
 // Fetch live weather for specific coordinates
@@ -847,7 +798,6 @@ export default function RoadAlertsScreen({ navigation, route: navRoute }) {
             </Text>
           </View>
         ) : !analyzedData ? (
-          /* Initial Clean Prompt */
           <View style={{ paddingVertical: 10 }}>
             <View style={{
               backgroundColor: '#FFFFFF',

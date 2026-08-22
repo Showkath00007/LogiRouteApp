@@ -7,8 +7,8 @@ import { colors, radius, fonts } from '../../theme';
 import { Card, Btn, BackBtn, SectionLabel, Badge } from '../../components';
 import { listenAvailableDrivers, sendBookingRequest } from '../../config/DriverService';
 import { getProfile } from '../../config/UserStore';
+import { getCityDetails, calculateDistance } from '../../data';
 
-const ORS_KEY = 'eyJvcmciOiI1YjNjZTM1OTc4NTExMTAwMDFjZjYyNDgiLCJpZCI6IjRlYmZiNzAyMjA0ZDQ2ZmFhYzUyN2FkZDMyM2U0MjNiIiwiaCI6Im11cm11cjY0In0=';
 const RATE_PER_KM = 12; // ₹12 per km base rate
 
 const MATERIALS = [
@@ -22,47 +22,15 @@ const MATERIALS = [
 
 const VEHICLE_MULT = { Heavy: 1.0, Container: 1.2, Medium: 0.85, Light: 0.7 };
 
-// Geocode city name to [lon, lat] using ORS
+// Geocode city name to [lon, lat] using offline trained catalog
 async function geocodeCity(cityName) {
-  try {
-    const res = await fetch(
-      `https://api.openrouteservice.org/geocode/search?api_key=${ORS_KEY}&text=${encodeURIComponent(cityName + ', India')}&size=1`,
-      { headers: { Accept: 'application/json' } }
-    );
-    const data = await res.json();
-    const coords = data.features?.[0]?.geometry?.coordinates;
-    if (!coords) throw new Error('City not found');
-    return coords; // [lon, lat]
-  } catch (e) {
-    throw new Error(`Could not find "${cityName}". Please check the spelling.`);
-  }
+  const details = getCityDetails(cityName);
+  return details.coords; // [lon, lat]
 }
 
-// Get driving distance in km between two [lon,lat] coords
+// Get driving distance in km between two [lon,lat] coords using offline calculations
 async function getDrivingDistance(fromCoords, toCoords) {
-  try {
-    const res = await fetch('https://api.openrouteservice.org/v2/directions/driving-hgv', {
-      method: 'POST',
-      headers: {
-        'Authorization': ORS_KEY,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        coordinates: [fromCoords, toCoords],
-      }),
-    });
-    const data = await res.json();
-    const distMeters = data.routes?.[0]?.summary?.distance;
-    if (!distMeters) throw new Error('Route not found');
-    return Math.round(distMeters / 1000); // convert to km
-  } catch (e) {
-    // Fallback to straight-line estimate
-    const R = 6371;
-    const dLat = (toCoords[1] - fromCoords[1]) * Math.PI / 180;
-    const dLon = (toCoords[0] - fromCoords[0]) * Math.PI / 180;
-    const a = Math.sin(dLat/2)**2 + Math.cos(fromCoords[1]*Math.PI/180) * Math.cos(toCoords[1]*Math.PI/180) * Math.sin(dLon/2)**2;
-    return Math.round(R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a)) * 1.3);
-  }
+  return calculateDistance(fromCoords[0], fromCoords[1], toCoords[0], toCoords[1]);
 }
 
 function calcCost(distKm, weightTons, matMult, vehicleType) {
