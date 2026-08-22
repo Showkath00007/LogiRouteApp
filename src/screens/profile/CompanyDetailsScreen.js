@@ -23,16 +23,26 @@ export default function CompanyDetailsScreen({ navigation }) {
         const isRealUser = auth?.currentUser && !auth.currentUser.email.startsWith('mock');
         
         if (isRealUser) {
-          // Real users get a completely empty slate by default (no mock values!)
-          const derivedCompany = fb?.company || (fb?.name?.toLowerCase() === 'uri' ? 'Uri Logistics' : (fb?.name ? `${fb.name.charAt(0).toUpperCase() + fb.name.slice(1)} Logistics` : ''));
-          setCompany(derivedCompany);
-          setGst(fb?.gst || '');
-          setReg(fb?.reg || '');
-          setAddress(fb?.address || '');
-          setCity(fb?.city || '');
-          setState(fb?.state || '');
-          setPin(fb?.pin || '');
-          setPan(fb?.pan || '');
+          // If they haven't explicitly saved company details yet, keep the form completely clear
+          if (!fb?.gst && !fb?.pan && !fb?.address) {
+            setCompany('');
+            setGst('');
+            setReg('');
+            setAddress('');
+            setCity('');
+            setState('');
+            setPin('');
+            setPan('');
+          } else {
+            setCompany(fb?.company || '');
+            setGst(fb?.gst || '');
+            setReg(fb?.reg || '');
+            setAddress(fb?.address || '');
+            setCity(fb?.city || '');
+            setState(fb?.state || '');
+            setPin(fb?.pin || '');
+            setPan(fb?.pan || '');
+          }
         } else {
           // Mock / Guest users load from local AsyncStorage with template fallbacks
           const local = await getProfile().catch(() => null);
