@@ -17,6 +17,65 @@ const sub = { fontSize: 13, color: colors.textSub, marginBottom: 20 };
 // If your login/register flow doesn't call Firebase Auth sign-in yet,
 // auth.currentUser will always be null. Falling back to a fixed id lets
 // you test save/status/jobs end-to-end while you wire up real auth.
+export function decodeVehicleNumber(num = '') {
+  if (!num) return { make: 'Unknown Vehicle', rto: 'N/A', state: 'N/A' };
+  const clean = num.replace(/[^A-Z0-9]/ig, '').toUpperCase();
+  
+  const stateCode = clean.substring(0, 2);
+  let state = 'India';
+  if (stateCode === 'AP') state = 'Andhra Pradesh';
+  else if (stateCode === 'TN') state = 'Tamil Nadu';
+  else if (stateCode === 'KA') state = 'Karnataka';
+  else if (stateCode === 'MH') state = 'Maharashtra';
+  else if (stateCode === 'DL') state = 'Delhi';
+  else if (stateCode === 'TS') state = 'Telangana';
+  else if (stateCode === 'KL') state = 'Kerala';
+  else if (stateCode === 'UP') state = 'Uttar Pradesh';
+  
+  const rtoDigits = clean.substring(2, 4);
+  let rtoCity = 'RTO Jurisdiction';
+  if (stateCode === 'AP') {
+    if (rtoDigits === '02') rtoCity = 'Anantapur';
+    else if (rtoDigits === '26') rtoCity = 'Nellore';
+    else if (rtoDigits === '16') rtoCity = 'Vijayawada';
+    else if (rtoDigits === '03') rtoCity = 'Chittoor';
+    else if (rtoDigits === '31') rtoCity = 'Visakhapatnam';
+  } else if (stateCode === 'TN') {
+    const val = parseInt(rtoDigits, 10);
+    if (!isNaN(val) && val <= 22) rtoCity = 'Chennai';
+    else if (rtoDigits === '37') rtoCity = 'Coimbatore';
+    else if (rtoDigits === '58') rtoCity = 'Madurai';
+  } else if (stateCode === 'KA') {
+    const val = parseInt(rtoDigits, 10);
+    if (!isNaN(val) && (val <= 5 || val === 51 || val === 53)) rtoCity = 'Bengaluru';
+  } else if (stateCode === 'MH') {
+    const val = parseInt(rtoDigits, 10);
+    if (!isNaN(val) && (val <= 4 || val === 47)) rtoCity = 'Mumbai';
+    else if (rtoDigits === '12') rtoCity = 'Pune';
+  } else if (stateCode === 'DL') {
+    rtoCity = 'Delhi Central';
+  } else if (stateCode === 'TS') {
+    const val = parseInt(rtoDigits, 10);
+    if (!isNaN(val) && val >= 9 && val <= 14) rtoCity = 'Hyderabad';
+  }
+
+  const lastChar = clean[clean.length - 1];
+  const charCode = lastChar ? lastChar.charCodeAt(0) : 0;
+  const models = [
+    'Tata Prima 4028.S Container',
+    'Ashok Leyland 3520 Lorry',
+    'BharatBenz 2823C Tipper',
+    'Mahindra Blazo X 35 Lorry',
+    'Eicher Pro 6035 Box Truck',
+    'Tata Signa 2821 Cargo Carrier',
+    'Ashok Leyland Ecomet LCV',
+    'Eicher Pro 3015 Box Lorry',
+  ];
+  const make = models[charCode % models.length];
+
+  return { make, rto: rtoCity, state };
+}
+
 function getDriverUid() {
   return auth.currentUser?.uid || 'demo_driver';
 }
@@ -222,16 +281,22 @@ export function DriverDashboard({ navigation }) {
         {/* Vehicle info */}
         <Card style={{ marginBottom: 16 }}>
           <SectionLabel label="My Vehicle" />
-          {driver?.vehicle ? (
-            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
-              <Text style={{ fontSize: 36 }}>🚛</Text>
-              <View>
-                <Text style={{ fontSize: fonts.md, fontWeight: '800', color: colors.text }}>{driver.vehicle}</Text>
-                <Text style={{ fontSize: fonts.sm, color: colors.textSub }}>{driver.vehicleType} · {driver.city}</Text>
-                <Text style={{ fontSize: fonts.sm, color: colors.textSub }}>License: {driver.license || 'Not added'}</Text>
+          {driver?.vehicle ? (() => {
+            const vDetails = decodeVehicleNumber(driver.vehicle);
+            return (
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
+                <Text style={{ fontSize: 36 }}>🚛</Text>
+                <View style={{ flex: 1 }}>
+                  <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <Text style={{ fontSize: fonts.md, fontWeight: '800', color: colors.text }}>{driver.vehicle}</Text>
+                    <Text style={{ fontSize: fonts.xs, fontWeight: '800', color: colors.accent }}>{vDetails.make.split(' ')[0]}</Text>
+                  </View>
+                  <Text style={{ fontSize: fonts.sm, fontWeight: '700', color: colors.accent, marginTop: 1 }}>{vDetails.make}</Text>
+                  <Text style={{ fontSize: fonts.xs, color: colors.textSub, marginTop: 2 }}>Origin: {vDetails.rto} ({vDetails.state})</Text>
+                </View>
               </View>
-            </View>
-          ) : (
+            );
+          })() : (
             <View style={{ alignItems: 'center', padding: 16 }}>
               <Text style={{ color: colors.textMuted, marginBottom: 10 }}>No vehicle details added yet</Text>
               <Btn label="Add Vehicle Details" onPress={() => navigation.navigate('DriverProfileSetup')} variant="outline" />
@@ -963,6 +1028,8 @@ export function VehicleScreen({ navigation }) {
     return unsubFocus;
   }, [navigation]);
 
+  const vehicleDetails = decodeVehicleNumber(driver?.vehicle);
+
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: colors.bg }}>
       <ScrollView contentContainerStyle={screen()}>
@@ -971,14 +1038,37 @@ export function VehicleScreen({ navigation }) {
         <Card style={{ alignItems: 'center', padding: 24, marginBottom: 16 }}>
           <Text style={{ fontSize: 64 }}>🚛</Text>
           <Text style={{ fontSize: fonts.xl, fontWeight: '900', color: colors.text, marginTop: 8 }}>{driver?.vehicle || 'No vehicle added'}</Text>
-          <Text style={{ fontSize: fonts.sm, color: colors.textSub }}>{driver?.vehicleType || 'Heavy'} · {driver?.city || 'N/A'}</Text>
+          {driver?.vehicle ? (
+            <>
+              <Text style={{ fontSize: fonts.base, fontWeight: '800', color: colors.accent, marginTop: 4 }}>
+                {vehicleDetails.make}
+              </Text>
+              <Text style={{ fontSize: fonts.sm, color: colors.textSub, marginTop: 2 }}>
+                Origin: {vehicleDetails.rto} ({vehicleDetails.state})
+              </Text>
+            </>
+          ) : (
+            <Text style={{ fontSize: fonts.sm, color: colors.textSub }}>{driver?.vehicleType || 'Heavy'} · {driver?.city || 'N/A'}</Text>
+          )}
         </Card>
-        {[['🪪 License', driver?.license || 'Not added'], ['📍 Base City', driver?.city || 'Not added'], ['⏱ Experience', driver?.experience ? `${driver.experience} years` : 'Not added'], ['📋 Status', driver?.status || 'Pending']].map(([k, v]) => (
-          <View key={k} style={{ flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 12, borderBottomWidth: 1, borderColor: colors.border }}>
-            <Text style={{ fontSize: fonts.base, color: colors.textSub }}>{k}</Text>
-            <Text style={{ fontSize: fonts.base, fontWeight: '700', color: colors.text }}>{v}</Text>
-          </View>
-        ))}
+        {(() => {
+          const list = [
+            ['🪪 License', driver?.license || 'Not added'],
+            ['📍 Base City', driver?.city || 'Not added'],
+          ];
+          if (driver?.vehicle) {
+            list.push(['🚛 Vehicle Model', vehicleDetails.make]);
+            list.push(['🏢 RTO Jurisdiction', `${vehicleDetails.rto}, ${vehicleDetails.state}`]);
+          }
+          list.push(['⏱ Experience', driver?.experience ? `${driver.experience} years` : 'Not added']);
+          list.push(['📋 Status', driver?.status || 'Pending']);
+          return list.map(([k, v]) => (
+            <View key={k} style={{ flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 12, borderBottomWidth: 1, borderColor: colors.border }}>
+              <Text style={{ fontSize: fonts.base, color: colors.textSub }}>{k}</Text>
+              <Text style={{ fontSize: fonts.base, fontWeight: '700', color: colors.text }}>{v}</Text>
+            </View>
+          ));
+        })()}
         <Btn label="Update Vehicle Details" onPress={() => navigation.navigate('DriverProfileSetup')} style={{ marginTop: 20 }} variant="outline" />
       </ScrollView>
     </SafeAreaView>
