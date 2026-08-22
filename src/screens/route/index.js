@@ -422,25 +422,72 @@ export function RouteMapScreen({ navigation, route }) {
     let isMounted = true;
     async function loadRoute() {
       try {
-        // Geocode source & destination (Offline Simulated - Trained Logic)
+        let srcLat = 15.1678, srcLon = 77.3673;
+        let dstLat = 14.6819, dstLon = 77.6006;
+        let coords = [];
+        let distKm = 0;
+        let durMin = 0;
+        let summary = 'National & State Highway';
+
         const cleanSrc = (source || '').split(',')[0].trim();
         const cleanDst = (destination || '').split(',')[0].trim();
 
-        const srcDetails = getCityDetails(cleanSrc);
-        const dstDetails = getCityDetails(cleanDst);
+        // 1. Resolve coordinates (OSM Nominatim Live query with local fallback)
+        try {
+          const [geoSrcRes, geoDstRes] = await Promise.all([
+            fetch(`https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(cleanSrc)}&format=json&countrycodes=in&limit=1`, { headers: { 'User-Agent': 'LogiRouteApp' } }).then(r => r.json()).catch(() => null),
+            fetch(`https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(cleanDst)}&format=json&countrycodes=in&limit=1`, { headers: { 'User-Agent': 'LogiRouteApp' } }).then(r => r.json()).catch(() => null)
+          ]);
+          if (geoSrcRes?.[0]) {
+            srcLat = parseFloat(geoSrcRes[0].lat);
+            srcLon = parseFloat(geoSrcRes[0].lon);
+          } else {
+            const sd = getCityDetails(cleanSrc);
+            srcLat = sd.coords[1];
+            srcLon = sd.coords[0];
+          }
+          if (geoDstRes?.[0]) {
+            dstLat = parseFloat(geoDstRes[0].lat);
+            dstLon = parseFloat(geoDstRes[0].lon);
+          } else {
+            const dd = getCityDetails(cleanDst);
+            dstLat = dd.coords[1];
+            dstLon = dd.coords[0];
+          }
+        } catch (e) {
+          const sd = getCityDetails(cleanSrc);
+          srcLat = sd.coords[1];
+          srcLon = sd.coords[0];
+          const dd = getCityDetails(cleanDst);
+          dstLat = dd.coords[1];
+          dstLon = dd.coords[0];
+        }
 
-        const srcLat = srcDetails.coords[1];
-        const srcLon = srcDetails.coords[0];
-        const dstLat = dstDetails.coords[1];
-        const dstLon = dstDetails.coords[0];
+        // 2. Query polyline coordinates (OSRM Live engine with local fallback)
+        try {
+          const osrmRes = await fetch(`https://router.project-osrm.org/route/v1/driving/${srcLon},${srcLat};${dstLon},${dstLat}?overview=full&geometries=geojson&steps=true`);
+          const osrmData = await osrmRes.json();
+          if (osrmData.routes && osrmData.routes.length > 0) {
+            const best = osrmData.routes[0];
+            distKm = (best.distance / 1000).toFixed(1);
+            durMin = Math.round(best.duration / 60);
+            summary = best.legs?.[0]?.summary || 'Direct Highway Route';
+            if (best.geometry?.coordinates) {
+              coords = best.geometry.coordinates.map(c => [c[1], c[0]]);
+            }
+          }
+        } catch (e) {
+          console.log('OSRM routing engine error, using offline trained logic:', e);
+        }
 
-        // 2. Query simulated route parameter logic
-        const distKm = calculateDistance(srcLon, srcLat, dstLon, dstLat);
-        const durMin = Math.round((distKm / 60) * 60); // 60 km/h average speed
-        const summary = 'NH-48 / NH-44 (National Highway)';
-
-        const routeFeat = getSimulatedRouteGeometry(srcDetails.coords, dstDetails.coords);
-        let coords = routeFeat.geometry.coordinates.map(c => [c[1], c[0]]); // [lat, lon]
+        // Local fallback if OSRM failed
+        if (coords.length === 0) {
+          distKm = calculateDistance(srcLon, srcLat, dstLon, dstLat);
+          durMin = Math.round((distKm / 60) * 60);
+          summary = 'NH-48 / NH-44 (National Highway)';
+          const routeFeat = getSimulatedRouteGeometry([srcLon, srcLat], [dstLon, dstLat]);
+          coords = routeFeat.geometry.coordinates.map(c => [c[1], c[0]]);
+        }
 
         const durHours = Math.floor(durMin / 60);
         const durMinsRem = durMin % 60;

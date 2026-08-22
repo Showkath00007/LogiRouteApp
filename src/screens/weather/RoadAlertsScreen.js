@@ -62,11 +62,32 @@ const getWmoMeta = (code) => {
   return WMO_CODE_MAP[code] || { cond: 'Partly Cloudy', icon: '⛅', safe: true };
 };
 
-// Dynamic Geocoder strictly filtered for Indian cities & hubs
+// Dynamic Geocoder strictly filtered for Indian cities, towns & villages
 async function searchGeocodedLocations(query) {
   if (!query || query.trim().length < 2) return [];
   const trimmed = query.trim().toLowerCase();
   
+  try {
+    const res = await fetch(`https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(query)}&format=json&countrycodes=in&limit=5`, {
+      headers: { 'User-Agent': 'LogiRouteApp' }
+    });
+    const list = await res.json();
+    if (list && list.length > 0) {
+      return list.map(item => ({
+        id: item.place_id ? String(item.place_id) : String(item.osm_id),
+        name: item.display_name.split(',')[0],
+        admin1: item.display_name.split(',').slice(1).join(',').trim(),
+        district: '',
+        country: 'India',
+        latitude: parseFloat(item.lat),
+        longitude: parseFloat(item.lon),
+        display: item.display_name
+      }));
+    }
+  } catch (err) {
+    console.log('Live geocoder error, falling back to local database:', err);
+  }
+
   return Object.values(INDIAN_CITIES)
     .filter(c => c.name.toLowerCase().includes(trimmed) || c.state.toLowerCase().includes(trimmed))
     .map(c => ({
@@ -110,36 +131,49 @@ async function reverseGeocodePoint(lat, lon, fallbackName) {
   return { name: fallbackName, state: '', road: 'National Highway' };
 }
 
-// Fetch live weather for specific coordinates (Offline Simulated - Trained Logic)
+// Fetch live weather for specific coordinates
 async function fetchCoordsWeather(lat, lon) {
   try {
-    const hash = Math.round((Math.abs(lat) * 100) + (Math.abs(lon) * 100));
-    const mockTemp = 24 + (hash % 15);
-    const mockHumidity = 50 + (hash % 40);
-    const mockWind = 5 + (hash % 25);
-    const mockCode = (hash % 10) === 0 ? 95 : ((hash % 10) === 1 ? 80 : 0);
-    const meta = getWmoMeta(mockCode);
-    return {
-      temp: mockTemp,
-      feels: mockTemp + 2,
-      humidity: mockHumidity,
-      wind: mockWind,
-      precipitation: mockCode > 0 ? 2 : 0,
-      condition: meta.cond,
-      icon: meta.icon,
-      safe: meta.safe,
-      alertMsg: meta.alert
-    };
-  } catch (e) {}
+    const res = await fetch(
+      `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current=temperature_2m,relative_humidity_2m,apparent_temperature,precipitation,weather_code,wind_speed_10m&timezone=auto`
+    );
+    const data = await res.json();
+    if (data.current) {
+      const c = data.current;
+      const meta = getWmoMeta(c.weather_code);
+      return {
+        temp: Math.round(c.temperature_2m),
+        feels: Math.round(c.apparent_temperature),
+        humidity: Math.round(c.relative_humidity_2m),
+        wind: Math.round(c.wind_speed_10m),
+        precipitation: c.precipitation || 0,
+        condition: meta.cond,
+        icon: meta.icon,
+        safe: meta.safe,
+        alertMsg: meta.alert
+      };
+    }
+  } catch (e) {
+    console.log('Live weather fetch error, using offline trained logic:', e);
+  }
+
+  // Offline simulated fallback
+  const hash = Math.round((Math.abs(lat) * 100) + (Math.abs(lon) * 100));
+  const mockTemp = 24 + (hash % 15);
+  const mockHumidity = 50 + (hash % 40);
+  const mockWind = 5 + (hash % 25);
+  const mockCode = (hash % 10) === 0 ? 95 : ((hash % 10) === 1 ? 80 : 0);
+  const meta = getWmoMeta(mockCode);
   return {
-    temp: 28,
-    feels: 30,
-    humidity: 60,
-    wind: 12,
-    precipitation: 0,
-    condition: 'Clear Sky',
-    icon: '☀️',
-    safe: true
+    temp: mockTemp,
+    feels: mockTemp + 2,
+    humidity: mockHumidity,
+    wind: mockWind,
+    precipitation: mockCode > 0 ? 2 : 0,
+    condition: meta.cond,
+    icon: meta.icon,
+    safe: meta.safe,
+    alertMsg: meta.alert
   };
 }
 
@@ -162,17 +196,37 @@ async function computeRealRouteAnalysis(sourceCity, destCity, srcGeo = null, dst
   let durationSec = 0;
   let highwaySummary = '';
 
-  // Offline simulated OSRM route calculations (Trained Logic)
-  const R = 6371;
-  const dLat = (lat2 - lat1) * Math.PI / 180;
-  const dLon = (lon2 - lon1) * Math.PI / 180;
-  const a = Math.sin(dLat / 2) * Math.sin(dLat / 2) +
-    Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
-    Math.sin(dLon / 2) * Math.sin(dLon / 2);
-  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-  roadKm = Math.round((R * c) * 1.25);
-  durationSec = Math.round((roadKm / 60) * 3600);
-  highwaySummary = 'NH-48 (National Highway)';
+  // Try live OSRM routing engine first
+  try {
+    const osrmRes = await fetch(
+      `https://router.project-osrm.org/route/v1/driving/${lon1},${lat1};${lon2},${lat2}?steps=true&overview=false`
+    );
+    const osrmData = await osrmRes.json();
+    if (osrmData.routes && osrmData.routes.length > 0) {
+      const best = osrmData.routes[0];
+      roadKm = Math.round(best.distance / 1000);
+      durationSec = Math.round(best.duration);
+      if (best.legs && best.legs.length > 0) {
+        highwaySummary = best.legs[0].summary || 'NH Route';
+      }
+    }
+  } catch (err) {
+    console.log('Live router error, using offline trained logic:', err);
+  }
+
+  // Offline simulated fallback if route not computed
+  if (!roadKm || roadKm <= 0) {
+    const R = 6371;
+    const dLat = (lat2 - lat1) * Math.PI / 180;
+    const dLon = (lon2 - lon1) * Math.PI / 180;
+    const a = Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+      Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
+      Math.sin(dLon / 2) * Math.sin(dLon / 2);
+    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+    roadKm = Math.round((R * c) * 1.25);
+    durationSec = Math.round((roadKm / 60) * 3600);
+    highwaySummary = 'NH-48 (National Highway)';
+  }
 
   const hours = Math.floor(durationSec / 3600);
   const minutes = Math.round((durationSec % 3600) / 60);
