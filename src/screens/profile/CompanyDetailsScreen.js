@@ -67,7 +67,6 @@ export default function CompanyDetailsScreen({ navigation }) {
       const data = { company, gst, reg, address, city, state, pin, pan };
       await saveProfile(data);
       await saveUserProfile(data);
-      Alert.alert('Company Details Updated!');
       navigation.goBack();
     } catch (e) {
       Alert.alert('Error', 'Failed to save company details.');
@@ -85,7 +84,6 @@ export default function CompanyDetailsScreen({ navigation }) {
         <Input placeholder="Company Name" value={company} onChangeText={setCompany} />
         <Input placeholder="PAN Number" value={pan} onChangeText={setPan} />
         <Input placeholder="GST Number" value={gst} onChangeText={setGst} />
-        <Input placeholder="Registration Number" value={reg} onChangeText={setReg} />
 
         <SectionLabel label="Address" />
         <Input placeholder="Street Address" value={address} onChangeText={setAddress} />
