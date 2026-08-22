@@ -4,7 +4,7 @@ import { useLang } from '../../context/LanguageContext';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { colors, radius, shadow } from '../../theme';
 import { Btn, Card, StatCard, Badge, SectionLabel, ProgressBar, BackBtn, BottomNav, ListItem, Divider, TransportIcon, CostHero, Chip, Input } from '../../components';
-import { MOCK_TEAM, MATERIALS, apiAutocomplete } from '../../data';
+import { MOCK_TEAM, MATERIALS, apiAutocomplete, getCityDetails, calculateDistance } from '../../data';
 import { listenShipments, createShipment, getShipments, getUserProfile, listenUserProfile } from '../../config/firebaseService';
 import { listenCompanyFleet, listenAllNotifications, postOpenJob, listenCompanyJobs, confirmJobApplicant, listenCompanyTeam } from '../../config/DriverService';
 import { getProfile, saveProfile } from '../../config/UserStore';
@@ -451,9 +451,11 @@ export function NewShipmentScreen({ navigation }) {
     setLoading(true);
     try {
       const rate = MATERIALS.find(m => m.id === material)?.rate || 8;
-      const km = Math.floor(Math.random() * 1500) + 200;
+      const src = getCityDetails(from);
+      const dst = getCityDetails(to);
+      const km = calculateDistance(src.coords[0], src.coords[1], dst.coords[0], dst.coords[1]) || 350;
       const transport = km < 300 ? 'truck' : km < 900 ? 'train' : 'ship';
-      const cost = km * rate;
+      const cost = km * rate * (Number(weight) || 1);
       await createShipment({
         from: from.trim(),
         to: to.trim(),
@@ -855,6 +857,24 @@ export function PostJobScreen({ navigation }) {
   const [cost, setCost] = useState('');
   const [notes, setNotes] = useState('');
   const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    if (from.trim() && to.trim()) {
+      const src = getCityDetails(from);
+      const dst = getCityDetails(to);
+      const dist = calculateDistance(src.coords[0], src.coords[1], dst.coords[0], dst.coords[1]);
+      if (dist && !isNaN(dist) && dist > 0) {
+        setDistKm(String(dist));
+
+        const tonsVal = Number(weight) || 1;
+        const rate = MATERIALS.find(m => m.id === material)?.rate || 8;
+        const costVal = Math.round(dist * rate * tonsVal);
+        if (costVal && !isNaN(costVal)) {
+          setCost(String(costVal));
+        }
+      }
+    }
+  }, [from, to, weight, material]);
 
   const fetchFrom = async (q) => {
     setFrom(q);
