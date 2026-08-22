@@ -1465,9 +1465,14 @@ export function ProfileScreen({ navigation }) {
   useEffect(() => {
     const loadProfile = async () => {
       try {
-        const local = await getProfile();
         const fb = await getUserProfile().catch(() => null);
-        setProfile({ ...local, ...fb, avatar: fb?.avatar || local?.avatar });
+        if (fb) {
+          await saveProfile(fb);
+          setProfile(fb);
+        } else {
+          const local = await getProfile();
+          setProfile(local);
+        }
       } catch (e) {
         const local = await getProfile();
         setProfile(local);

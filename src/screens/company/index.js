@@ -39,9 +39,14 @@ export function CompanyDashboard({ navigation }) {
   useEffect(() => {
     const loadProfile = async () => {
       try {
-        const local = await getProfile().catch(() => null);
         const fb = await getUserProfile().catch(() => null);
-        setProfile({ ...local, ...fb, avatar: fb?.avatar || local?.avatar });
+        if (fb) {
+          await saveProfile(fb);
+          setProfile(fb);
+        } else {
+          const local = await getProfile().catch(() => null);
+          setProfile(local);
+        }
       } catch (e) {
         // Ignored
       }

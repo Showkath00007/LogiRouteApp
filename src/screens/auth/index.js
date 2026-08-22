@@ -10,6 +10,7 @@ import {
   sendPasswordResetEmail,
 } from 'firebase/auth';
 import { saveUserProfile } from '../../config/firebaseService';
+import { saveProfile, clearProfile } from '../../config/UserStore';
 
 const screen = { padding: 20, paddingTop: 60, flexGrow: 1 };
 const h1 = { fontSize: 28, fontWeight: '900', color: colors.text, letterSpacing: -0.5, marginBottom: 6 };
@@ -32,6 +33,7 @@ export function LoginScreen({ navigation }) {
     setLoading(true);
     try {
       await signInWithEmailAndPassword(auth, email.trim(), password);
+      await clearProfile().catch(() => null);
       navigation.replace('CompanyDashboard');
     } catch (err) {
       const code = err.code || '';
@@ -142,6 +144,7 @@ export function DriverLoginScreen({ navigation }) {
     setLoading(true);
     try {
       await signInWithEmailAndPassword(auth, email.trim(), password);
+      await clearProfile().catch(() => null);
       navigation.replace('DriverDashboard');
     } catch (error) {
       if (error.code === 'auth/user-not-found' || error.code === 'auth/invalid-credential') {
