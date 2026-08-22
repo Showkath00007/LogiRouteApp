@@ -384,12 +384,15 @@ export function RegisterScreen({ navigation }) {
     setLoading(true);
     try {
       await createUserWithEmailAndPassword(auth, email.trim(), password);
+      const lowerName = name.trim().toLowerCase();
+      const resolvedCompany = lowerName === 'uri' ? 'Uri Logistics' : '';
       await saveUserProfile({
         name: name.trim(),
         email: email.trim(),
         phone: phone.trim(),
         type: 'company',
         verified: false,
+        company: resolvedCompany,
       });
       navigation.navigate('OTP');
     } catch (error) {
@@ -590,6 +593,23 @@ export function ProfileSetupScreen({ navigation }) {
   const [businessCategory, setBusinessCategory] = useState('Manufacturing');
   const [selectedMaterials, setSelectedMaterials] = useState(['Steel']);
   const [selectedVehicles, setSelectedVehicles] = useState(['Standard Truck']);
+
+  useEffect(() => {
+    const loadProfile = async () => {
+      try {
+        const u = await getProfile().catch(() => null);
+        const fb = await getUserProfile().catch(() => null);
+        const prof = { ...u, ...fb };
+        if (prof) {
+          const defaultCompany = prof.company || (prof.name?.toLowerCase() === 'uri' ? 'Uri Logistics' : '');
+          setCompanyName(defaultCompany);
+          setCity(prof.city || '');
+          if (prof.gst) setGstNumber(prof.gst);
+        }
+      } catch (e) {}
+    };
+    loadProfile();
+  }, []);
 
   const nextStep = () => {
     if (step === 1) {

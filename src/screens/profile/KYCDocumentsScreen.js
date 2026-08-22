@@ -101,7 +101,10 @@ export default function KYCDocumentsScreen({ navigation }) {
       status: 'verified',
       badge: '✓ VAHAN Verified'
     }
-  ];
+  ].filter(d => {
+    if (profile?.type === 'company' && d.id === 'vehicle') return false;
+    return true;
+  });
 
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: colors.bg }}>
@@ -111,7 +114,9 @@ export default function KYCDocumentsScreen({ navigation }) {
           Official Verification Documents
         </Text>
         <Text style={{ fontSize: 13, color: colors.sub, marginBottom: 20 }}>
-          Official PAN, Aadhaar, and Registered Commercial Vehicle Number
+          {profile?.type === 'company'
+            ? 'Official PAN and Aadhaar Documents'
+            : 'Official PAN, Aadhaar, and Registered Commercial Vehicle Number'}
         </Text>
 
         {/* Verification Status Header Banner */}
@@ -123,13 +128,21 @@ export default function KYCDocumentsScreen({ navigation }) {
             <View style={{ flex: 1 }}>
               <Text style={{ fontSize: 16, fontWeight: '900', color: '#15803D' }}>KYC 100% Compliant</Text>
               <Text style={{ fontSize: 12, color: '#166534', marginTop: 2 }}>
-                All 3 mandatory regulatory documents verified
+                {profile?.type === 'company'
+                  ? 'Both mandatory regulatory documents verified'
+                  : 'All 3 mandatory regulatory documents verified'}
               </Text>
             </View>
           </View>
         </Card>
 
-        <SectionLabel label="Regulatory Documents (PAN • Aadhaar • Vehicle)" />
+        <SectionLabel
+          label={
+            profile?.type === 'company'
+              ? 'Regulatory Documents (PAN • Aadhaar)'
+              : 'Regulatory Documents (PAN • Aadhaar • Vehicle)'
+          }
+        />
 
         {docs.map(doc => (
           <Card key={doc.id} style={{ marginBottom: 12, padding: 16 }}>
@@ -216,7 +229,14 @@ export default function KYCDocumentsScreen({ navigation }) {
 
         <Btn
           label="Request Re-verification"
-          onPress={() => Alert.alert('✅ Verification Active', 'Your PAN, Aadhaar, and Vehicle registration are verified with national government databases.')}
+          onPress={() =>
+            Alert.alert(
+              '✅ Verification Active',
+              profile?.type === 'company'
+                ? 'Your PAN and Aadhaar registration are verified with national government databases.'
+                : 'Your PAN, Aadhaar, and Vehicle registration are verified with national government databases.'
+            )
+          }
           variant="outline"
           style={{ marginTop: 10 }}
         />

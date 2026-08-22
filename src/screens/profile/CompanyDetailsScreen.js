@@ -1,21 +1,46 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { View, Text, ScrollView, SafeAreaView, Alert } from 'react-native';
 import { colors } from '../../theme';
 import { BackBtn, Input, Btn, SectionLabel } from '../../components';
+import { getProfile, saveProfile } from '../../config/UserStore';
 
 export default function CompanyDetailsScreen({ navigation }) {
-  const [company, setCompany] = useState('Kadiyala Logistics');
-  const [gst, setGst] = useState('33AABCK1234M1Z5');
-  const [reg, setReg] = useState('U60200TN2020PTC123456');
-  const [address, setAddress] = useState('12, Anna Salai, Chennai');
-  const [city, setCity] = useState('Chennai');
-  const [state, setState] = useState('Tamil Nadu');
-  const [pin, setPin] = useState('600002');
-  const [pan, setPan] = useState('AABCK1234M');
+  const [company, setCompany] = useState('');
+  const [gst, setGst] = useState('');
+  const [reg, setReg] = useState('');
+  const [address, setAddress] = useState('');
+  const [city, setCity] = useState('');
+  const [state, setState] = useState('');
+  const [pin, setPin] = useState('');
+  const [pan, setPan] = useState('');
 
-  const save = () => {
-    Alert.alert('Company Details Updated!');
-    navigation.goBack();
+  useEffect(() => {
+    const loadProfile = async () => {
+      try {
+        const prof = await getProfile().catch(() => null);
+        if (prof) {
+          setCompany(prof.company || (prof.name?.toLowerCase() === 'uri' ? 'Uri Logistics' : ''));
+          setGst(prof.gst || '');
+          setReg(prof.reg || '');
+          setAddress(prof.address || '');
+          setCity(prof.city || '');
+          setState(prof.state || '');
+          setPin(prof.pin || '');
+          setPan(prof.pan || '');
+        }
+      } catch (e) {}
+    };
+    loadProfile();
+  }, []);
+
+  const save = async () => {
+    try {
+      await saveProfile({ company, gst, reg, address, city, state, pin, pan });
+      Alert.alert('Company Details Updated!');
+      navigation.goBack();
+    } catch (e) {
+      Alert.alert('Error', 'Failed to save company details.');
+    }
   };
 
   return (
