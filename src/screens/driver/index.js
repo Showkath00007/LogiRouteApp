@@ -98,7 +98,30 @@ async function getDriverProfile() {
   const uid = getDriverUid();
   try {
     const snap = await get(ref(db, `drivers/${uid}`));
-    return snap.exists() ? snap.val() : null;
+    let profile = snap.exists() ? snap.val() : null;
+    
+    // Sync avatar from users/profile if not set on driver node
+    try {
+      const uSnap = await get(ref(db, `users/${uid}/profile`));
+      if (uSnap.exists()) {
+        const uData = uSnap.val();
+        if (profile) {
+          if (!profile.avatar && uData.avatar) {
+            profile.avatar = uData.avatar;
+          }
+        } else {
+          profile = {
+            uid,
+            name: uData.name || '',
+            phone: uData.phone || '',
+            city: uData.city || '',
+            avatar: uData.avatar || '',
+          };
+        }
+      }
+    } catch (err) {}
+    
+    return profile;
   } catch (e) {
     console.warn('getDriverProfile error:', e);
     return null;
@@ -255,8 +278,12 @@ export function DriverDashboard({ navigation }) {
             </View>
           </View>
           <TouchableOpacity onPress={() => navigation.navigate('DriverProfileSetup')}
-            style={{ width: 52, height: 52, borderRadius: 16, backgroundColor: colors.accent + '18', alignItems: 'center', justifyContent: 'center', borderWidth: 2, borderColor: colors.accent + '30' }}>
-            <Text style={{ fontSize: 26 }}>🧑‍✈️</Text>
+            style={{ width: 52, height: 52, borderRadius: 16, backgroundColor: colors.accent + '18', alignItems: 'center', justifyContent: 'center', borderWidth: 2, borderColor: colors.accent + '30', overflow: 'hidden' }}>
+            {driver?.avatar && !(Platform.OS !== 'web' && driver.avatar.startsWith('blob:')) ? (
+              <Image source={{ uri: driver.avatar }} style={{ width: 52, height: 52 }} />
+            ) : (
+              <Text style={{ fontSize: 26 }}>🧑‍✈️</Text>
+            )}
           </TouchableOpacity>
         </View>
 
