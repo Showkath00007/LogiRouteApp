@@ -9,6 +9,8 @@ import { listenShipments, createShipment, getShipments, getUserProfile, listenUs
 import { listenCompanyFleet, listenAllNotifications, postOpenJob, listenCompanyJobs, confirmJobApplicant, listenCompanyTeam } from '../../config/DriverService';
 import { getProfile, saveProfile } from '../../config/UserStore';
 import { useTheme } from '../../context/ThemeContext';
+import { auth } from '../../config/firebase';
+import { onAuthStateChanged } from 'firebase/auth';
 
 const screen = (pt = 60) => ({ padding: 20, paddingTop: pt, flexGrow: 1 });
 const h1 = { fontSize: 22, fontWeight: '900', color: colors.text, letterSpacing: -0.5, marginBottom: 4 };
@@ -37,16 +39,27 @@ export function CompanyDashboard({ navigation }) {
   }, []);
 
   useEffect(() => {
-    const unsub = listenUserProfile(async (data) => {
-      if (data) {
-        await saveProfile(data).catch(() => null);
-        setProfile(data);
+    let unsubProfile = null;
+    const unsubAuth = onAuthStateChanged(auth, user => {
+      if (unsubProfile) unsubProfile();
+      if (user) {
+        unsubProfile = listenUserProfile(async (data) => {
+          if (data) {
+            await saveProfile(data).catch(() => null);
+            setProfile(data);
+          } else {
+            const local = await getProfile().catch(() => null);
+            setProfile(local);
+          }
+        });
       } else {
-        const local = await getProfile().catch(() => null);
-        setProfile(local);
+        setProfile(null);
       }
     });
-    return unsub;
+    return () => {
+      unsubAuth();
+      if (unsubProfile) unsubProfile();
+    };
   }, []);
 
   useEffect(() => {
