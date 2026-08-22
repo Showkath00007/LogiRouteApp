@@ -26,6 +26,7 @@ export function decodeVehicleNumber(num = '') {
     'DL1LAH8608': { make: 'Eicher Pro 2059XP Box Truck', rto: 'Delhi Central', state: 'Delhi' },
     'DL1LAH8068': { make: 'Eicher Pro 2059XP Box Truck', rto: 'Delhi Central', state: 'Delhi' },
     'UP14HT8453': { make: 'Tata 1613 Heavy Lorry', rto: 'Ghaziabad', state: 'Uttar Pradesh' },
+    'MH04GR9986': { make: 'Tata 2518c Cargo Carrier', rto: 'Thane', state: 'Maharashtra' },
     'AP02SU0910': { make: 'Ashok Leyland 3520 Lorry', rto: 'Anantapur', state: 'Andhra Pradesh' }
   };
   
