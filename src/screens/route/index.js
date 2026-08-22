@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, ScrollView, SafeAreaView, TouchableOpacity, ActivityIndicator, FlatList, Platform } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, SafeAreaView, TouchableOpacity, ActivityIndicator, FlatList, Platform, Alert } from 'react-native';
 import { useLang } from '../../context/LanguageContext';
 import { colors, radius, shadow } from '../../theme';
 import { Btn, Card, StatCard, Badge, SectionLabel, BackBtn, Divider, TransportIcon, CostHero, Chip, Input } from '../../components';
@@ -410,6 +410,7 @@ export function ResultScreen({ navigation, route }) {
 // S27 — Route Map (Google Maps styled navigation map with Web & Mobile support)
 export function RouteMapScreen({ navigation, route }) {
   const { source, destination, data } = route?.params || { source: 'Guntakal, Andhra Pradesh', destination: 'Anantapur, Andhra Pradesh', data: {} };
+  const [currentSource, setCurrentSource] = useState(source);
   const [mapHtml, setMapHtml] = useState('');
   const [loading, setLoading] = useState(true);
   const [routeInfo, setRouteInfo] = useState({
@@ -417,6 +418,26 @@ export function RouteMapScreen({ navigation, route }) {
     duration: data?.time_text || '',
     summary: 'Highway Corridor'
   });
+
+  const useCurrentLocation = () => {
+    if (navigator.geolocation) {
+      setLoading(true);
+      navigator.geolocation.getCurrentPosition(
+        (position) => {
+          const lat = position.coords.latitude;
+          const lon = position.coords.longitude;
+          setCurrentSource(`${lat},${lon}`);
+        },
+        (err) => {
+          setLoading(false);
+          alert('GPS Error: Could not retrieve your current location.');
+        },
+        { enableHighAccuracy: true }
+      );
+    } else {
+      alert('Not Supported: Geolocation is not supported by your device.');
+    }
+  };
 
   useEffect(() => {
     let isMounted = true;
@@ -429,35 +450,69 @@ export function RouteMapScreen({ navigation, route }) {
         let durMin = 0;
         let summary = 'National & State Highway';
 
-        const cleanSrc = (source || '').split(',')[0].trim();
+        const cleanSrc = (currentSource || '').split(',')[0].trim();
         const cleanDst = (destination || '').split(',')[0].trim();
+        let isLatLng = false;
+
+        if (currentSource.includes(',')) {
+          const parts = currentSource.split(',');
+          if (parts.length === 2 && !isNaN(parseFloat(parts[0])) && !isNaN(parseFloat(parts[1]))) {
+            srcLat = parseFloat(parts[0]);
+            srcLon = parseFloat(parts[1]);
+            isLatLng = true;
+          }
+        }
 
         // 1. Resolve coordinates (OSM Nominatim Live query with local fallback)
         try {
-          const [geoSrcRes, geoDstRes] = await Promise.all([
-            fetch(`https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(cleanSrc)}&format=json&countrycodes=in&limit=1`, { headers: { 'User-Agent': 'LogiRouteApp' } }).then(r => r.json()).catch(() => null),
-            fetch(`https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(cleanDst)}&format=json&countrycodes=in&limit=1`, { headers: { 'User-Agent': 'LogiRouteApp' } }).then(r => r.json()).catch(() => null)
-          ]);
-          if (geoSrcRes?.[0]) {
-            srcLat = parseFloat(geoSrcRes[0].lat);
-            srcLon = parseFloat(geoSrcRes[0].lon);
-          } else {
+          const promises = [];
+          if (!isLatLng) {
+            promises.push(
+              fetch(`https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(cleanSrc)}&format=json&countrycodes=in&limit=1`, { headers: { 'User-Agent': 'LogiRouteApp' } })
+                .then(r => r.json())
+                .then(res => {
+                  if (res?.[0]) {
+                    srcLat = parseFloat(res[0].lat);
+                    srcLon = parseFloat(res[0].lon);
+                  } else {
+                    const sd = getCityDetails(cleanSrc);
+                    srcLat = sd.coords[1];
+                    srcLon = sd.coords[0];
+                  }
+                })
+                .catch(() => {
+                  const sd = getCityDetails(cleanSrc);
+                  srcLat = sd.coords[1];
+                  srcLon = sd.coords[0];
+                })
+            );
+          }
+          promises.push(
+            fetch(`https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(cleanDst)}&format=json&countrycodes=in&limit=1`, { headers: { 'User-Agent': 'LogiRouteApp' } })
+              .then(r => r.json())
+              .then(res => {
+                if (res?.[0]) {
+                  dstLat = parseFloat(res[0].lat);
+                  dstLon = parseFloat(res[0].lon);
+                } else {
+                  const dd = getCityDetails(cleanDst);
+                  dstLat = dd.coords[1];
+                  dstLon = dd.coords[0];
+                }
+              })
+              .catch(() => {
+                const dd = getCityDetails(cleanDst);
+                dstLat = dd.coords[1];
+                dstLon = dd.coords[0];
+              })
+          );
+          await Promise.all(promises);
+        } catch (e) {
+          if (!isLatLng) {
             const sd = getCityDetails(cleanSrc);
             srcLat = sd.coords[1];
             srcLon = sd.coords[0];
           }
-          if (geoDstRes?.[0]) {
-            dstLat = parseFloat(geoDstRes[0].lat);
-            dstLon = parseFloat(geoDstRes[0].lon);
-          } else {
-            const dd = getCityDetails(cleanDst);
-            dstLat = dd.coords[1];
-            dstLon = dd.coords[0];
-          }
-        } catch (e) {
-          const sd = getCityDetails(cleanSrc);
-          srcLat = sd.coords[1];
-          srcLon = sd.coords[0];
           const dd = getCityDetails(cleanDst);
           dstLat = dd.coords[1];
           dstLon = dd.coords[0];
@@ -503,7 +558,8 @@ export function RouteMapScreen({ navigation, route }) {
           // 3. Generate Google Maps Styled Leaflet HTML with Navigation Mode
           const centerLat = (srcLat + dstLat) / 2;
           const centerLng = (srcLon + dstLon) / 2;
-          const gmapsUrl = `https://www.google.com/maps/dir/?api=1&origin=${encodeURIComponent(source)}&destination=${encodeURIComponent(destination)}&travelmode=driving&dir_action=navigate`;
+          const originLabel = isLatLng ? 'Current Location (GPS)' : source;
+          const gmapsUrl = `https://www.google.com/maps/dir/?api=1&origin=${encodeURIComponent(isLatLng ? `${srcLat},${srcLon}` : source)}&destination=${encodeURIComponent(destination)}&travelmode=driving&dir_action=navigate`;
 
           const html = `
             <!DOCTYPE html>
@@ -568,118 +624,80 @@ export function RouteMapScreen({ navigation, route }) {
                   background: #1B5E20;
                   color: white;
                   border-radius: 16px;
-                  padding: 16px 18px;
-                  box-shadow: 0 6px 20px rgba(0,0,0,0.35);
-                  z-index: 2000;
-                  animation: slideDown 0.3s ease-out;
+                  box-shadow: 0 4px 18px rgba(0,0,0,0.3);
+                  z-index: 1000;
+                  padding: 16px 20px;
                 }
-                @keyframes slideDown { from { transform: translateY(-20px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+                .nav-hud-top { display: flex; align-items: center; gap: 16px; }
+                .nav-arrow { font-size: 32px; font-weight: 900; }
+                .nav-dist-next { font-size: 20px; font-weight: 900; }
+                .nav-instruction { font-size: 14px; opacity: 0.9; margin-top: 2px; font-weight: 500; }
 
-                .nav-hud-top { display: flex; align-items: center; gap: 14px; }
-                .nav-arrow { font-size: 36px; line-height: 36px; }
-                .nav-dist-next { font-size: 24px; font-weight: 900; }
-                .nav-instruction { font-size: 15px; font-weight: 600; opacity: 0.95; margin-top: 2px; }
-
-                /* Bottom Navigation Bar during active drive */
+                /* Bottom Active Drive Bar */
                 #nav-bottom {
-                  display: none;
                   position: absolute;
-                  bottom: 20px;
+                  bottom: 14px;
                   left: 14px;
                   right: 14px;
                   background: #FFFFFF;
-                  border-radius: 18px;
+                  border-radius: 16px;
+                  box-shadow: 0 4px 18px rgba(0,0,0,0.22);
+                  z-index: 1000;
                   padding: 14px 20px;
-                  box-shadow: 0 6px 24px rgba(0,0,0,0.28);
-                  z-index: 2000;
                   display: flex;
                   align-items: center;
                   justify-content: space-between;
                 }
-
                 .speedo-badge {
                   background: #F1F3F4;
-                  border: 2px solid #DADCE0;
                   border-radius: 50%;
-                  width: 52px;
-                  height: 52px;
+                  width: 54px;
+                  height: 54px;
                   display: flex;
                   flex-direction: column;
                   align-items: center;
                   justify-content: center;
+                  border: 2px solid #BDC1C6;
                 }
-                .speedo-val { font-size: 17px; font-weight: 900; color: #202124; line-height: 18px; }
-                .speedo-unit { font-size: 8px; font-weight: 800; color: #70757A; }
+                .speedo-val { font-size: 16px; font-weight: 900; color: #202124; }
+                .speedo-unit { font-size: 8px; color: #5F6368; font-weight: 700; margin-top: -2px; }
 
-                /* Google Markers */
-                .origin-pin {
+                /* Custom Markers */
+                .origin-pin, .dest-pin {
+                  width: 32px;
+                  height: 32px;
+                  border-radius: 50% 50% 50% 0;
                   background: #188038;
-                  width: 32px;
-                  height: 32px;
-                  border-radius: 50% 50% 50% 0;
-                  transform: rotate(-45deg);
-                  border: 2.5px solid #FFFFFF;
-                  box-shadow: 0 4px 10px rgba(0,0,0,0.4);
-                  display: flex;
-                  align-items: center;
-                  justify-content: center;
-                }
-                .origin-pin span { transform: rotate(45deg); color: white; font-weight: 900; font-size: 14px; }
-
-                .dest-pin {
-                  background: #EA4335;
-                  width: 32px;
-                  height: 32px;
-                  border-radius: 50% 50% 50% 0;
-                  transform: rotate(-45deg);
-                  border: 2.5px solid #FFFFFF;
-                  box-shadow: 0 4px 10px rgba(0,0,0,0.4);
-                  display: flex;
-                  align-items: center;
-                  justify-content: center;
-                }
-                .dest-pin span { transform: rotate(45deg); color: white; font-weight: 900; font-size: 14px; }
-
-                /* Floating Action Controls */
-                .fab-container {
                   position: absolute;
-                  bottom: 24px;
-                  right: 16px;
-                  z-index: 1500;
-                  display: flex;
-                  flex-direction: column;
-                  gap: 10px;
-                  align-items: flex-end;
-                }
-                .fab-btn {
-                  background: #1A73E8;
-                  color: white;
-                  border: none;
-                  border-radius: 28px;
-                  padding: 12px 20px;
-                  font-size: 14px;
-                  font-weight: 800;
-                  box-shadow: 0 4px 14px rgba(26,115,232,0.45);
-                  cursor: pointer;
+                  transform: rotate(-45deg);
+                  left: 50%;
+                  top: 50%;
+                  margin: -16px 0 0 -16px;
+                  box-shadow: 0 2px 5px rgba(0,0,0,0.3);
+                  border: 2px solid white;
                   display: flex;
                   align-items: center;
-                  gap: 8px;
-                  transition: transform 0.15s;
+                  justify-content: center;
                 }
-                .fab-btn:hover { transform: scale(1.04); }
+                .dest-pin { background: #EA4335; }
+                .origin-pin span, .dest-pin span {
+                  color: white;
+                  font-weight: 900;
+                  font-size: 13px;
+                  transform: rotate(45deg);
+                }
               </style>
             </head>
             <body>
-              {/* Default Overview Card */}
-              <div id="overview-card" class="gmap-nav-card">
+              <div class="gmap-nav-card" id="overview-card">
                 <div class="gmap-nav-main">
-                  <div class="gmap-nav-icon">🚗</div>
+                  <div class="gmap-nav-icon">🗺️</div>
                   <div>
-                    <div style="display: flex; align-items: baseline;">
+                    <div style="display: flex; align-items: center;">
                       <span class="gmap-nav-time">${durText}</span>
                       <span class="gmap-nav-dist">(${distKm} km)</span>
                     </div>
-                    <div class="gmap-nav-via">Fastest route • via ${summary}</div>
+                    <div class="gmap-nav-via">via ${summary}</div>
                   </div>
                 </div>
                 <div style="display: flex; gap: 8px;">
@@ -766,7 +784,7 @@ export function RouteMapScreen({ navigation, route }) {
                 });
 
                 const originMarker = L.marker([${srcLat}, ${srcLon}], { icon: srcIcon }).addTo(map);
-                originMarker.bindPopup('<b style="color:#188038;font-size:14px;">Origin (A):</b><br/><b>${source}</b>').openPopup();
+                originMarker.bindPopup('<b style="color:#188038;font-size:14px;">Origin (A):</b><br/><b>${originLabel}</b>').openPopup();
 
                 const destMarker = L.marker([${dstLat}, ${dstLon}], { icon: dstIcon }).addTo(map);
                 destMarker.bindPopup('<b style="color:#EA4335;font-size:14px;">Destination (B):</b><br/><b>${destination}</b>');
@@ -922,7 +940,7 @@ export function RouteMapScreen({ navigation, route }) {
 
     loadRoute();
     return () => { isMounted = false; };
-  }, [source, destination]);
+  }, [currentSource, destination]);
 
   let WebViewComponent = null;
   try {
@@ -946,11 +964,27 @@ export function RouteMapScreen({ navigation, route }) {
         justifyContent: 'space-between'
       }}>
         <BackBtn onPress={() => navigation.goBack()} style={{ marginBottom: 0 }} />
-        <View style={{ alignItems: 'center' }}>
+        <View style={{ alignItems: 'center', flex: 1, marginHorizontal: 10 }}>
           <Text style={{ fontSize: 18, fontWeight: '900', color: '#1A1A2E' }}>Google Route Navigation</Text>
           <Text style={{ fontSize: 12, color: '#4A5568', fontWeight: '600', marginTop: 1 }}>Live Turn-by-Turn GPS Guidance</Text>
         </View>
-        <View style={{ width: 40 }} />
+        <TouchableOpacity
+          onPress={useCurrentLocation}
+          style={{
+            backgroundColor: '#EEF2FF',
+            paddingHorizontal: 10,
+            paddingVertical: 8,
+            borderRadius: 10,
+            borderWidth: 1.5,
+            borderColor: '#C7D2FE',
+            flexDirection: 'row',
+            alignItems: 'center',
+            gap: 4
+          }}
+        >
+          <Text style={{ fontSize: 14 }}>📍</Text>
+          <Text style={{ fontSize: 11, fontWeight: '700', color: '#4F46E5' }}>GPS</Text>
+        </TouchableOpacity>
       </View>
 
       {/* Map Container */}
@@ -995,7 +1029,9 @@ export function RouteMapScreen({ navigation, route }) {
         <View style={{ flex: 1 }}>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
             <Text style={{ fontSize: 14 }}>🟢</Text>
-            <Text numberOfLines={1} style={{ fontSize: 13, fontWeight: '800', color: '#1A1A2E', flex: 1 }}>{source}</Text>
+            <Text numberOfLines={1} style={{ fontSize: 13, fontWeight: '800', color: '#1A1A2E', flex: 1 }}>
+              {currentSource.includes(',') && !isNaN(parseFloat(currentSource)) ? 'Current Location (GPS)' : currentSource}
+            </Text>
           </View>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 4 }}>
             <Text style={{ fontSize: 14 }}>🔴</Text>
