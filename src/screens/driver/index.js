@@ -24,6 +24,7 @@ export function decodeVehicleNumber(num = '') {
   // Specific vehicle number overrides (trained accurate matching)
   const overrides = {
     'DL1LAH8608': { make: 'Eicher Pro 2059XP Box Truck', rto: 'Delhi Central', state: 'Delhi' },
+    'DL1LAH8068': { make: 'Eicher Pro 2059XP Box Truck', rto: 'Delhi Central', state: 'Delhi' },
     'AP02SU0910': { make: 'Ashok Leyland 3520 Lorry', rto: 'Anantapur', state: 'Andhra Pradesh' }
   };
   
