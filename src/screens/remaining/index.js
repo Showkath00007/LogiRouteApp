@@ -1430,6 +1430,14 @@ export function ProfileScreen({ navigation }) {
   }, [navigation]);
 
   const handleLogout = async () => {
+    if (Platform.OS === 'web') {
+      const yes = window.confirm('Are you sure you want to logout?');
+      if (yes) {
+        await signOut(auth);
+        navigation.replace('Login');
+      }
+      return;
+    }
     Alert.alert(t('logout'), 'Are you sure you want to logout?', [
       { text: t('cancel'), style: 'cancel' },
       {
@@ -1562,6 +1570,14 @@ export function SettingsScreen({ navigation }) {
   );
 
   const handleLogout = async () => {
+    if (Platform.OS === 'web') {
+      const yes = window.confirm('Are you sure you want to logout?');
+      if (yes) {
+        await signOut(auth);
+        navigation.replace('Login');
+      }
+      return;
+    }
     Alert.alert(translate('logout', language), 'Are you sure?', [
       { text: translate('cancel', language), style: 'cancel' },
       { text: translate('logout', language), style: 'destructive', onPress: async () => { await signOut(auth); navigation.replace('Login'); } },
