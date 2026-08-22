@@ -17,7 +17,7 @@ const sub = { fontSize: 13, color: colors.textSub, marginBottom: 20 };
 // If your login/register flow doesn't call Firebase Auth sign-in yet,
 // auth.currentUser will always be null. Falling back to a fixed id lets
 // you test save/status/jobs end-to-end while you wire up real auth.
-export function decodeVehicleNumber(num = '') {
+export function decodeVehicleNumber(num = '', driver = null) {
   if (!num) return { make: 'Unknown Vehicle', rto: 'N/A', state: 'N/A' };
   const clean = num.replace(/[^A-Z0-9]/ig, '').toUpperCase();
   
@@ -84,7 +84,7 @@ export function decodeVehicleNumber(num = '') {
     'Ashok Leyland Ecomet LCV',
     'Eicher Pro 3015 Box Lorry',
   ];
-  const make = models[charCode % models.length];
+  const make = (driver && driver.vehicleModel) ? driver.vehicleModel : models[charCode % models.length];
 
   return { make, rto: rtoCity, state };
 }
@@ -320,7 +320,7 @@ export function DriverDashboard({ navigation }) {
         <Card style={{ marginBottom: 16 }}>
           <SectionLabel label="My Vehicle" />
           {driver?.vehicle ? (() => {
-            const vDetails = decodeVehicleNumber(driver.vehicle);
+            const vDetails = decodeVehicleNumber(driver.vehicle, driver);
             return (
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
                 <Text style={{ fontSize: 36 }}>🚛</Text>
@@ -391,7 +391,7 @@ export function DriverDashboard({ navigation }) {
 // ═══════════════════════════════════════════════════════════════
 export function DriverProfileSetup({ navigation }) {
   const [form, setForm] = useState({
-    name: '', phone: '', license: '', vehicle: '',
+    name: '', phone: '', license: '', vehicle: '', vehicleModel: '',
     vehicleType: 'Heavy', experience: '', city: '', address: '',
   });
   const [saving, setSaving] = useState(false);
@@ -408,6 +408,7 @@ export function DriverProfileSetup({ navigation }) {
         phone: p.phone || '',
         license: p.license || '',
         vehicle: p.vehicle || '',
+        vehicleModel: p.vehicleModel || '',
         vehicleType: p.vehicleType || 'Heavy',
         experience: p.experience || '',
         city: p.city || '',
@@ -417,8 +418,8 @@ export function DriverProfileSetup({ navigation }) {
   }, []);
 
   const handleSave = async () => {
-    if (!form.name || !form.phone || !form.vehicle || !form.license) {
-      Alert.alert('Missing', 'Please fill name, phone, vehicle number and license.');
+    if (!form.name || !form.phone || !form.vehicle || !form.license || !form.vehicleModel) {
+      Alert.alert('Missing', 'Please fill name, phone, vehicle number, vehicle model and license.');
       return;
     }
     setSaving(true);
@@ -467,6 +468,7 @@ export function DriverProfileSetup({ navigation }) {
         <SectionLabel label="Vehicle & License" style={{ marginTop: 8 }} />
         <Input label="Driving License Number *" placeholder="e.g. TN01 20210012345" value={form.license} onChangeText={v => set_('license', v)} autoCapitalize="characters" />
         <Input label="Vehicle Number *" placeholder="e.g. TN 01 AB 1234" value={form.vehicle} onChangeText={v => set_('vehicle', v)} autoCapitalize="characters" />
+        <Input label="Vehicle Model / Brand *" placeholder="e.g. Tata 1613 Lorry, Eicher Pro 2059XP" value={form.vehicleModel} onChangeText={v => set_('vehicleModel', v)} />
         <Input label="Years of Experience" placeholder="e.g. 5" value={form.experience} onChangeText={v => set_('experience', v)} keyboardType="numeric" />
 
         <Text style={{ fontSize: fonts.xs, fontWeight: '800', color: colors.textMuted, letterSpacing: 1.5, marginBottom: 10 }}>VEHICLE TYPE</Text>
@@ -1101,7 +1103,7 @@ export function VehicleScreen({ navigation }) {
     return unsubFocus;
   }, [navigation]);
 
-  const vehicleDetails = decodeVehicleNumber(driver?.vehicle);
+  const vehicleDetails = decodeVehicleNumber(driver?.vehicle, driver);
 
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: colors.bg }}>

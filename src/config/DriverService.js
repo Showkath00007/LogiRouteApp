@@ -377,6 +377,7 @@ export function listenCompanyFleet(callback) {
           ...b,
           driverName: driver.name || 'Driver',
           vehicleId: driver.vehicle || '',
+          vehicleModel: driver.vehicleModel || '',
           vehicleType: driver.vehicleType || b.transport || 'truck',
           phone: driver.phone || '',
         };
