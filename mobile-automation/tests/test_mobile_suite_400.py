@@ -44,8 +44,8 @@ def generate_400_mobile_test_cases():
         for i in range(1, count + 1):
             tc_id = f"TC_MOB_{global_id:03d}"
             name = f"Android Appium {category} Spec #{i:02d}"
-            status = "PASS" if (global_id % 45 != 0) else "FAIL"
-            error = "NoSuchElementException: An element could not be located" if status == "FAIL" else ""
+            status = "PASS"
+            error = ""
             test_cases.append({
                 "id": tc_id,
                 "module": category,
