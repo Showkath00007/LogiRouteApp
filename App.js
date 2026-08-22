@@ -20,6 +20,7 @@ import { PostJobScreen, MyPostedJobsScreen } from './src/screens/company/index';
 import ForgotPasswordScreen from './src/screens/auth/ForgotPasswordScreen';
 import ResetPasswordScreen from './src/screens/auth/ResetPasswordScreen';
 import ProfileSetupScreen from './src/screens/auth/ProfileSetupScreen';
+import SuccessScreen from './src/screens/auth/SuccessScreen';
 import CompanyDashboard from './src/screens/company/CompanyDashboard';
 import NewShipmentScreen from './src/screens/company/NewShipmentScreen';
 import ShipmentsScreen from './src/screens/company/ShipmentsScreen';
@@ -93,6 +94,7 @@ export default function App() {
           <Stack.Screen name="ForgotPassword" component={ForgotPasswordScreen} />
           <Stack.Screen name="ResetPassword" component={ResetPasswordScreen} />
           <Stack.Screen name="ProfileSetup" component={ProfileSetupScreen} />
+          <Stack.Screen name="Success" component={SuccessScreen} />
           <Stack.Screen name="CompanyDashboard" component={CompanyDashboard} />
           <Stack.Screen name="NewShipment" component={NewShipmentScreen} />
           <Stack.Screen name="Shipments" component={ShipmentsScreen} />

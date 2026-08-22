@@ -280,11 +280,7 @@ export function DriverRegisterScreen({ navigation }) {
         await registerDriver({ name: name.trim(), phone: phone.trim(), license: '', vehicle: vehicle.trim(), vehicleType: 'Heavy', experience: '', city: '' }, '');
       } catch (e) {}
       setLoading(false);
-      Alert.alert(
-        '🎉 Application Submitted!',
-        'Your driver application is pending admin approval. You will be notified within 24-48 hours.',
-        [{ text: 'OK', onPress: () => navigation.replace('DriverLogin') }]
-      );
+      navigation.replace('Success', { type: 'driver' });
       return;
     } catch (error) {
       if (error.code === 'auth/email-already-in-use') {
@@ -397,7 +393,7 @@ export function RegisterScreen({ navigation }) {
         verified: false,
         company: resolvedCompany,
       });
-      navigation.navigate('OTP');
+      navigation.replace('Success', { type: 'company' });
     } catch (error) {
       if (error.code === 'auth/email-already-in-use') {
         Alert.alert('Account Exists', 'An account with this email already exists. Please login instead.', [
@@ -861,3 +857,27 @@ const s = StyleSheet.create({
   otpBoxFilled: { borderColor: colors.accent, backgroundColor: colors.accentS },
   avatar: { width: 80, height: 80, borderRadius: 40, backgroundColor: colors.surface2, borderWidth: 2, borderColor: colors.accent, borderStyle: 'dashed', alignItems: 'center', justifyContent: 'center', alignSelf: 'center', marginBottom: 20 },
 });
+
+export function SuccessScreen({ navigation, route }) {
+  const type = route?.params?.type || 'company';
+  const targetDashboard = type === 'driver' ? 'DriverDashboard' : 'CompanyDashboard';
+
+  return (
+    <SafeAreaView style={{ flex: 1, backgroundColor: colors.bg, justifyContent: 'center', alignItems: 'center', padding: 20 }}>
+      <View style={{ width: 120, height: 120, borderRadius: 60, backgroundColor: colors.green + '15', alignItems: 'center', justifyContent: 'center', marginBottom: 24, borderWidth: 3, borderColor: colors.green }}>
+        <Text style={{ fontSize: 60 }}>🎉</Text>
+      </View>
+      <Text style={{ fontSize: 26, fontWeight: '900', color: colors.text, textAlign: 'center', marginBottom: 8 }}>
+        Successfully Registered!
+      </Text>
+      <Text style={{ fontSize: 14, color: colors.sub, textAlign: 'center', marginBottom: 32, paddingHorizontal: 20, lineHeight: 20 }}>
+        Your {type === 'driver' ? 'Driver' : 'Company'} account has been successfully created and configured. You are now ready to access the dashboard.
+      </Text>
+      <Btn
+        label="Enter Dashboard →"
+        onPress={() => navigation.replace(targetDashboard)}
+        style={{ width: '100%' }}
+      />
+    </SafeAreaView>
+  );
+}

@@ -16,6 +16,7 @@ import OTPScreen from '../screens/auth/OTPScreen';
 import ForgotPasswordScreen from '../screens/auth/ForgotPasswordScreen';
 import ResetPasswordScreen from '../screens/auth/ResetPasswordScreen';
 import ProfileSetupScreen from '../screens/auth/ProfileSetupScreen';
+import SuccessScreen from '../screens/auth/SuccessScreen';
 
 // Company
 import CompanyDashboard from '../screens/company/CompanyDashboard';
@@ -98,6 +99,7 @@ export default function AppNavigator() {
         <Stack.Screen name="ForgotPassword" component={ForgotPasswordScreen} />
         <Stack.Screen name="ResetPassword" component={ResetPasswordScreen} />
         <Stack.Screen name="ProfileSetup" component={ProfileSetupScreen} />
+        <Stack.Screen name="Success" component={SuccessScreen} />
 
         {/* Company */}
         <Stack.Screen name="CompanyDashboard" component={CompanyDashboard} />
