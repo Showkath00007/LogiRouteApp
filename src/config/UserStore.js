@@ -7,6 +7,8 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const KEY = 'logiroute_user_profile';
 
+import { auth } from './firebase';
+
 const DEFAULT_PROFILE = {
   name: 'Kadiyala Showkathali',
   company: 'Kadiyala Transport Co.',
@@ -25,8 +27,24 @@ const DEFAULT_PROFILE = {
 export async function getProfile() {
   try {
     const raw = await AsyncStorage.getItem(KEY);
+    const parsed = raw ? JSON.parse(raw) : null;
+
+    // For real authenticated Firebase accounts (new clients), do not prefill mock fallbacks
+    if (auth?.currentUser) {
+      if (!parsed) {
+        return {
+          name: auth.currentUser.displayName || '',
+          email: auth.currentUser.email || '',
+          phone: auth.currentUser.phoneNumber || '',
+          type: 'company',
+          verified: false,
+        };
+      }
+      return parsed;
+    }
+
     if (!raw) return DEFAULT_PROFILE;
-    return { ...DEFAULT_PROFILE, ...JSON.parse(raw) };
+    return { ...DEFAULT_PROFILE, ...parsed };
   } catch (e) {
     return DEFAULT_PROFILE;
   }
