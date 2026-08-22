@@ -217,7 +217,7 @@ export function DriverDashboard({ navigation }) {
   }, [navigation]);
 
   const handleTab = (id) => {
-    const routes = { trips: 'MyTrips', jobs: 'Jobs', earn: 'Earnings' };
+    const routes = { trips: 'MyTrips', jobs: 'Jobs', earn: 'Earnings', profile: 'Profile' };
     if (routes[id]) navigation.navigate(routes[id]);
     else setActiveTab(id);
   };
@@ -277,14 +277,32 @@ export function DriverDashboard({ navigation }) {
               <Text style={{ fontSize: fonts.sm, color: statusColor[driver?.status] || colors.green, fontWeight: '700', textTransform: 'capitalize' }}>{driver?.status || 'Available'}</Text>
             </View>
           </View>
-          <TouchableOpacity onPress={() => navigation.navigate('DriverProfileSetup')}
-            style={{ width: 52, height: 52, borderRadius: 16, backgroundColor: colors.accent + '18', alignItems: 'center', justifyContent: 'center', borderWidth: 2, borderColor: colors.accent + '30', overflow: 'hidden' }}>
-            {driver?.avatar && !(Platform.OS !== 'web' && driver.avatar.startsWith('blob:')) ? (
-              <Image source={{ uri: driver.avatar }} style={{ width: 52, height: 52 }} />
-            ) : (
-              <Text style={{ fontSize: 26 }}>🧑‍✈️</Text>
-            )}
-          </TouchableOpacity>
+          <View style={{ flexDirection: 'row', gap: 8, alignItems: 'center' }}>
+            <TouchableOpacity onPress={() => {
+              if (Platform.OS === 'web') {
+                const yes = window.confirm('Sign Out?\n\nAre you sure you want to sign out?');
+                if (yes) {
+                  auth.signOut().then(() => navigation.replace('Login'));
+                }
+              } else {
+                Alert.alert('Sign Out', 'Are you sure you want to sign out?', [
+                  { text: 'Cancel', style: 'cancel' },
+                  { text: 'Sign Out', style: 'destructive', onPress: () => auth.signOut().then(() => navigation.replace('Login')) }
+                ]);
+              }
+            }}
+              style={{ width: 44, height: 44, borderRadius: 12, backgroundColor: colors.red + '12', alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: colors.red + '30' }}>
+              <Text style={{ fontSize: 20 }}>🚪</Text>
+            </TouchableOpacity>
+            <TouchableOpacity onPress={() => navigation.navigate('DriverProfileSetup')}
+              style={{ width: 52, height: 52, borderRadius: 16, backgroundColor: colors.accent + '18', alignItems: 'center', justifyContent: 'center', borderWidth: 2, borderColor: colors.accent + '30', overflow: 'hidden' }}>
+              {driver?.avatar && !(Platform.OS !== 'web' && driver.avatar.startsWith('blob:')) ? (
+                <Image source={{ uri: driver.avatar }} style={{ width: 52, height: 52 }} />
+              ) : (
+                <Text style={{ fontSize: 26 }}>🧑‍✈️</Text>
+              )}
+            </TouchableOpacity>
+          </View>
         </View>
 
         {/* Pending booking requests */}
