@@ -25,6 +25,38 @@ export function OptimizerScreen({ navigation }) {
 
   const { apiAutocomplete } = require('../../data');
 
+  const fetchCurrentLocationForSource = () => {
+    if (navigator.geolocation) {
+      setLoading(true);
+      navigator.geolocation.getCurrentPosition(
+        async (position) => {
+          const lat = position.coords.latitude;
+          const lon = position.coords.longitude;
+          try {
+            const res = await fetch(`https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lon}&format=json`, {
+              headers: { 'User-Agent': 'LogiRouteApp' }
+            });
+            const data = await res.json();
+            const city = data.address.city || data.address.town || data.address.village || data.address.county || 'Current Location';
+            const state = data.address.state || 'India';
+            setSource(`${city}, ${state} (${lat.toFixed(4)}, ${lon.toFixed(4)})`);
+          } catch (err) {
+            setSource(`${lat.toFixed(4)}, ${lon.toFixed(4)}`);
+          } finally {
+            setLoading(false);
+          }
+        },
+        (err) => {
+          setLoading(false);
+          Alert.alert('GPS Error', 'Could not retrieve your current location.');
+        },
+        { enableHighAccuracy: true }
+      );
+    } else {
+      Alert.alert('Not Supported', 'Geolocation is not supported by your device.');
+    }
+  };
+
   const fetchSrc = async (q) => {
     setSource(q);
     if (q.length < 2) { setSrcSuggestions([]); return; }
@@ -200,7 +232,26 @@ export function OptimizerScreen({ navigation }) {
             <View style={{ flex: 1 }}>
               {/* Source Input */}
               <View style={{ zIndex: 100 }}>
-                <Input placeholder={t('source')} value={source} onChangeText={fetchSrc} style={{ marginBottom: 0 }} />
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                  <View style={{ flex: 1 }}>
+                    <Input placeholder={t('source')} value={source} onChangeText={fetchSrc} style={{ marginBottom: 0 }} />
+                  </View>
+                  <TouchableOpacity
+                    onPress={fetchCurrentLocationForSource}
+                    style={{
+                      backgroundColor: colors.accentS,
+                      borderWidth: 1.5,
+                      borderColor: colors.accent,
+                      borderRadius: radius.md,
+                      padding: 12,
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      height: 48
+                    }}
+                  >
+                    <Text style={{ fontSize: 16 }}>📍</Text>
+                  </TouchableOpacity>
+                </View>
                 {srcSuggestions.length > 0 && (
                   <View style={sug.wrap}>
                     {srcSuggestions.map((s, i) => (

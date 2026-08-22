@@ -133,6 +133,31 @@ export const INDIAN_CITIES = {
 
 export function getCityDetails(name = '') {
   const norm = name.trim().toLowerCase().split(',')[0].trim();
+  
+  // Parse (lat, lon) suffix
+  const match = name.match(/\((-?\d+\.\d+),\s*(-?\d+\.\d+)\)/);
+  if (match) {
+    const lat = parseFloat(match[1]);
+    const lon = parseFloat(match[2]);
+    return {
+      name: name.split('(')[0].trim() || 'Current Location',
+      state: 'GPS',
+      coords: [lon, lat]
+    };
+  }
+
+  // Parse raw comma-separated coordinates
+  if (name.includes(',')) {
+    const parts = name.split(',');
+    if (parts.length === 2 && !isNaN(parseFloat(parts[0])) && !isNaN(parseFloat(parts[1]))) {
+      return {
+        name: 'Current Location',
+        state: 'GPS',
+        coords: [parseFloat(parts[1]), parseFloat(parts[0])]
+      };
+    }
+  }
+
   return INDIAN_CITIES[norm] || { name: name || 'City', state: 'India', coords: [77.0, 20.0] };
 }
 
