@@ -22,14 +22,34 @@ const MATERIALS = [
 
 const VEHICLE_MULT = { Heavy: 1.0, Container: 1.2, Medium: 0.85, Light: 0.7 };
 
-// Geocode city name to [lon, lat] using offline trained catalog
+// Geocode city name to [lon, lat] using live geocoder with offline fallback
 async function geocodeCity(cityName) {
+  try {
+    const res = await fetch(`https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(cityName)}&format=json&countrycodes=in&limit=1`, {
+      headers: { 'User-Agent': 'LogiRouteApp' }
+    });
+    const list = await res.json();
+    if (list && list.length > 0) {
+      return [parseFloat(list[0].lon), parseFloat(list[0].lat)];
+    }
+  } catch (err) {
+    console.log('Live geocode error in SelectDriverScreen:', err);
+  }
   const details = getCityDetails(cityName);
   return details.coords; // [lon, lat]
 }
 
-// Get driving distance in km between two [lon,lat] coords using offline calculations
+// Get driving distance in km using live OSRM routing with offline fallback
 async function getDrivingDistance(fromCoords, toCoords) {
+  try {
+    const res = await fetch(`https://router.project-osrm.org/route/v1/driving/${fromCoords[0]},${fromCoords[1]};${toCoords[0]},${toCoords[1]}?overview=false`);
+    const data = await res.json();
+    if (data.routes && data.routes.length > 0) {
+      return Math.round(data.routes[0].distance / 1000);
+    }
+  } catch (err) {
+    console.log('Live routing distance error in SelectDriverScreen:', err);
+  }
   return calculateDistance(fromCoords[0], fromCoords[1], toCoords[0], toCoords[1]);
 }
 
