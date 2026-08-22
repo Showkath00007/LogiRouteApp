@@ -5,9 +5,9 @@ import DateTimePicker from '@react-native-community/datetimepicker';
 import { colors, radius, shadow } from '../../theme';
 import { Btn, Card, StatCard, Badge, SectionLabel, ProgressBar, BackBtn, BottomNav, ListItem, Divider, TransportIcon, CostHero, Chip, Input } from '../../components';
 import { MOCK_TEAM, MATERIALS, apiAutocomplete } from '../../data';
-import { listenShipments, createShipment, getShipments, getUserProfile } from '../../config/firebaseService';
+import { listenShipments, createShipment, getShipments, getUserProfile, listenUserProfile } from '../../config/firebaseService';
 import { listenCompanyFleet, listenAllNotifications, postOpenJob, listenCompanyJobs, confirmJobApplicant, listenCompanyTeam } from '../../config/DriverService';
-import { getProfile } from '../../config/UserStore';
+import { getProfile, saveProfile } from '../../config/UserStore';
 import { useTheme } from '../../context/ThemeContext';
 
 const screen = (pt = 60) => ({ padding: 20, paddingTop: pt, flexGrow: 1 });
@@ -37,24 +37,17 @@ export function CompanyDashboard({ navigation }) {
   }, []);
 
   useEffect(() => {
-    const loadProfile = async () => {
-      try {
-        const fb = await getUserProfile().catch(() => null);
-        if (fb) {
-          await saveProfile(fb);
-          setProfile(fb);
-        } else {
-          const local = await getProfile().catch(() => null);
-          setProfile(local);
-        }
-      } catch (e) {
-        // Ignored
+    const unsub = listenUserProfile(async (data) => {
+      if (data) {
+        await saveProfile(data).catch(() => null);
+        setProfile(data);
+      } else {
+        const local = await getProfile().catch(() => null);
+        setProfile(local);
       }
-    };
-    const unsub = navigation.addListener('focus', loadProfile);
-    loadProfile();
+    });
     return unsub;
-  }, [navigation]);
+  }, []);
 
   useEffect(() => {
     const unsub = listenShipments(data => {
