@@ -31,6 +31,18 @@ export function BookTransportScreen({ navigation, route }) {
   const [insurance, setInsurance] = useState('Basic');
   const [posting, setPosting] = useState(false);
 
+  const getTomorrowDateString = () => {
+    const tomorrow = new Date();
+    tomorrow.setDate(tomorrow.getDate() + 1);
+    const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+    const day = tomorrow.getDate();
+    const month = months[tomorrow.getMonth()];
+    const year = tomorrow.getFullYear();
+    return `${month} ${day}, ${year} - 09:00 AM`;
+  };
+
+  const [pickupDate, setPickupDate] = useState(getTomorrowDateString());
+
   if (!source || !destination) return (
     <SafeAreaView style={{ flex: 1, backgroundColor: colors.bg, alignItems: 'center', justifyContent: 'center', padding: 32 }}>
       <Text style={{ fontSize: 48, marginBottom: 16 }}>🗺️</Text>
@@ -40,19 +52,22 @@ export function BookTransportScreen({ navigation, route }) {
     </SafeAreaView>
   );
 
+  const estimatedCost = (data?.minimum_cost || 14200) + (insurance === 'Premium' ? 500 : 0);
+
   const handleSelectDriver = () => {
     if (!weight || isNaN(weight) || Number(weight) <= 0) {
       Alert.alert('Missing Weight', 'Please enter a valid cargo weight.');
       return;
     }
     navigation.navigate('SelectDriver', { 
-      data, 
+      data: { ...data, minimum_cost: estimatedCost }, 
       source, 
       destination, 
       material,
       tons: Number(weight),
       instructions,
-      insurance
+      insurance,
+      pickupDate,
     });
   };
 
@@ -64,7 +79,6 @@ export function BookTransportScreen({ navigation, route }) {
     setPosting(true);
     try {
       const matInfo = MATERIALS.find(m => m.id === material) || { icon: '📦' };
-      const costVal = data?.minimum_cost || 12000;
       await postOpenJob({
         origin: source,
         destination,
@@ -72,7 +86,8 @@ export function BookTransportScreen({ navigation, route }) {
         materialIcon: matInfo.icon,
         weight: `${weight} tons`,
         distKm: data?.distance || 0,
-        estimatedCost: costVal,
+        estimatedCost,
+        pickupDate,
         notes: instructions.trim() || 'Booked via Direct Route Optimizer',
       });
 
@@ -98,23 +113,27 @@ export function BookTransportScreen({ navigation, route }) {
         <Text style={h1}>Book Transport</Text>
         <Card style={{ borderColor: colors.accent + '44', marginBottom: 14 }}>
           <Text style={{ fontWeight: '700', color: colors.text, marginBottom: 4 }}>{source} → {destination}</Text>
-          <Text style={{ fontSize: 13, color: colors.sub }}>{material} · 🚂 Train · ₹{data?.minimum_cost?.toFixed(0) || '14,200'}</Text>
+          <Text style={{ fontSize: 13, color: colors.sub }}>{material} · 🚂 Train · ₹{estimatedCost.toFixed(0)}</Text>
         </Card>
         <SectionLabel label="Cargo Details" />
         <Input placeholder="Weight (tons)" value={weight} onChangeText={setWeight} keyboardType="numeric" />
         <Input placeholder="Special Instructions (optional)" value={instructions} onChangeText={setInstructions} multiline numberOfLines={2} />
         <SectionLabel label="Pickup Date & Time" />
-        <View style={{ backgroundColor: colors.surface2, borderWidth: 1, borderColor: colors.border, borderRadius: 8, padding: 14, marginBottom: 14 }}>
-          <Text style={{ fontSize: 14, color: colors.text }}>📅 May 10, 2026 · 08:00 AM</Text>
-        </View>
+        <Input placeholder="e.g. May 25, 2026 - 08:00 AM" value={pickupDate} onChangeText={setPickupDate} />
+        
         <SectionLabel label="Insurance" />
-        <View style={{ flexDirection: 'row', gap: 10, marginBottom: 20 }}>
+        <View style={{ flexDirection: 'row', gap: 10, marginBottom: 10 }}>
           {['Basic', 'Premium'].map((ins) => (
             <TouchableOpacity key={ins} onPress={() => setInsurance(ins)} style={{ flex: 1, backgroundColor: insurance === ins ? colors.accentS : colors.surface2, borderWidth: insurance === ins ? 2 : 1, borderColor: insurance === ins ? colors.accent : colors.border, borderRadius: 8, padding: 10, alignItems: 'center' }}>
               <Text style={{ fontSize: 13, fontWeight: '700', color: insurance === ins ? colors.accent : colors.sub }}>{ins}</Text>
             </TouchableOpacity>
           ))}
         </View>
+        <Text style={{ fontSize: 12, color: colors.textSub, fontStyle: 'italic', marginBottom: 20 }}>
+          {insurance === 'Basic' 
+            ? "🛡️ Basic coverage includes standard cargo protection up to ₹1,00,000 against transit damages (included in base fare)." 
+            : "🛡️ Premium coverage includes all-risk protection up to ₹5,00,000, roadside assistance, and express claims processing (+₹500)."}
+        </Text>
         
         <View style={{ gap: 10 }}>
           <Btn label="Select Driver →" onPress={handleSelectDriver} />
