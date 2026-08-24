@@ -502,6 +502,26 @@ export function ConfirmedScreen({ navigation, route }) {
         update(ref(db, `users/${uid}/bookings/${passedBookingId}`), { status: 'Paid' })
           .catch(err => console.warn('ConfirmedScreen failed to update user booking paid:', err));
       }
+
+      // Fetch booking details to push payment notification to the driver
+      get(ref(db, `bookings/${passedBookingId}`)).then(snap => {
+        if (snap.exists()) {
+          const b = snap.val();
+          const driverUid = b.driverUid;
+          if (driverUid) {
+            const notifRef = push(ref(db, `driverNotifications/${driverUid}`));
+            set(notifRef, {
+              id: notifRef.key,
+              type: 'payment_received',
+              bookingId: passedBookingId,
+              title: '💰 Payment Received!',
+              message: `You received payment of ₹${b.cost?.toLocaleString()} for route: ${b.from} → ${b.to}.`,
+              read: false,
+              createdAt: Date.now(),
+            }).catch(e => console.log('Error pushing payment notification to driver:', e));
+          }
+        }
+      }).catch(err => console.log('Failed to fetch booking details for driver payment notification:', err));
     } else {
       // Fallback for direct checkout / mocks
       if (driver?.uid && !driver.uid.startsWith('mock')) {
@@ -2041,12 +2061,12 @@ export function NotificationsScreen({ navigation }) {
         </Card>
         {loading ? (
           <ActivityIndicator color={colors.accent} style={{ marginVertical: 20 }} />
-        ) : notifications.length === 0 ? (
+        ) : notifications.filter(n => n.type !== 'booking_request').length === 0 ? (
           <Card>
             <Text style={{ textAlign: 'center', color: colors.sub, paddingVertical: 20 }}>No notifications yet.</Text>
           </Card>
         ) : (
-          notifications.map((n, i) => (
+          notifications.filter(n => n.type !== 'booking_request').map((n, i) => (
             <View key={n.id} style={{ marginBottom: 14 }}>
               <TouchableOpacity onPress={() => handleTapNotification(n)} activeOpacity={n.unread ? 0.6 : 1}>
                 <NotifCard icon={n.icon} title={n.title} msg={n.message} time={timeAgo(n.createdAt)} color={n.color} unread={n.unread} delay={i * 80} />
