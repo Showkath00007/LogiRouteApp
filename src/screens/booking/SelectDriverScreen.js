@@ -445,6 +445,8 @@ export default function SelectDriverScreen({ navigation, route }) {
             })}
           </>
         )}
+      </ScrollView>
+    </SafeAreaView>
   );
 }
 
