@@ -218,6 +218,10 @@ export function getSimulatedRouteGeometry(coords1, coords2) {
 // API FUNCTIONS — offline simulated / trained
 // ============================================================
 
+function removeAccents(str) {
+  return str.normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+}
+
 export async function geocodeCityAsync(cityName) {
   if (!cityName) return [77.0, 20.0];
   
@@ -228,7 +232,9 @@ export async function geocodeCityAsync(cityName) {
     return [lon, lat];
   }
 
-  const norm = cityName.toLowerCase().replace(/,/g, '').trim().split(' ')[0];
+  const cleanName = removeAccents(cityName).replace(/,/g, '').trim();
+  const norm = cleanName.toLowerCase().split(' ')[0];
+
   if (INDIAN_CITIES[norm]) {
     return INDIAN_CITIES[norm].coords;
   }
@@ -237,8 +243,12 @@ export async function geocodeCityAsync(cityName) {
     return INDIAN_CITIES['bengaluru'].coords;
   }
 
+  if (norm.startsWith('tadi') || norm.startsWith('tada')) {
+    return [78.0163, 14.9142]; // Coordinates of Tadipatri
+  }
+
   try {
-    const url = `https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(cityName)}&count=1&language=en&format=json`;
+    const url = `https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(cleanName)}&count=1&language=en&format=json`;
     const res = await fetch(url);
     const data = await res.json();
     if (data.results && data.results.length > 0) {
@@ -246,7 +256,18 @@ export async function geocodeCityAsync(cityName) {
       return [match.longitude, match.latitude];
     }
   } catch (err) {
-    console.log('Error in geocodeCityAsync:', err);
+    console.log('Error in geocodeCityAsync (Open-Meteo):', err);
+  }
+
+  try {
+    const url = `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(cleanName)}&format=json&countrycodes=in&limit=1`;
+    const res = await fetch(url, { headers: { 'User-Agent': 'LogiRouteApp' } });
+    const data = await res.json();
+    if (data && data.length > 0) {
+      return [parseFloat(data[0].lon), parseFloat(data[0].lat)];
+    }
+  } catch (err) {
+    console.log('Error in geocodeCityAsync (Nominatim):', err);
   }
 
   return [77.0, 20.0];
