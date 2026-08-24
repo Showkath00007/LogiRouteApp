@@ -218,10 +218,46 @@ export function getSimulatedRouteGeometry(coords1, coords2) {
 // API FUNCTIONS — offline simulated / trained
 // ============================================================
 
+export async function geocodeCityAsync(cityName) {
+  if (!cityName) return [77.0, 20.0];
+  
+  const gpsMatch = cityName.match(/\((-?\d+\.\d+),\s*(-?\d+\.\d+)\)/);
+  if (gpsMatch) {
+    const lat = parseFloat(gpsMatch[1]);
+    const lon = parseFloat(gpsMatch[2]);
+    return [lon, lat];
+  }
+
+  const norm = cityName.toLowerCase().replace(/,/g, '').trim().split(' ')[0];
+  if (INDIAN_CITIES[norm]) {
+    return INDIAN_CITIES[norm].coords;
+  }
+  
+  if (norm.startsWith('bang') || norm.includes('bengaluru')) {
+    return INDIAN_CITIES['bengaluru'].coords;
+  }
+
+  try {
+    const url = `https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(cityName)}&count=1&language=en&format=json`;
+    const res = await fetch(url);
+    const data = await res.json();
+    if (data.results && data.results.length > 0) {
+      const match = data.results[0];
+      return [match.longitude, match.latitude];
+    }
+  } catch (err) {
+    console.log('Error in geocodeCityAsync:', err);
+  }
+
+  return [77.0, 20.0];
+}
+
 export async function apiOptimize(material, source, destination, tons = 1) {
-  const src = getCityDetails(source);
-  const dst = getCityDetails(destination);
-  const distance = calculateDistance(src.coords[0], src.coords[1], dst.coords[0], dst.coords[1]);
+  const [srcCoords, dstCoords] = await Promise.all([
+    geocodeCityAsync(source),
+    geocodeCityAsync(destination),
+  ]);
+  const distance = calculateDistance(srcCoords[0], srcCoords[1], dstCoords[0], dstCoords[1]);
 
   const speed = 60; // average highway speed in km/h
   const timeHours = distance / speed;
@@ -231,7 +267,7 @@ export async function apiOptimize(material, source, destination, tons = 1) {
   const rate = MATERIALS.find(m => m.id === material)?.rate || 8;
   const transport = distance < 300 ? 'truck' : distance < 1000 ? 'train' : 'ship';
   const cost = distance * rate * tons;
-  const routeFeature = getSimulatedRouteGeometry(src.coords, dst.coords);
+  const routeFeature = getSimulatedRouteGeometry(srcCoords, dstCoords);
 
   return {
     distance,
@@ -239,8 +275,8 @@ export async function apiOptimize(material, source, destination, tons = 1) {
     best_transport: transport,
     best_vessel: transport === 'ship' ? 'Large Vessel' : 'Not Required',
     minimum_cost: cost,
-    source_coords: src.coords,
-    destination_coords: dst.coords,
+    source_coords: srcCoords,
+    destination_coords: dstCoords,
     route_geometry: routeFeature.geometry,
   };
 }

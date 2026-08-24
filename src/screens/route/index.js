@@ -3,7 +3,7 @@ import { View, Text, StyleSheet, ScrollView, SafeAreaView, TouchableOpacity, Act
 import { useLang } from '../../context/LanguageContext';
 import { colors, radius, shadow } from '../../theme';
 import { Btn, Card, StatCard, Badge, SectionLabel, BackBtn, Divider, TransportIcon, CostHero, Chip, Input } from '../../components';
-import { MATERIALS, apiOptimize, getCityDetails, getSimulatedRouteGeometry, calculateDistance } from '../../data';
+import { MATERIALS, apiOptimize, getCityDetails, getSimulatedRouteGeometry, calculateDistance, geocodeCityAsync } from '../../data';
 
 const screen = (pt = 60) => ({ padding: 20, paddingTop: pt, flexGrow: 1 });
 const h1 = { fontSize: 22, fontWeight: '900', color: colors.text, letterSpacing: -0.5, marginBottom: 4 };
@@ -127,10 +127,12 @@ export function OptimizerScreen({ navigation }) {
       let totalDistance = 0;
       let totalTimeMin = 0;
 
+      const coordList = await Promise.all(citiesList.map(city => geocodeCityAsync(city)));
+
       for (let i = 0; i < citiesList.length - 1; i++) {
-        const srcDetails = getCityDetails(citiesList[i]);
-        const dstDetails = getCityDetails(citiesList[i+1]);
-        const segmentDist = calculateDistance(srcDetails.coords[0], srcDetails.coords[1], dstDetails.coords[0], dstDetails.coords[1]);
+        const srcCoords = coordList[i];
+        const dstCoords = coordList[i+1];
+        const segmentDist = calculateDistance(srcCoords[0], srcCoords[1], dstCoords[0], dstCoords[1]);
         
         const speed = 60; // average driving speed in km/h
         const segmentTimeMin = segmentDist > 0 ? (segmentDist / speed) * 60 : 0;
@@ -138,8 +140,8 @@ export function OptimizerScreen({ navigation }) {
         const mins = Math.round(segmentTimeMin % 60);
         
         legs.push({
-          from: srcDetails.name,
-          to: dstDetails.name,
+          from: citiesList[i].split(',')[0],
+          to: citiesList[i+1].split(',')[0],
           distance: segmentDist,
           time_text: segmentDist > 0 ? `${hours}h ${mins}m` : '0m'
         });
