@@ -252,22 +252,46 @@ export async function geocodeCityAsync(cityName) {
   return [77.0, 20.0];
 }
 
+export async function getRealDrivingRoute(fromCoords, toCoords) {
+  try {
+    const res = await fetch(`https://router.project-osrm.org/route/v1/driving/${fromCoords[0]},${fromCoords[1]};${toCoords[0]},${toCoords[1]}?overview=full&geometries=geojson`);
+    const data = await res.json();
+    if (data.routes && data.routes.length > 0) {
+      const route = data.routes[0];
+      return {
+        distance: Math.round(route.distance / 1000), // in km
+        durationMin: Math.round(route.duration / 60), // in minutes
+        geometry: route.geometry, // GeoJSON LineString
+      };
+    }
+  } catch (err) {
+    console.log('OSRM routing error:', err);
+  }
+  
+  // Fallback to geodetic straight line calculation
+  const dist = calculateDistance(fromCoords[0], fromCoords[1], toCoords[0], toCoords[1]);
+  const speed = 60;
+  return {
+    distance: dist,
+    durationMin: Math.round((dist / speed) * 60),
+    geometry: getSimulatedRouteGeometry(fromCoords, toCoords).geometry,
+  };
+}
+
 export async function apiOptimize(material, source, destination, tons = 1) {
   const [srcCoords, dstCoords] = await Promise.all([
     geocodeCityAsync(source),
     geocodeCityAsync(destination),
   ]);
-  const distance = calculateDistance(srcCoords[0], srcCoords[1], dstCoords[0], dstCoords[1]);
+  const routeData = await getRealDrivingRoute(srcCoords, dstCoords);
+  const distance = routeData.distance;
 
-  const speed = 60; // average highway speed in km/h
-  const timeHours = distance / speed;
-  const hours = Math.floor(timeHours);
-  const mins = Math.round((timeHours - hours) * 60);
+  const hours = Math.floor(routeData.durationMin / 60);
+  const mins = Math.round(routeData.durationMin % 60);
 
   const rate = MATERIALS.find(m => m.id === material)?.rate || 8;
   const transport = distance < 300 ? 'truck' : distance < 1000 ? 'train' : 'ship';
   const cost = distance * rate * tons;
-  const routeFeature = getSimulatedRouteGeometry(srcCoords, dstCoords);
 
   return {
     distance,
@@ -277,7 +301,7 @@ export async function apiOptimize(material, source, destination, tons = 1) {
     minimum_cost: cost,
     source_coords: srcCoords,
     destination_coords: dstCoords,
-    route_geometry: routeFeature.geometry,
+    route_geometry: routeData.geometry,
   };
 }
 

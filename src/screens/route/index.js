@@ -3,7 +3,7 @@ import { View, Text, StyleSheet, ScrollView, SafeAreaView, TouchableOpacity, Act
 import { useLang } from '../../context/LanguageContext';
 import { colors, radius, shadow } from '../../theme';
 import { Btn, Card, StatCard, Badge, SectionLabel, BackBtn, Divider, TransportIcon, CostHero, Chip, Input } from '../../components';
-import { MATERIALS, apiOptimize, getCityDetails, getSimulatedRouteGeometry, calculateDistance, geocodeCityAsync } from '../../data';
+import { MATERIALS, apiOptimize, getCityDetails, getSimulatedRouteGeometry, calculateDistance, geocodeCityAsync, getRealDrivingRoute } from '../../data';
 
 const screen = (pt = 60) => ({ padding: 20, paddingTop: pt, flexGrow: 1 });
 const h1 = { fontSize: 22, fontWeight: '900', color: colors.text, letterSpacing: -0.5, marginBottom: 4 };
@@ -132,10 +132,16 @@ export function OptimizerScreen({ navigation }) {
       for (let i = 0; i < citiesList.length - 1; i++) {
         const srcCoords = coordList[i];
         const dstCoords = coordList[i+1];
-        const segmentDist = calculateDistance(srcCoords[0], srcCoords[1], dstCoords[0], dstCoords[1]);
         
-        const speed = 60; // average driving speed in km/h
-        const segmentTimeMin = segmentDist > 0 ? (segmentDist / speed) * 60 : 0;
+        let segmentDist = 0;
+        let segmentTimeMin = 0;
+        
+        if (srcCoords[0] !== dstCoords[0] || srcCoords[1] !== dstCoords[1]) {
+          const routeData = await getRealDrivingRoute(srcCoords, dstCoords);
+          segmentDist = routeData.distance;
+          segmentTimeMin = routeData.durationMin;
+        }
+        
         const hours = Math.floor(segmentTimeMin / 60);
         const mins = Math.round(segmentTimeMin % 60);
         
