@@ -172,7 +172,6 @@ export async function confirmJobApplicant(jobId, driverUid) {
 
   // Close the job board post and mark the winning applicant
   await update(ref(db, `jobs/${jobId}`), { status: 'filled', filledBy: driverUid, bookingId: bookingRef.key });
-  await update(ref(db, `drivers/${driverUid}`), { status: 'busy' });
 
   // Notify the winning driver
   const notifRef = push(ref(db, `driverNotifications/${driverUid}`));
@@ -301,10 +300,6 @@ export async function respondToBooking(bookingId, driverUid, accepted) {
     respondedAt: Date.now(),
   });
 
-  // Update driver status
-  await update(ref(db, `drivers/${driverUid}`), {
-    status: accepted ? 'busy' : 'available',
-  });
 
   // Notify company and update company booking status
   if (companyUid) {

@@ -170,9 +170,6 @@ async function respondToBooking(bookingId, driverUid, accepted) {
       status: accepted ? 'confirmed' : 'rejected',
       respondedAt: Date.now(),
     });
-    await update(ref(db, `drivers/${driverUid}`), {
-      status: accepted ? 'busy' : 'available',
-    });
 
     if (companyUid) {
       await update(ref(db, `users/${companyUid}/bookings/${bookingId}`), {
