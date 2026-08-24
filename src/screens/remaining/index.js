@@ -1978,6 +1978,17 @@ export function NotificationsScreen({ navigation }) {
     }
   };
 
+  const handleClearAll = async () => {
+    const user = auth.currentUser;
+    if (!user) return;
+    try {
+      setNotifications([]);
+      await set(ref(db, `driverNotifications/${user.uid}`), null);
+    } catch (e) {
+      console.warn('handleClearAll error:', e);
+    }
+  };
+
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: colors.bg }}>
       <ScrollView contentContainerStyle={screen()}>
@@ -1986,11 +1997,16 @@ export function NotificationsScreen({ navigation }) {
             <BackBtn onPress={() => navigation.goBack()} style={{ marginBottom: 0 }} />
             <Text style={h1}>Notifications</Text>
           </View>
-          {unreadCount > 0 && (
-            <TouchableOpacity onPress={handleMarkAllRead}>
-              <Text style={{ fontSize: 13, color: colors.accent }}>Mark all read</Text>
+          <View style={{ flexDirection: 'row', gap: 14 }}>
+            {unreadCount > 0 && (
+              <TouchableOpacity onPress={handleMarkAllRead}>
+                <Text style={{ fontSize: 13, color: colors.accent, fontWeight: '700' }}>Mark all read</Text>
+              </TouchableOpacity>
+            )}
+            <TouchableOpacity onPress={handleClearAll}>
+              <Text style={{ fontSize: 13, color: colors.red, fontWeight: '700' }}>Clear All</Text>
             </TouchableOpacity>
-          )}
+          </View>
         </View>
 
         {/* Simulator Panel */}
