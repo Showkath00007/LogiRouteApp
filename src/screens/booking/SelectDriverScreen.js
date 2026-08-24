@@ -7,18 +7,9 @@ import { colors, radius, fonts } from '../../theme';
 import { Card, Btn, BackBtn, SectionLabel, Badge } from '../../components';
 import { listenAvailableDrivers, sendBookingRequest } from '../../config/DriverService';
 import { getProfile } from '../../config/UserStore';
-import { getCityDetails, calculateDistance } from '../../data';
+import { getCityDetails, calculateDistance, apiAutocomplete, MATERIALS } from '../../data';
 
 const RATE_PER_KM = 12; // ₹12 per km base rate
-
-const MATERIALS = [
-  { id: 'steel',     label: 'Steel',     icon: '🔩', mult: 1.4 },
-  { id: 'cement',    label: 'Cement',    icon: '🏗️', mult: 1.0 },
-  { id: 'coal',      label: 'Coal',      icon: '⚫', mult: 0.9 },
-  { id: 'grains',    label: 'Grains',    icon: '🌾', mult: 0.8 },
-  { id: 'aluminium', label: 'Aluminium', icon: '🥈', mult: 1.5 },
-  { id: 'wood',      label: 'Wood',      icon: '🪵', mult: 1.1 },
-];
 
 const VEHICLE_MULT = { Heavy: 1.0, Container: 1.2, Medium: 0.85, Light: 0.7 };
 
@@ -65,6 +56,8 @@ export default function SelectDriverScreen({ navigation, route }) {
   const [step, setStep] = useState(params.source ? 2 : 1);
   const [origin, setOrigin] = useState(params.source || '');
   const [destination, setDestination] = useState(params.destination || '');
+  const [originSuggestions, setOriginSuggestions] = useState([]);
+  const [destSuggestions, setDestSuggestions] = useState([]);
   const [material, setMaterial] = useState('steel');
   const [weight, setWeight] = useState('10');
   const [distKm, setDistKm] = useState(null);
@@ -74,7 +67,68 @@ export default function SelectDriverScreen({ navigation, route }) {
   const [selected, setSelected] = useState(null);
   const [booking, setBooking] = useState(false);
 
-  const selMat = MATERIALS.find(m => m.id === material) || MATERIALS[0];
+  const materialsList = MATERIALS.map(m => ({
+    id: m.id.toLowerCase(),
+    label: m.id,
+    icon: m.icon,
+    mult: m.rate / 10
+  }));
+
+  const fetchOrigin = async (q) => {
+    setOrigin(q);
+    if (q.length < 2) { setOriginSuggestions([]); return; }
+    try {
+      const s = await apiAutocomplete(q);
+      setOriginSuggestions(s);
+    } catch (e) {
+      setOriginSuggestions([]);
+    }
+  };
+
+  const fetchDestination = async (q) => {
+    setDestination(q);
+    if (q.length < 2) { setDestSuggestions([]); return; }
+    try {
+      const s = await apiAutocomplete(q);
+      setDestSuggestions(s);
+    } catch (e) {
+      setDestSuggestions([]);
+    }
+  };
+
+  const fetchCurrentLocationForOrigin = () => {
+    if (navigator.geolocation) {
+      setCalculating(true);
+      navigator.geolocation.getCurrentPosition(
+        async (position) => {
+          const lat = position.coords.latitude;
+          const lon = position.coords.longitude;
+          try {
+            const res = await fetch(`https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lon}&format=json`, {
+              headers: { 'User-Agent': 'LogiRouteApp' }
+            });
+            const data = await res.json();
+            const city = data.address.city || data.address.town || data.address.village || data.address.county || 'Current Location';
+            const state = data.address.state || 'India';
+            setOrigin(`${city}, ${state} (${lat.toFixed(4)}, ${lon.toFixed(4)})`);
+          } catch (err) {
+            setOrigin(`${lat.toFixed(4)}, ${lon.toFixed(4)}`);
+          } finally {
+            setCalculating(false);
+          }
+        },
+        (err) => {
+          setCalculating(false);
+          Alert.alert('GPS Error', 'Could not retrieve your current location.');
+        },
+        { enableHighAccuracy: true }
+      );
+    } else {
+      Alert.alert('Not Supported', 'Geolocation is not supported by your device.');
+    }
+  };
+
+  const selMat = materialsList.find(m => m.id === material) || materialsList[0];
 
   useEffect(() => {
     if (step === 2) {
@@ -160,26 +214,67 @@ export default function SelectDriverScreen({ navigation, route }) {
         <Text style={{ fontSize: fonts.sm, color: colors.textSub, marginBottom: 24 }}>Enter any city in India — we'll calculate the real road distance</Text>
 
         {/* Route input */}
-        <Card style={{ marginBottom: 14 }}>
+        <Card style={{ marginBottom: 14, zIndex: 10 }}>
           <Text style={{ fontSize: fonts.xs, fontWeight: '800', color: colors.textMuted, letterSpacing: 1.5, marginBottom: 14 }}>ROUTE</Text>
-          <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 12 }}>
-            <View style={{ width: 12, height: 12, borderRadius: 6, backgroundColor: colors.green, marginRight: 12 }} />
-            <TextInput
-              style={{ flex: 1, color: colors.text, fontSize: fonts.base, fontWeight: '600', borderBottomWidth: 1.5, borderColor: colors.border, paddingVertical: 8 }}
-              placeholder="Origin — any city in India"
-              placeholderTextColor={colors.textMuted}
-              value={origin} onChangeText={setOrigin} autoCapitalize="words"
-            />
+          
+          <View style={{ zIndex: 50 }}>
+            <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+              <View style={{ width: 12, height: 12, borderRadius: 6, backgroundColor: colors.green, marginRight: 12 }} />
+              <TextInput
+                style={{ flex: 1, color: colors.text, fontSize: fonts.base, fontWeight: '600', borderBottomWidth: 1.5, borderColor: colors.border, paddingVertical: 8 }}
+                placeholder="Origin — any city in India"
+                placeholderTextColor={colors.textMuted}
+                value={origin} onChangeText={fetchOrigin} autoCapitalize="words"
+              />
+              <TouchableOpacity
+                onPress={fetchCurrentLocationForOrigin}
+                style={{
+                  backgroundColor: colors.accent + '15',
+                  borderWidth: 1.5,
+                  borderColor: colors.accent,
+                  borderRadius: radius.md,
+                  padding: 8,
+                  marginLeft: 8,
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  height: 38
+                }}
+              >
+                <Text style={{ fontSize: 14 }}>📍</Text>
+              </TouchableOpacity>
+            </View>
+            {originSuggestions.length > 0 && (
+              <View style={sugStyle}>
+                {originSuggestions.map((s, i) => (
+                  <TouchableOpacity key={`origin-${i}`} onPress={() => { setOrigin(s); setOriginSuggestions([]); }} style={sugItem}>
+                    <Text style={sugText}>📍 {s}</Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+            )}
           </View>
-          <View style={{ width: 2, height: 20, backgroundColor: colors.border, marginLeft: 5, marginBottom: 12 }} />
-          <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-            <View style={{ width: 12, height: 12, borderRadius: 6, backgroundColor: colors.blue, marginRight: 12 }} />
-            <TextInput
-              style={{ flex: 1, color: colors.text, fontSize: fonts.base, fontWeight: '600', borderBottomWidth: 1.5, borderColor: colors.border, paddingVertical: 8 }}
-              placeholder="Destination — any city in India"
-              placeholderTextColor={colors.textMuted}
-              value={destination} onChangeText={setDestination} autoCapitalize="words"
-            />
+
+          <View style={{ width: 2, height: 20, backgroundColor: colors.border, marginLeft: 5, marginVertical: 6 }} />
+
+          <View style={{ zIndex: 40 }}>
+            <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+              <View style={{ width: 12, height: 12, borderRadius: 6, backgroundColor: colors.blue, marginRight: 12 }} />
+              <TextInput
+                style={{ flex: 1, color: colors.text, fontSize: fonts.base, fontWeight: '600', borderBottomWidth: 1.5, borderColor: colors.border, paddingVertical: 8 }}
+                placeholder="Destination — any city in India"
+                placeholderTextColor={colors.textMuted}
+                value={destination} onChangeText={fetchDestination} autoCapitalize="words"
+              />
+            </View>
+            {destSuggestions.length > 0 && (
+              <View style={sugStyle}>
+                {destSuggestions.map((s, i) => (
+                  <TouchableOpacity key={`dest-${i}`} onPress={() => { setDestination(s); setDestSuggestions([]); }} style={sugItem}>
+                    <Text style={sugText}>📍 {s}</Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+            )}
           </View>
         </Card>
 
@@ -187,9 +282,9 @@ export default function SelectDriverScreen({ navigation, route }) {
         <Card style={{ marginBottom: 14 }}>
           <Text style={{ fontSize: fonts.xs, fontWeight: '800', color: colors.textMuted, letterSpacing: 1.5, marginBottom: 12 }}>MATERIAL</Text>
           <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
-            {MATERIALS.map(m => (
+            {materialsList.map(m => (
               <TouchableOpacity key={m.id} onPress={() => setMaterial(m.id)}
-                style={{ paddingHorizontal: 12, paddingVertical: 7, borderRadius: radius.full, borderWidth: 2, borderColor: material === m.id ? colors.accent : colors.border, backgroundColor: material === m.id ? colors.accent + '15' : colors.surface2, flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+                style={{ paddingHorizontal: 12, paddingVertical: 7, borderRadius: radius.full, borderWidth: 2, borderColor: material === m.id ? colors.accent : colors.border, backgroundColor: material === m.id ? colors.accent + '15' : colors.surface2, flexDirection: 'row', alignItems: 'center', gap: 4, marginBottom: 4 }}>
                 <Text style={{ fontSize: 13 }}>{m.icon}</Text>
                 <Text style={{ fontSize: fonts.sm, fontWeight: '700', color: material === m.id ? colors.accent : colors.textSub }}>{m.label}</Text>
               </TouchableOpacity>
@@ -350,7 +445,23 @@ export default function SelectDriverScreen({ navigation, route }) {
             })}
           </>
         )}
-      </ScrollView>
-    </SafeAreaView>
   );
 }
+
+const sugStyle = {
+  backgroundColor: colors.surface2,
+  borderWidth: 1,
+  borderColor: colors.border,
+  borderRadius: 8,
+  marginTop: 4,
+  zIndex: 100
+};
+const sugItem = {
+  padding: 12,
+  borderBottomWidth: 1,
+  borderBottomColor: colors.border
+};
+const sugText = {
+  fontSize: fonts.sm,
+  color: colors.text
+};
