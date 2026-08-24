@@ -1122,11 +1122,15 @@ export function FleetScreen({ navigation }) {
                     <Text style={{ fontSize: 14, fontWeight: '700', color: colors.text }}>{v.vehicleId || 'Vehicle pending'}</Text>
                     <Text style={{ fontSize: 12, color: colors.sub }}>{v.driverName || 'Driver'}</Text>
                   </View>
-                  <Badge label={v.status === 'confirmed' ? 'In Transit' : v.status} type={v.status === 'confirmed' ? 'green' : (STATUS_TYPE[v.status] || 'default')} />
+                  <Badge label={v.status === 'confirmed' ? 'Payment Pending' : 'In Transit'} type={v.status === 'confirmed' ? 'yellow' : 'green'} />
                 </View>
                 <Text style={{ fontSize: 12, color: colors.sub, marginBottom: 4 }}>📍 {v.from} → {v.to}</Text>
 
-                {loc ? (
+                {v.status === 'confirmed' ? (
+                  <Text style={{ fontSize: 12, color: colors.orange, fontWeight: '700', marginBottom: 6 }}>
+                    ⚠️ Location hidden — Payment Pending
+                  </Text>
+                ) : loc ? (
                   <>
                     <Text style={{ fontSize: 12, color: isLive ? colors.green : colors.orange, fontWeight: '600' }}>
                       {isLive ? '🟢 Live' : '🟠 Last seen'} · {loc.lat.toFixed(5)}, {loc.lng.toFixed(5)}
@@ -1139,7 +1143,7 @@ export function FleetScreen({ navigation }) {
                   <Text style={{ fontSize: 12, color: colors.muted, marginBottom: 6 }}>Waiting for driver's phone GPS…</Text>
                 )}
 
-                {v.progress > 0 && <><ProgressBar percent={v.progress} /><Text style={{ fontSize: 11, color: colors.muted }}>{v.progress}% complete</Text></>}
+                {v.status === 'paid' && v.progress > 0 && <><ProgressBar percent={v.progress} /><Text style={{ fontSize: 11, color: colors.muted }}>{v.progress}% complete</Text></>}
               </Card>
             );
           })

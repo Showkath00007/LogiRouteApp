@@ -413,7 +413,7 @@ export function listenCompanyFleet(callback) {
     if (!user) { callback([]); return; }
 
     const fleet = Object.values(bookingsData)
-      .filter(b => b.companyUid === user.uid && b.status === 'confirmed')
+      .filter(b => b.companyUid === user.uid && (b.status === 'confirmed' || b.status === 'paid'))
       .map(b => {
         const driver = (driversData && driversData[b.driverUid]) || {};
         return {
