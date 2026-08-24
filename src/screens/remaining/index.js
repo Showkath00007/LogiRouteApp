@@ -9,12 +9,12 @@ import React, { useState, useEffect, useRef } from 'react';
 import { View, Text, StyleSheet, ScrollView, SafeAreaView, TouchableOpacity, Alert, ActivityIndicator, TextInput, Modal, Image, Platform } from 'react-native';
 import { colors, radius, shadow } from '../../theme';
 import { Btn, Card, StatCard, Badge, SectionLabel, BackBtn, Divider, ListItem, Input, CostHero, ProgressBar, NotifCard } from '../../components';
-import { MOCK_DRIVERS, MOCK_WEATHER, MOCK_HISTORY } from '../../data';
+import { MOCK_DRIVERS, MOCK_WEATHER, MOCK_HISTORY, MATERIALS } from '../../data';
 import { auth, db } from '../../config/firebase';
 import { ref, set, update, onValue } from 'firebase/database';
 import { signOut } from 'firebase/auth';
 import { getUserProfile, listenNotifications, listenBookings, createBooking, listenShipments } from '../../config/firebaseService';
-import { sendBookingRequest, listenAllNotifications, markAnyNotificationRead, markAllNotificationsReadUnified, simulateNewNotification } from '../../config/DriverService';
+import { sendBookingRequest, listenAllNotifications, markAnyNotificationRead, markAllNotificationsReadUnified, simulateNewNotification, postOpenJob } from '../../config/DriverService';
 
 const screen = (pt = 60) => ({ padding: 20, paddingTop: pt, flexGrow: 1 });
 const h1 = { fontSize: 22, fontWeight: '900', color: colors.text, letterSpacing: -0.5, marginBottom: 4 };
@@ -26,6 +26,11 @@ const sub = { fontSize: 13, color: colors.sub, marginBottom: 20 };
 
 export function BookTransportScreen({ navigation, route }) {
   const { data, source, destination, material } = route?.params || {};
+  const [weight, setWeight] = useState(route?.params?.tons ? String(route?.params?.tons) : '10');
+  const [instructions, setInstructions] = useState('');
+  const [insurance, setInsurance] = useState('Basic');
+  const [posting, setPosting] = useState(false);
+
   if (!source || !destination) return (
     <SafeAreaView style={{ flex: 1, backgroundColor: colors.bg, alignItems: 'center', justifyContent: 'center', padding: 32 }}>
       <Text style={{ fontSize: 48, marginBottom: 16 }}>🗺️</Text>
@@ -34,6 +39,58 @@ export function BookTransportScreen({ navigation, route }) {
       <Btn label="Go to Optimizer →" onPress={() => navigation.navigate('Optimizer')} />
     </SafeAreaView>
   );
+
+  const handleSelectDriver = () => {
+    if (!weight || isNaN(weight) || Number(weight) <= 0) {
+      Alert.alert('Missing Weight', 'Please enter a valid cargo weight.');
+      return;
+    }
+    navigation.navigate('SelectDriver', { 
+      data, 
+      source, 
+      destination, 
+      material,
+      tons: Number(weight),
+      instructions,
+      insurance
+    });
+  };
+
+  const handlePostJob = async () => {
+    if (!weight || isNaN(weight) || Number(weight) <= 0) {
+      Alert.alert('Missing Weight', 'Please enter a valid cargo weight.');
+      return;
+    }
+    setPosting(true);
+    try {
+      const matInfo = MATERIALS.find(m => m.id === material) || { icon: '📦' };
+      const costVal = data?.minimum_cost || 12000;
+      await postOpenJob({
+        origin: source,
+        destination,
+        material,
+        materialIcon: matInfo.icon,
+        weight: `${weight} tons`,
+        distKm: data?.distance || 0,
+        estimatedCost: costVal,
+        notes: instructions.trim() || 'Booked via Direct Route Optimizer',
+      });
+
+      Alert.alert(
+        'Job Posted! 📢', 
+        'Your job is now visible to available drivers on their Job Board. You\'ll be notified when someone applies.',
+        [
+          { text: 'View Jobs', onPress: () => navigation.replace('MyPostedJobs') },
+          { text: 'OK', onPress: () => navigation.goBack() }
+        ]
+      );
+    } catch (e) {
+      Alert.alert('Error', e.message || 'Could not post open job.');
+    } finally {
+      setPosting(false);
+    }
+  };
+
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: colors.bg }}>
       <ScrollView contentContainerStyle={screen()} keyboardShouldPersistTaps="handled">
@@ -44,21 +101,25 @@ export function BookTransportScreen({ navigation, route }) {
           <Text style={{ fontSize: 13, color: colors.sub }}>{material} · 🚂 Train · ₹{data?.minimum_cost?.toFixed(0) || '14,200'}</Text>
         </Card>
         <SectionLabel label="Cargo Details" />
-        <Input placeholder="Weight (tons)" keyboardType="numeric" />
-        <Input placeholder="Special Instructions (optional)" multiline numberOfLines={2} />
+        <Input placeholder="Weight (tons)" value={weight} onChangeText={setWeight} keyboardType="numeric" />
+        <Input placeholder="Special Instructions (optional)" value={instructions} onChangeText={setInstructions} multiline numberOfLines={2} />
         <SectionLabel label="Pickup Date & Time" />
         <View style={{ backgroundColor: colors.surface2, borderWidth: 1, borderColor: colors.border, borderRadius: 8, padding: 14, marginBottom: 14 }}>
           <Text style={{ fontSize: 14, color: colors.text }}>📅 May 10, 2026 · 08:00 AM</Text>
         </View>
         <SectionLabel label="Insurance" />
         <View style={{ flexDirection: 'row', gap: 10, marginBottom: 20 }}>
-          {['Basic', 'Premium'].map((ins, i) => (
-            <TouchableOpacity key={ins} style={{ flex: 1, backgroundColor: i === 0 ? colors.accentS : colors.surface2, borderWidth: i === 0 ? 2 : 1, borderColor: i === 0 ? colors.accent : colors.border, borderRadius: 8, padding: 10, alignItems: 'center' }}>
-              <Text style={{ fontSize: 13, fontWeight: '700', color: i === 0 ? colors.accent : colors.sub }}>{ins}</Text>
+          {['Basic', 'Premium'].map((ins) => (
+            <TouchableOpacity key={ins} onPress={() => setInsurance(ins)} style={{ flex: 1, backgroundColor: insurance === ins ? colors.accentS : colors.surface2, borderWidth: insurance === ins ? 2 : 1, borderColor: insurance === ins ? colors.accent : colors.border, borderRadius: 8, padding: 10, alignItems: 'center' }}>
+              <Text style={{ fontSize: 13, fontWeight: '700', color: insurance === ins ? colors.accent : colors.sub }}>{ins}</Text>
             </TouchableOpacity>
           ))}
         </View>
-        <Btn label="Select Driver →" onPress={() => navigation.navigate('SelectDriver', { data, source, destination, material })} />
+        
+        <View style={{ gap: 10 }}>
+          <Btn label="Select Driver →" onPress={handleSelectDriver} />
+          <Btn label={posting ? "Posting open job..." : "📢 Post as Open Job"} onPress={handlePostJob} disabled={posting} variant="outline" />
+        </View>
       </ScrollView>
     </SafeAreaView>
   );

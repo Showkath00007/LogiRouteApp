@@ -115,6 +115,34 @@ export async function postOpenJob(jobData) {
     createdAt: Date.now(),
   };
   await set(jobRef, job);
+
+  // Notify all driver profiles in the database
+  try {
+    const usersSnap = await get(ref(db, 'users'));
+    if (usersSnap.exists()) {
+      const users = usersSnap.val();
+      const tasks = [];
+      Object.entries(users).forEach(([uid, userData]) => {
+        const profile = userData.profile;
+        if (profile && profile.type === 'driver') {
+          const notifRef = push(ref(db, `users/${uid}/notifications`));
+          tasks.push(set(notifRef, {
+            id: notifRef.key,
+            title: 'New Open Job Available! 📢',
+            message: `${job.origin} → ${job.destination} for ${job.material} (${job.weight})`,
+            icon: job.materialIcon,
+            color: '#2ECC8A',
+            unread: true,
+            createdAt: Date.now(),
+          }));
+        }
+      });
+      await Promise.all(tasks);
+    }
+  } catch (err) {
+    console.log('Error notifying drivers for open job:', err);
+  }
+
   return job;
 }
 
