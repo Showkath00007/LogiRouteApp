@@ -128,19 +128,23 @@ export function OptimizerScreen({ navigation }) {
       let totalTimeMin = 0;
 
       for (let i = 0; i < citiesList.length - 1; i++) {
-        const seed = citiesList[i].charCodeAt(0) + citiesList[i+1].charCodeAt(0);
-        const segmentDist = 200 + (seed % 350);
-        const hours = Math.floor(segmentDist / 60);
-        const mins = Math.round((segmentDist % 60) / 10) * 10;
+        const srcDetails = getCityDetails(citiesList[i]);
+        const dstDetails = getCityDetails(citiesList[i+1]);
+        const segmentDist = calculateDistance(srcDetails.coords[0], srcDetails.coords[1], dstDetails.coords[0], dstDetails.coords[1]);
+        
+        const speed = 60; // average driving speed in km/h
+        const segmentTimeMin = segmentDist > 0 ? (segmentDist / speed) * 60 : 0;
+        const hours = Math.floor(segmentTimeMin / 60);
+        const mins = Math.round(segmentTimeMin % 60);
         
         legs.push({
-          from: citiesList[i].split(',')[0],
-          to: citiesList[i+1].split(',')[0],
+          from: srcDetails.name,
+          to: dstDetails.name,
           distance: segmentDist,
-          time_text: `${hours}h ${mins}m`
+          time_text: segmentDist > 0 ? `${hours}h ${mins}m` : '0m'
         });
         totalDistance += segmentDist;
-        totalTimeMin += segmentDist * 1.1;
+        totalTimeMin += segmentTimeMin;
       }
 
       const totalHours = Math.floor(totalTimeMin / 60);
