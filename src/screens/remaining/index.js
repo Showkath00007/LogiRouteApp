@@ -195,6 +195,7 @@ export function BookingSummaryScreen({ navigation, route }) {
         cost,
         transport: driver.transport || 'truck',
         companyName: profile?.company || profile?.name || 'A Company',
+        driverName: driver.name,
       });
       
       const title = '✅ Request Sent!';
@@ -495,6 +496,12 @@ export function ConfirmedScreen({ navigation, route }) {
       // Direct booking request was already accepted, just mark as paid!
       update(ref(db, `bookings/${passedBookingId}`), { status: 'paid' })
         .catch(err => console.warn('ConfirmedScreen failed to update booking paid:', err));
+      
+      const uid = auth.currentUser?.uid;
+      if (uid) {
+        update(ref(db, `users/${uid}/bookings/${passedBookingId}`), { status: 'Paid' })
+          .catch(err => console.warn('ConfirmedScreen failed to update user booking paid:', err));
+      }
     } else {
       // Fallback for direct checkout / mocks
       if (driver?.uid && !driver.uid.startsWith('mock')) {
@@ -595,7 +602,7 @@ export function MyBookingsScreen({ navigation }) {
     return unsub;
   }, []);
 
-  const STATUS_TYPE = { Confirmed: 'green', Pending: 'yellow', Cancelled: 'red', Completed: 'blue' };
+  const STATUS_TYPE = { Confirmed: 'yellow', Paid: 'green', Pending: 'yellow', Cancelled: 'red', Completed: 'blue' };
 
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: colors.bg }}>
@@ -620,6 +627,24 @@ export function MyBookingsScreen({ navigation }) {
               <Text style={{ fontSize: 12, color: colors.sub }}>{b.driver} · {b.material}</Text>
               <Text style={{ fontSize: 13, color: colors.accent, fontWeight: '700', marginTop: 4 }}>₹{b.amount?.toLocaleString()}</Text>
               <Text style={{ fontSize: 11, color: colors.muted, marginTop: 2 }}>{b.date}</Text>
+              {b.status === 'Confirmed' && (
+                <Btn 
+                  label="💳 Pay Now" 
+                  onPress={() => {
+                    navigation.navigate('Payment', {
+                      bookingId: b.id,
+                      cost: b.cost || b.amount || 12000,
+                      source: b.from,
+                      destination: b.to,
+                      material: b.material,
+                      weight: b.weight,
+                      transport: b.transport,
+                      driverId: b.driverUid,
+                    });
+                  }}
+                  style={{ marginTop: 10, marginBottom: 0, paddingVertical: 8 }}
+                />
+              )}
             </Card>
           ))
         )}

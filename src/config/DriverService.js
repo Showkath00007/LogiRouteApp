@@ -221,11 +221,15 @@ export async function sendBookingRequest(driverUid, bookingData) {
     material: bookingData.material,
     weight: bookingData.weight || '',
     cost: bookingData.cost,
+    amount: bookingData.cost,
+    driver: bookingData.driverName || 'Driver Partner',
     transport: bookingData.transport || 'truck',
-    status: 'pending',
+    status: 'Pending',
     createdAt: Date.now(),
+    date: new Date().toLocaleDateString('en-IN', { day: 'numeric', month: 'short' }),
   };
   await set(bookingRef, booking);
+  await set(ref(db, `users/${companyUid}/bookings/${bookingRef.key}`), booking);
 
   // Write notification to driver's node
   const notifRef = push(ref(db, `driverNotifications/${driverUid}`));
@@ -278,9 +282,19 @@ export function listenDriverNotifications(driverUid, callback) {
   return () => off(r);
 }
 
-// ─── Driver accepts/rejects booking ──────────────────────────
-export async function respondToBooking(bookingId, driverUid, accepted, companyUid) {
+export async function respondToBooking(bookingId, driverUid, accepted) {
   const status = accepted ? 'confirmed' : 'rejected';
+  
+  let companyUid = null;
+  try {
+    const snap = await get(ref(db, `bookings/${bookingId}`));
+    if (snap.exists()) {
+      companyUid = snap.val().companyUid;
+    }
+  } catch (err) {
+    console.warn('Error reading booking in respondToBooking:', err);
+  }
+
   await update(ref(db, `bookings/${bookingId}`), {
     status,
     respondedAt: Date.now(),
@@ -291,8 +305,13 @@ export async function respondToBooking(bookingId, driverUid, accepted, companyUi
     status: accepted ? 'busy' : 'available',
   });
 
-  // Notify company
+  // Notify company and update company booking status
   if (companyUid) {
+    await update(ref(db, `users/${companyUid}/bookings/${bookingId}`), {
+      status: accepted ? 'Confirmed' : 'Cancelled',
+      updatedAt: Date.now()
+    });
+
     const notifRef = push(ref(db, `driverNotifications/${companyUid}`));
     await set(notifRef, {
       id: notifRef.key,
