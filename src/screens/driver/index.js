@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import {
   View, Text, ScrollView, SafeAreaView, TouchableOpacity,
-  ActivityIndicator, Alert, TextInput, RefreshControl, Platform, Dimensions, Image
+  ActivityIndicator, Alert, TextInput, RefreshControl, Platform, Dimensions, Image, Modal
 } from 'react-native';
 import { colors, radius, fonts, spacing } from '../../theme';
 import { Btn, Card, StatCard, Badge, SectionLabel, BackBtn, BottomNav, Input } from '../../components';
@@ -646,6 +646,10 @@ export function JobsScreen({ navigation }) {
   const [loading, setLoading] = useState(true);
   const [location, setLocation] = useState(null);
   const [locLoading, setLocLoading] = useState(false);
+  const [showPaymentModal, setShowPaymentModal] = useState(false);
+  const [selectedPaymentJob, setSelectedPaymentJob] = useState(null);
+  const [processingPayment, setProcessingPayment] = useState(false);
+  const [paymentSuccess, setPaymentSuccess] = useState(false);
 
   const haversine = (lat1, lon1, lat2, lon2) => {
     const R = 6371;
@@ -725,13 +729,17 @@ export function JobsScreen({ navigation }) {
     // 4. Update state to trigger animate/dismiss
     setRequests(prev => prev.map(r => r.id === job.id ? {...r, responded: true, accepted} : r));
     
-    // 5. Alert user with platform safety
-    const title = accepted ? '✅ Accepted!' : '❌ Declined';
-    const message = accepted ? 'Booking confirmed. Get ready!' : 'Booking declined.';
-    if (Platform.OS === 'web') {
-      window.alert(`${title}\n\n${message}`);
+    // 5. Open payment window if accepted!
+    if (accepted) {
+      setSelectedPaymentJob(job);
+      setPaymentSuccess(false);
+      setShowPaymentModal(true);
     } else {
-      Alert.alert(title, message);
+      if (Platform.OS === 'web') {
+        window.alert('❌ Declined\n\nBooking declined.');
+      } else {
+        Alert.alert('Declined', 'Booking declined.');
+      }
     }
   };
 
@@ -840,6 +848,76 @@ export function JobsScreen({ navigation }) {
           })
         )}
       </ScrollView>
+
+      {/* Payout & Payment Modal */}
+      {selectedPaymentJob && (
+        <Modal
+          visible={showPaymentModal}
+          transparent={true}
+          animationType="slide"
+          onRequestClose={() => setShowPaymentModal(false)}
+        >
+          <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'center', alignItems: 'center', padding: 20 }}>
+            <View style={{ backgroundColor: colors.surface, borderRadius: radius.xl, padding: 24, width: '100%', maxWidth: 440, ...shadow.lg }}>
+              <Text style={{ fontSize: 20, fontWeight: '900', color: colors.text, marginBottom: 4 }}>💳 Freight Settlement</Text>
+              <Text style={{ fontSize: 13, color: colors.textSub, marginBottom: 16 }}>Confirm routing details and authorize payment receipt.</Text>
+              
+              <Card style={{ marginBottom: 16, backgroundColor: colors.surface2, borderColor: colors.border }}>
+                <Text style={{ fontSize: 14, fontWeight: '700', color: colors.text }}>{selectedPaymentJob.from || selectedPaymentJob.origin} → {selectedPaymentJob.to || selectedPaymentJob.destination}</Text>
+                <Text style={{ fontSize: 12, color: colors.textSub, marginTop: 4 }}>
+                  {selectedPaymentJob.material} · {selectedPaymentJob.weight || '10 tons'}
+                </Text>
+              </Card>
+
+              <View style={{ gap: 8, marginBottom: 20 }}>
+                <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
+                  <Text style={{ fontSize: 13, color: colors.textSub }}>Base Fare</Text>
+                  <Text style={{ fontSize: 13, fontWeight: '600', color: colors.text }}>₹{Math.round((selectedPaymentJob.cost || selectedPaymentJob.estimatedCost || 12000) * 0.92).toLocaleString()}</Text>
+                </View>
+                <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
+                  <Text style={{ fontSize: 13, color: colors.textSub }}>Taxes & Levies (8%)</Text>
+                  <Text style={{ fontSize: 13, fontWeight: '600', color: colors.text }}>₹{Math.round((selectedPaymentJob.cost || selectedPaymentJob.estimatedCost || 12000) * 0.08).toLocaleString()}</Text>
+                </View>
+                <View style={{ height: 1, backgroundColor: colors.border, marginVertical: 4 }} />
+                <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
+                  <Text style={{ fontSize: 14, fontWeight: '800', color: colors.text }}>Total Payout Value</Text>
+                  <Text style={{ fontSize: 16, fontWeight: '900', color: colors.accent }}>₹{(selectedPaymentJob.cost || selectedPaymentJob.estimatedCost || 12000).toLocaleString()}</Text>
+                </View>
+              </View>
+
+              {paymentSuccess ? (
+                <View style={{ alignItems: 'center', paddingVertical: 10 }}>
+                  <Text style={{ fontSize: 48, marginBottom: 12 }}>✅</Text>
+                  <Text style={{ fontSize: 16, fontWeight: '800', color: colors.green, textAlign: 'center' }}>Payout Authorized!</Text>
+                  <Text style={{ fontSize: 13, color: colors.textSub, textAlign: 'center', marginTop: 6, marginBottom: 20 }}>
+                    Funds have been processed and scheduled for payout to your default payout account.
+                  </Text>
+                  <Btn label="Close Window" onPress={() => { setShowPaymentModal(false); setSelectedPaymentJob(null); }} style={{ width: '100%' }} />
+                </View>
+              ) : (
+                <View style={{ gap: 10 }}>
+                  <Btn
+                    label={processingPayment ? "Settling Funds..." : "Confirm & Collect Payout →"}
+                    onPress={async () => {
+                      setProcessingPayment(true);
+                      await new Promise(resolve => setTimeout(resolve, 1500));
+                      setProcessingPayment(false);
+                      setPaymentSuccess(true);
+                    }}
+                    disabled={processingPayment}
+                  />
+                  <TouchableOpacity
+                    onPress={() => { setShowPaymentModal(false); setSelectedPaymentJob(null); }}
+                    style={{ padding: 12, alignItems: 'center' }}
+                  >
+                    <Text style={{ fontSize: 13, color: colors.textSub, fontWeight: '600' }}>Cancel</Text>
+                  </TouchableOpacity>
+                </View>
+              )}
+            </View>
+          </View>
+        </Modal>
+      )}
     </SafeAreaView>
   );
 }
