@@ -95,11 +95,31 @@ export const MOCK_TEAM = [
 ];
 
 export const MATERIALS = [
-  { id: 'Steel', icon: '🔩', color: '#4F8EF7', rate: 10 },
-  { id: 'Cement', icon: '🧱', color: '#8892A4', rate: 6 },
-  { id: 'Aluminium', icon: '🥈', color: '#A78BFA', rate: 12 },
-  { id: 'Coal', icon: '⬛', color: '#4A5568', rate: 5 },
-  { id: 'Wood', icon: '🪵', color: '#FF7A3D', rate: 7 },
+  { id: 'Steel', icon: '🔩', color: '#4F8EF7', rate: 12 },
+  { id: 'Cement', icon: '🧱', color: '#8892A4', rate: 8 },
+  { id: 'Aluminium', icon: '🥈', color: '#A78BFA', rate: 14 },
+  { id: 'Coal', icon: '⬛', color: '#4A5568', rate: 6 },
+  { id: 'Wood', icon: '🪵', color: '#FF7A3D', rate: 9 },
+  { id: 'Iron Ore', icon: '🪨', color: '#B3542E', rate: 7 },
+  { id: 'Copper', icon: '🪙', color: '#CA7642', rate: 16 },
+  { id: 'Sand', icon: '⏳', color: '#E4CD6D', rate: 5 },
+  { id: 'Gravel', icon: '⛰️', color: '#7E8890', rate: 6 },
+  { id: 'Bricks', icon: '🧱', color: '#B23A22', rate: 8 },
+  { id: 'Granite', icon: '🪨', color: '#566573', rate: 13 },
+  { id: 'Marble', icon: '🏛️', color: '#85C1E9', rate: 15 },
+  { id: 'Fertilizers', icon: '🌱', color: '#27AE60', rate: 9 },
+  { id: 'Wheat', icon: '🌾', color: '#D4AC0D', rate: 7 },
+  { id: 'Sugar', icon: '🍬', color: '#EC7063', rate: 8 },
+  { id: 'Rice', icon: '🍚', color: '#F4F6F6', rate: 7 },
+  { id: 'Cotton', icon: '☁️', color: '#E5E7E9', rate: 10 },
+  { id: 'Chemicals', icon: '🧪', color: '#C0392B', rate: 18 },
+  { id: 'Petroleum', icon: '🛢️', color: '#1B4F72', rate: 20 },
+  { id: 'Paper', icon: '📦', color: '#F39C12', rate: 9 },
+  { id: 'Electronics', icon: '💻', color: '#8E44AD', rate: 25 },
+  { id: 'Auto Parts', icon: '⚙️', color: '#2C3E50', rate: 22 },
+  { id: 'Textiles', icon: '👕', color: '#16A085', rate: 11 },
+  { id: 'Plastics', icon: '🥤', color: '#D35400', rate: 10 },
+  { id: 'Glass', icon: '🥃', color: '#5DADE2', rate: 16 },
 ];
 
 // ============================================================

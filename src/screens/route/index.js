@@ -179,11 +179,11 @@ export function OptimizerScreen({ navigation }) {
         {/* Material */}
         <Card>
           <SectionLabel label={t('material')} />
-          <View style={{ flexDirection: 'row', gap: 8 }}>
+          <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
             {MATERIALS.map(m => (
-              <TouchableOpacity key={m.id} onPress={() => setMaterial(m.id)} style={{ flex: 1, backgroundColor: material === m.id ? m.color + '22' : colors.surface2, borderWidth: material === m.id ? 2 : 1, borderColor: material === m.id ? m.color : colors.border, borderRadius: 8, paddingVertical: 10, alignItems: 'center' }}>
+              <TouchableOpacity key={m.id} onPress={() => setMaterial(m.id)} style={{ width: '22.8%', minWidth: 68, backgroundColor: material === m.id ? m.color + '22' : colors.surface2, borderWidth: material === m.id ? 2 : 1, borderColor: material === m.id ? m.color : colors.border, borderRadius: 8, paddingVertical: 10, alignItems: 'center' }}>
                 <Text style={{ fontSize: 20 }}>{m.icon}</Text>
-                <Text style={{ fontSize: 10, color: material === m.id ? m.color : colors.sub, fontWeight: material === m.id ? '700' : '400', marginTop: 3 }}>{m.id}</Text>
+                <Text numberOfLines={1} style={{ fontSize: 9, color: material === m.id ? m.color : colors.sub, fontWeight: material === m.id ? '700' : '400', marginTop: 3 }}>{m.id}</Text>
               </TouchableOpacity>
             ))}
           </View>
