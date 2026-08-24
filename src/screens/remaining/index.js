@@ -11,7 +11,7 @@ import { colors, radius, shadow } from '../../theme';
 import { Btn, Card, StatCard, Badge, SectionLabel, BackBtn, Divider, ListItem, Input, CostHero, ProgressBar, NotifCard } from '../../components';
 import { MOCK_DRIVERS, MOCK_WEATHER, MOCK_HISTORY, MATERIALS } from '../../data';
 import { auth, db } from '../../config/firebase';
-import { ref, set, update, onValue } from 'firebase/database';
+import { ref, set, update, onValue, get } from 'firebase/database';
 import { signOut } from 'firebase/auth';
 import { getUserProfile, listenNotifications, listenBookings, createBooking, listenShipments } from '../../config/firebaseService';
 import { sendBookingRequest, listenAllNotifications, markAnyNotificationRead, markAllNotificationsReadUnified, simulateNewNotification, postOpenJob } from '../../config/DriverService';
@@ -180,9 +180,37 @@ export function BookingSummaryScreen({ navigation, route }) {
   const params = route?.params || {};
   const driver = params.driver || MOCK_DRIVERS.find(d => d.id === params.driverId) || MOCK_DRIVERS[0];
   const cost = params.cost || params.data?.minimum_cost || 0;
-  const handleConfirm = () => {
-    // Go straight to Payment — booking saved after payment succeeds
-    navigation.navigate('Payment', { ...params, driver, cost });
+  const [sending, setSending] = useState(false);
+
+  const handleConfirm = async () => {
+    setSending(true);
+    try {
+      const profile = await getProfile();
+      await sendBookingRequest(driver.uid || driver.id, {
+        source: params.source,
+        destination: params.destination,
+        material: params.material || 'Steel',
+        weight: params.weight,
+        distKm: params.distKm,
+        cost,
+        transport: driver.transport || 'truck',
+        companyName: profile?.company || profile?.name || 'A Company',
+      });
+      
+      const title = '✅ Request Sent!';
+      const msg = 'We have sent a booking confirmation request to the driver. You will be prompted to make payment once the driver accepts.';
+      if (Platform.OS === 'web') {
+        window.alert(`${title}\n\n${msg}`);
+      } else {
+        Alert.alert(title, msg);
+      }
+      navigation.replace('CompanyDashboard');
+    } catch (e) {
+      console.warn('BookingSummaryScreen: failed to send booking request:', e);
+      Alert.alert('Error', 'Failed to send booking request.');
+    } finally {
+      setSending(false);
+    }
   };
 
   return (
@@ -218,7 +246,7 @@ export function BookingSummaryScreen({ navigation, route }) {
             <Text style={{ fontSize: 22, fontWeight: '900', color: colors.accent }}>₹{cost.toLocaleString()}</Text>
           </View>
         </Card>
-        <Btn label="Proceed to Payment →" onPress={handleConfirm} />
+        <Btn label={sending ? "Sending Request..." : "Confirm & Send Booking Request →"} onPress={handleConfirm} disabled={sending} />
         <Btn label="Cancel" onPress={() => navigation.goBack()} variant="outline" />
       </ScrollView>
     </SafeAreaView>
@@ -458,31 +486,34 @@ export function PaymentScreen({ navigation, route }) {
 }
 
 export function ConfirmedScreen({ navigation, route }) {
-  const { payment_id, amount, source, destination, driver, material, weight, distKm } = route?.params || {};
-  const [bookingId, setBookingId] = useState('#LR-' + Date.now().toString().slice(-6));
-  const [notifyStatus, setNotifyStatus] = useState('idle'); // idle | sending | sent | failed
+  const { payment_id, amount, source, destination, driver, material, weight, distKm, bookingId: passedBookingId } = route?.params || {};
+  const [bookingId, setBookingId] = useState(passedBookingId || '#LR-' + Date.now().toString().slice(-6));
+  const [notifyStatus, setNotifyStatus] = useState(passedBookingId ? 'sent' : 'idle'); // idle | sending | sent | failed
 
   useEffect(() => {
-    // Send the real booking request + notification to the driver after payment,
-    // using the same DriverService helper the "Notify" button uses (writes a real
-    // bookings/ record AND a booking_request notification the driver's Jobs screen
-    // will actually show with Accept/Decline).
-    if (driver?.uid && !driver.uid.startsWith('mock')) {
-      setNotifyStatus('sending');
-      getProfile()
-        .then(profile => sendBookingRequest(driver.uid, {
-          source, destination, material, weight, distKm,
-          cost: amount,
-          companyName: profile?.company || profile?.name || 'A Company',
-        }))
-        .then(booking => {
-          setBookingId(booking.id);
-          setNotifyStatus('sent');
-        })
-        .catch(e => {
-          console.warn('ConfirmedScreen: failed to notify driver:', e);
-          setNotifyStatus('failed');
-        });
+    if (passedBookingId) {
+      // Direct booking request was already accepted, just mark as paid!
+      update(ref(db, `bookings/${passedBookingId}`), { status: 'paid' })
+        .catch(err => console.warn('ConfirmedScreen failed to update booking paid:', err));
+    } else {
+      // Fallback for direct checkout / mocks
+      if (driver?.uid && !driver.uid.startsWith('mock')) {
+        setNotifyStatus('sending');
+        getProfile()
+          .then(profile => sendBookingRequest(driver.uid, {
+            source, destination, material, weight, distKm,
+            cost: amount,
+            companyName: profile?.company || profile?.name || 'A Company',
+          }))
+          .then(booking => {
+            setBookingId(booking.id);
+            setNotifyStatus('sent');
+          })
+          .catch(e => {
+            console.warn('ConfirmedScreen: failed to notify driver:', e);
+            setNotifyStatus('failed');
+          });
+      }
     }
   }, []);
   return (
@@ -1885,6 +1916,33 @@ export function NotificationsScreen({ navigation }) {
     }
   };
 
+  const handlePaymentFromNotification = async (n) => {
+    try {
+      setLoading(true);
+      const bookingSnap = await get(ref(db, `bookings/${n.bookingId}`));
+      if (bookingSnap.exists()) {
+        const b = bookingSnap.val();
+        navigation.navigate('Payment', {
+          bookingId: n.bookingId,
+          cost: b.cost,
+          source: b.from,
+          destination: b.to,
+          material: b.material,
+          weight: b.weight,
+          transport: b.transport,
+          driverId: b.driverUid,
+        });
+      } else {
+        Alert.alert('Error', 'Could not locate booking details.');
+      }
+    } catch (e) {
+      console.warn('Failed to retrieve booking:', e);
+      Alert.alert('Error', 'Could not load booking details.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const handleTapNotification = async (n) => {
     if (!n.unread) return;
     setNotifications(prev => prev.map(item => item.id === n.id ? { ...item, unread: false } : item));
@@ -1948,9 +2006,20 @@ export function NotificationsScreen({ navigation }) {
           </Card>
         ) : (
           notifications.map((n, i) => (
-            <TouchableOpacity key={n.id} onPress={() => handleTapNotification(n)} activeOpacity={n.unread ? 0.6 : 1}>
-              <NotifCard icon={n.icon} title={n.title} msg={n.message} time={timeAgo(n.createdAt)} color={n.color} unread={n.unread} delay={i * 80} />
-            </TouchableOpacity>
+            <View key={n.id} style={{ marginBottom: 14 }}>
+              <TouchableOpacity onPress={() => handleTapNotification(n)} activeOpacity={n.unread ? 0.6 : 1}>
+                <NotifCard icon={n.icon} title={n.title} msg={n.message} time={timeAgo(n.createdAt)} color={n.color} unread={n.unread} delay={i * 80} />
+              </TouchableOpacity>
+              {n.type === 'booking_accepted' && (
+                <View style={{ marginTop: 6, paddingLeft: 46 }}>
+                  <Btn 
+                    label="💳 Make Payment" 
+                    onPress={() => handlePaymentFromNotification(n)}
+                    style={{ marginBottom: 0, paddingVertical: 8 }}
+                  />
+                </View>
+              )}
+            </View>
           ))
         )}
       </ScrollView>
