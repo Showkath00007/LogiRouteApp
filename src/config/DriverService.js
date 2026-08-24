@@ -237,6 +237,7 @@ export async function sendBookingRequest(driverUid, bookingData) {
     id: notifRef.key,
     type: 'booking_request',
     bookingId: bookingRef.key,
+    companyUid,
     title: '🚛 New Booking Request!',
     message: `${bookingData.source} → ${bookingData.destination} | ₹${bookingData.cost?.toLocaleString()}`,
     from: bookingData.source,

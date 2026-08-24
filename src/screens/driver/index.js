@@ -156,6 +156,16 @@ function listenBookingRequests(driverUid, callback) {
 
 async function respondToBooking(bookingId, driverUid, accepted) {
   try {
+    let companyUid = null;
+    try {
+      const snap = await get(ref(db, `bookings/${bookingId}`));
+      if (snap.exists()) {
+        companyUid = snap.val().companyUid;
+      }
+    } catch (err) {
+      console.warn('Error reading booking in driver respondToBooking:', err);
+    }
+
     await update(ref(db, `bookings/${bookingId}`), {
       status: accepted ? 'confirmed' : 'rejected',
       respondedAt: Date.now(),
@@ -163,6 +173,26 @@ async function respondToBooking(bookingId, driverUid, accepted) {
     await update(ref(db, `drivers/${driverUid}`), {
       status: accepted ? 'busy' : 'available',
     });
+
+    if (companyUid) {
+      await update(ref(db, `users/${companyUid}/bookings/${bookingId}`), {
+        status: accepted ? 'Confirmed' : 'Cancelled',
+        updatedAt: Date.now()
+      });
+
+      const notifRef = push(ref(db, `driverNotifications/${companyUid}`));
+      await set(notifRef, {
+        id: notifRef.key,
+        type: accepted ? 'booking_accepted' : 'booking_rejected',
+        bookingId,
+        title: accepted ? '✅ Driver Accepted!' : '❌ Driver Declined',
+        message: accepted
+          ? 'Your driver has accepted the booking and is on the way.'
+          : 'The driver declined. Please select another driver.',
+        read: false,
+        createdAt: Date.now(),
+      });
+    }
     return true;
   } catch (e) {
     console.warn('respondToBooking error:', e);
