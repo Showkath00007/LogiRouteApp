@@ -22,6 +22,7 @@ export function OptimizerScreen({ navigation }) {
   const [stopSuggestions, setStopSuggestions] = useState([[], [], []]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [showMaterialDropdown, setShowMaterialDropdown] = useState(false);
 
   const { apiAutocomplete } = require('../../data');
 
@@ -188,17 +189,79 @@ export function OptimizerScreen({ navigation }) {
           </View>
         </View>
 
-        {/* Material */}
-        <Card>
+        {/* Material Dropdown */}
+        <Card style={{ zIndex: 100 }}>
           <SectionLabel label={t('material')} />
-          <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
-            {MATERIALS.map(m => (
-              <TouchableOpacity key={m.id} onPress={() => setMaterial(m.id)} style={{ width: '22.8%', minWidth: 68, backgroundColor: material === m.id ? m.color + '22' : colors.surface2, borderWidth: material === m.id ? 2 : 1, borderColor: material === m.id ? m.color : colors.border, borderRadius: 8, paddingVertical: 10, alignItems: 'center' }}>
-                <Text style={{ fontSize: 20 }}>{m.icon}</Text>
-                <Text numberOfLines={1} style={{ fontSize: 9, color: material === m.id ? m.color : colors.sub, fontWeight: material === m.id ? '700' : '400', marginTop: 3 }}>{m.id}</Text>
-              </TouchableOpacity>
-            ))}
-          </View>
+          <TouchableOpacity
+            onPress={() => setShowMaterialDropdown(!showMaterialDropdown)}
+            style={{
+              flexDirection: 'row',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              backgroundColor: colors.surface2,
+              borderWidth: 1.5,
+              borderColor: colors.border,
+              borderRadius: 8,
+              paddingHorizontal: 16,
+              paddingVertical: 12,
+            }}
+          >
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+              <Text style={{ fontSize: 20 }}>{MATERIALS.find(m => m.id === material)?.icon || '📦'}</Text>
+              <Text style={{ fontSize: 15, fontWeight: '700', color: colors.text }}>
+                {material}
+              </Text>
+              <Text style={{ fontSize: 13, color: colors.sub }}>
+                (₹{MATERIALS.find(m => m.id === material)?.rate || 8}/ton-km market rate)
+              </Text>
+            </View>
+            <Text style={{ fontSize: 12, color: colors.sub }}>{showMaterialDropdown ? '▲' : '▼'}</Text>
+          </TouchableOpacity>
+
+          {showMaterialDropdown && (
+            <ScrollView
+              nestedScrollEnabled={true}
+              style={{
+                maxHeight: 220,
+                backgroundColor: colors.surface,
+                borderWidth: 1.5,
+                borderColor: colors.border,
+                borderRadius: 8,
+                marginTop: 6,
+                padding: 4,
+              }}
+            >
+              {MATERIALS.map(m => (
+                <TouchableOpacity
+                  key={m.id}
+                  onPress={() => {
+                    setMaterial(m.id);
+                    setShowMaterialDropdown(false);
+                  }}
+                  style={{
+                    flexDirection: 'row',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    paddingHorizontal: 12,
+                    paddingVertical: 10,
+                    backgroundColor: material === m.id ? m.color + '15' : 'transparent',
+                    borderRadius: 6,
+                    marginBottom: 2
+                  }}
+                >
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+                    <Text style={{ fontSize: 18 }}>{m.icon}</Text>
+                    <Text style={{ fontSize: 14, fontWeight: material === m.id ? '700' : '500', color: material === m.id ? m.color : colors.text }}>
+                      {m.id}
+                    </Text>
+                  </View>
+                  <Text style={{ fontSize: 12, color: colors.sub }}>
+                    ₹{m.rate}/t-km
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </ScrollView>
+          )}
         </Card>
 
         {/* Cargo Weight */}
