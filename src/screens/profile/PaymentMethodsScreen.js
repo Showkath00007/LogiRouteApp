@@ -4,7 +4,7 @@ import { colors, radius, shadow } from '../../theme';
 import { BackBtn, Card, SectionLabel, Btn, Input, Badge } from '../../components';
 import { saveUserProfile, getUserProfile, listenBookings } from '../../config/firebaseService';
 import { db } from '../../config/firebase';
-import { ref, onValue } from 'firebase/database';
+import { ref, onValue, get, update } from 'firebase/database';
 
 const showAlert = (title, message) => {
   if (Platform.OS === 'web') {
@@ -47,17 +47,41 @@ export default function PaymentMethodsScreen({ navigation }) {
   useEffect(() => {
     async function loadData() {
       try {
-        const uProf = await getUserProfile();
-        setProfile(uProf);
-        if (uProf?.upiAccounts && Array.isArray(uProf.upiAccounts)) {
-          setUpiAccounts(uProf.upiAccounts);
+        const uid = auth.currentUser?.uid || 'demo_driver';
+        
+        // Fetch users/${uid}/profile
+        const uSnap = await get(ref(db, `users/${uid}/profile`));
+        const uProf = uSnap.exists() ? uSnap.val() : null;
+        setProfile(uProf || { type: 'driver' });
+        
+        let upis = uProf?.upiAccounts || [];
+        let banks = uProf?.bankAccounts || [];
+        let selUpi = uProf?.selectedUpiId || null;
+
+        // Fallback to drivers/${uid}
+        const dSnap = await get(ref(db, `drivers/${uid}`));
+        if (dSnap.exists()) {
+          const dData = dSnap.val();
+          if (upis.length === 0 && dData.upiId) {
+            upis = [{ id: dData.upiId, label: dData.upiId, app: 'BHIM UPI', primary: true, icon: '📱' }];
+            selUpi = dData.upiId;
+          }
+          if (banks.length === 0 && dData.bankName && dData.accountNumber) {
+            banks = [{
+              id: 'bank_payout',
+              label: dData.bankName,
+              bankName: dData.bankName,
+              number: dData.accountNumber.startsWith('XXXX') ? dData.accountNumber : ('XXXX XXXX ' + dData.accountNumber.slice(-4)),
+              accountNumber: dData.accountNumber,
+              ifsc: dData.ifsc || '',
+              icon: '🏦'
+            }];
+          }
         }
-        if (uProf?.bankAccounts && Array.isArray(uProf.bankAccounts)) {
-          setBankAccounts(uProf.bankAccounts);
-        }
-        if (uProf?.selectedUpiId) {
-          setSelected(uProf.selectedUpiId);
-        }
+
+        setUpiAccounts(upis);
+        setBankAccounts(banks);
+        setSelected(selUpi);
       } catch (e) {
         console.log('Error loading payment methods:', e);
       } finally {
