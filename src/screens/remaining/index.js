@@ -1676,7 +1676,10 @@ export function ProfileScreen({ navigation }) {
       color: colors.green,
       route: 'KYCDocuments'
     },
-    { icon: '💳', label: t('paymentMethods'), sub: t('paymentMethodsSub'), route: 'PaymentMethods' },
+    // Only show Payment Methods for drivers
+    ...(profile?.type !== 'company' ? [
+      { icon: '💳', label: t('paymentMethods'), sub: t('paymentMethodsSub'), route: 'PaymentMethods' }
+    ] : []),
     { icon: '🎨', label: 'Theme Customizer', sub: 'Personalize portal colors', route: 'ThemeCustomizer' },
     { icon: '🔔', label: t('notificationPrefs'), sub: '', route: 'Notifications' },
     { icon: '⚙️', label: t('settings'), sub: '', route: 'Settings' },
