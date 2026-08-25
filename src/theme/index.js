@@ -6,8 +6,8 @@
 export const colors = {
   // ── Backgrounds ──────────────────────────────────────────
   bg: '#FDFBF7',           // Clean Light Ivory bg
-  surface: '#FAF6EE',      // Rich Creamy Beige cards
-  card: '#FAF6EE',
+  surface: '#F2EAD9',      // Richer Darker Cream cards
+  card: '#F2EAD9',
   surface2: '#FAF0E1',     // soft sand gray
   border: '#E3DAC9',       // warm sand border
 
