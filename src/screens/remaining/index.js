@@ -541,8 +541,21 @@ export function PaymentScreen({ navigation, route }) {
         </View>
 
         <Btn
-          label={`Pay ₹${cost.toLocaleString()} via Razorpay →`}
-          onPress={openWebView}
+          label={Platform.OS === 'web' ? `🔒 Confirm Simulated Payment (Test Mode)` : `Pay ₹${cost.toLocaleString()} via Razorpay →`}
+          onPress={() => {
+            if (Platform.OS === 'web') {
+              const yes = window.confirm(`Simulate payment of ₹${cost.toLocaleString()}?`);
+              if (yes) {
+                navigation.navigate('Confirmed', {
+                  ...params,
+                  payment_id: 'pay_mock_' + Date.now().toString().slice(-6),
+                  amount: cost,
+                });
+              }
+            } else {
+              openWebView();
+            }
+          }}
         />
         <Btn label="Cancel" onPress={() => navigation.goBack()} variant="outline" style={{ marginTop: 10 }} />
       </ScrollView>
