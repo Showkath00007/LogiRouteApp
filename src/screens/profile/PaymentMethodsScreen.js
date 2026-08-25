@@ -93,20 +93,36 @@ export default function PaymentMethodsScreen({ navigation }) {
   }, [profile?.type]);
 
   const handleSave = async () => {
-    if (bankAccounts.length === 0) {
-      showAlert('Action Required', 'Please add a bank account first.');
+    if (bankAccounts.length === 0 && upiAccounts.length === 0) {
+      showAlert('Action Required', 'Please add at least one UPI ID or Bank Account first.');
       return;
     }
     setSaving(true);
     try {
+      const uid = auth.currentUser?.uid;
+      const primaryBank = bankAccounts[0] || {};
+      const primaryUpi = upiAccounts[0] || {};
+      const selectedUpi = selected || primaryUpi.id || '';
+
       await saveUserProfile({
         upiAccounts,
         bankAccounts,
-        selectedUpiId: selected
+        selectedUpiId: selectedUpi
       });
+
+      // Also update directly to drivers/${uid} node for compatibility
+      await update(ref(db, `drivers/${uid}`), {
+        upiId: selectedUpi,
+        bankName: primaryBank.bankName || primaryBank.label || '',
+        accountNumber: primaryBank.accountNumber || primaryBank.number || '',
+        ifsc: primaryBank.ifsc || '',
+        updatedAt: Date.now()
+      });
+
       showAlert('✅ Success', 'Payment methods updated successfully!');
       navigation.goBack();
     } catch (e) {
+      console.warn('handleSave error:', e);
       showAlert('Error', 'Could not save payment methods. Please try again.');
     } finally {
       setSaving(false);
@@ -225,7 +241,9 @@ export default function PaymentMethodsScreen({ navigation }) {
       id: 'bank_' + Date.now(),
       icon: '🏦',
       label: bankLabel,
+      bankName: bankLabel,
       number: masked,
+      accountNumber: rawNumber,
       ifsc: ifsc
     };
 
