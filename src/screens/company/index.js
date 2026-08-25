@@ -10,7 +10,7 @@ import { listenCompanyFleet, listenAllNotifications, postOpenJob, listenCompanyJ
 import { getProfile, saveProfile } from '../../config/UserStore';
 import { useTheme } from '../../context/ThemeContext';
 import { auth, db } from '../../config/firebase';
-import { ref, set } from 'firebase/database';
+import { ref, set, get, update } from 'firebase/database';
 import { onAuthStateChanged } from 'firebase/auth';
 
 const screen = (pt = 60) => ({ padding: 20, paddingTop: pt, flexGrow: 1 });
@@ -1173,8 +1173,45 @@ export function FleetScreen({ navigation }) {
                     )}
                     <Btn 
                       label="💳 Pay Now" 
-                      onPress={() => {
-                        if (!v.payoutDetails || (v.payoutDetails.upiId === 'Not Configured' && v.payoutDetails.bankName === 'Not Configured')) {
+                      onPress={async () => {
+                        const driverId = v.driverUid || '';
+                        let upiId = 'Not Configured';
+                        let bankName = 'Not Configured';
+                        let accountNumber = 'Not Configured';
+                        let ifsc = 'Not Configured';
+
+                        if (driverId) {
+                          try {
+                            const uSnap = await get(ref(db, `users/${driverId}/profile`));
+                            if (uSnap.exists()) {
+                              const uData = uSnap.val();
+                              upiId = uData.selectedUpiId || (uData.upiAccounts && uData.upiAccounts[0]?.id) || 'Not Configured';
+                              bankName = (uData.bankAccounts && uData.bankAccounts[0]?.bankName) || (uData.bankAccounts && uData.bankAccounts[0]?.label) || 'Not Configured';
+                              accountNumber = (uData.bankAccounts && uData.bankAccounts[0]?.accountNumber) || (uData.bankAccounts && uData.bankAccounts[0]?.number) || 'Not Configured';
+                              ifsc = (uData.bankAccounts && uData.bankAccounts[0]?.ifsc) || 'Not Configured';
+                            }
+
+                            const dSnap = await get(ref(db, `drivers/${driverId}`));
+                            if (dSnap.exists()) {
+                              const dData = dSnap.val();
+                              if (upiId === 'Not Configured' && dData.upiId) upiId = dData.upiId;
+                              if (bankName === 'Not Configured' && dData.bankName) bankName = dData.bankName;
+                              if (accountNumber === 'Not Configured' && dData.accountNumber) accountNumber = dData.accountNumber;
+                              if (ifsc === 'Not Configured' && dData.ifsc) ifsc = dData.ifsc;
+                            }
+
+                            if (upiId !== 'Not Configured' || bankName !== 'Not Configured') {
+                              // Sync to firebase bookings table dynamically
+                              await update(ref(db, `bookings/${v.id}`), {
+                                payoutDetails: { upiId, bankName, accountNumber, ifsc }
+                              });
+                            }
+                          } catch (err) {
+                            console.log('Error verifying payment account details:', err);
+                          }
+                        }
+
+                        if (upiId === 'Not Configured' && bankName === 'Not Configured') {
                           if (Platform.OS === 'web') {
                             alert('⚠️ Payment Unavailable\n\nNo bank details added by the driver. The driver must configure their payment methods in settings before payment can be processed.');
                           } else {
@@ -1182,6 +1219,7 @@ export function FleetScreen({ navigation }) {
                           }
                           return;
                         }
+
                         navigation.navigate('Payment', {
                           bookingId: v.id,
                           cost: v.cost || v.amount || 12000,
@@ -1190,8 +1228,8 @@ export function FleetScreen({ navigation }) {
                           material: v.material,
                           weight: v.weight,
                           transport: v.transport,
-                          driverId: v.driverUid,
-                          payoutDetails: v.payoutDetails,
+                          driverId: driverId,
+                          payoutDetails: { upiId, bankName, accountNumber, ifsc },
                         });
                       }}
                       style={{ marginTop: 8, marginBottom: 0, paddingVertical: 8 }}

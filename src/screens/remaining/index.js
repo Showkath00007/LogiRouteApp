@@ -717,8 +717,45 @@ export function MyBookingsScreen({ navigation }) {
               {b.status === 'Confirmed' && (
                 <Btn 
                   label="💳 Pay Now" 
-                  onPress={() => {
-                    if (!b.payoutDetails || (b.payoutDetails.upiId === 'Not Configured' && b.payoutDetails.bankName === 'Not Configured')) {
+                  onPress={async () => {
+                    const driverId = b.driverUid || '';
+                    let upiId = 'Not Configured';
+                    let bankName = 'Not Configured';
+                    let accountNumber = 'Not Configured';
+                    let ifsc = 'Not Configured';
+
+                    if (driverId) {
+                      try {
+                        const uSnap = await get(ref(db, `users/${driverId}/profile`));
+                        if (uSnap.exists()) {
+                          const uData = uSnap.val();
+                          upiId = uData.selectedUpiId || (uData.upiAccounts && uData.upiAccounts[0]?.id) || 'Not Configured';
+                          bankName = (uData.bankAccounts && uData.bankAccounts[0]?.bankName) || (uData.bankAccounts && uData.bankAccounts[0]?.label) || 'Not Configured';
+                          accountNumber = (uData.bankAccounts && uData.bankAccounts[0]?.accountNumber) || (uData.bankAccounts && uData.bankAccounts[0]?.number) || 'Not Configured';
+                          ifsc = (uData.bankAccounts && uData.bankAccounts[0]?.ifsc) || 'Not Configured';
+                        }
+
+                        const dSnap = await get(ref(db, `drivers/${driverId}`));
+                        if (dSnap.exists()) {
+                          const dData = dSnap.val();
+                          if (upiId === 'Not Configured' && dData.upiId) upiId = dData.upiId;
+                          if (bankName === 'Not Configured' && dData.bankName) bankName = dData.bankName;
+                          if (accountNumber === 'Not Configured' && dData.accountNumber) accountNumber = dData.accountNumber;
+                          if (ifsc === 'Not Configured' && dData.ifsc) ifsc = dData.ifsc;
+                        }
+
+                        if (upiId !== 'Not Configured' || bankName !== 'Not Configured') {
+                          // Sync to firebase bookings table dynamically
+                          await update(ref(db, `bookings/${b.id}`), {
+                            payoutDetails: { upiId, bankName, accountNumber, ifsc }
+                          });
+                        }
+                      } catch (err) {
+                        console.log('Error verifying payment account details:', err);
+                      }
+                    }
+
+                    if (upiId === 'Not Configured' && bankName === 'Not Configured') {
                       if (Platform.OS === 'web') {
                         alert('⚠️ Payment Unavailable\n\nNo bank details added by the driver. The driver must configure their payment methods in settings before payment can be processed.');
                       } else {
@@ -726,6 +763,7 @@ export function MyBookingsScreen({ navigation }) {
                       }
                       return;
                     }
+
                     navigation.navigate('Payment', {
                       bookingId: b.id,
                       cost: b.cost || b.amount || 12000,
@@ -734,8 +772,8 @@ export function MyBookingsScreen({ navigation }) {
                       material: b.material,
                       weight: b.weight,
                       transport: b.transport,
-                      driverId: b.driverUid,
-                      payoutDetails: b.payoutDetails,
+                      driverId: driverId,
+                      payoutDetails: { upiId, bankName, accountNumber, ifsc },
                     });
                   }}
                   style={{ marginTop: 10, marginBottom: 0, paddingVertical: 8 }}
@@ -2048,7 +2086,44 @@ export function NotificationsScreen({ navigation }) {
       const bookingSnap = await get(ref(db, `bookings/${n.bookingId}`));
       if (bookingSnap.exists()) {
         const b = bookingSnap.val();
-        if (!b.payoutDetails || (b.payoutDetails.upiId === 'Not Configured' && b.payoutDetails.bankName === 'Not Configured')) {
+        const driverId = b.driverUid || '';
+        let upiId = 'Not Configured';
+        let bankName = 'Not Configured';
+        let accountNumber = 'Not Configured';
+        let ifsc = 'Not Configured';
+
+        if (driverId) {
+          try {
+            const uSnap = await get(ref(db, `users/${driverId}/profile`));
+            if (uSnap.exists()) {
+              const uData = uSnap.val();
+              upiId = uData.selectedUpiId || (uData.upiAccounts && uData.upiAccounts[0]?.id) || 'Not Configured';
+              bankName = (uData.bankAccounts && uData.bankAccounts[0]?.bankName) || (uData.bankAccounts && uData.bankAccounts[0]?.label) || 'Not Configured';
+              accountNumber = (uData.bankAccounts && uData.bankAccounts[0]?.accountNumber) || (uData.bankAccounts && uData.bankAccounts[0]?.number) || 'Not Configured';
+              ifsc = (uData.bankAccounts && uData.bankAccounts[0]?.ifsc) || 'Not Configured';
+            }
+
+            const dSnap = await get(ref(db, `drivers/${driverId}`));
+            if (dSnap.exists()) {
+              const dData = dSnap.val();
+              if (upiId === 'Not Configured' && dData.upiId) upiId = dData.upiId;
+              if (bankName === 'Not Configured' && dData.bankName) bankName = dData.bankName;
+              if (accountNumber === 'Not Configured' && dData.accountNumber) accountNumber = dData.accountNumber;
+              if (ifsc === 'Not Configured' && dData.ifsc) ifsc = dData.ifsc;
+            }
+
+            if (upiId !== 'Not Configured' || bankName !== 'Not Configured') {
+              // Sync to firebase bookings table dynamically
+              await update(ref(db, `bookings/${n.bookingId}`), {
+                payoutDetails: { upiId, bankName, accountNumber, ifsc }
+              });
+            }
+          } catch (err) {
+            console.log('Error verifying payment account details:', err);
+          }
+        }
+
+        if (upiId === 'Not Configured' && bankName === 'Not Configured') {
           if (Platform.OS === 'web') {
             alert('⚠️ Payment Unavailable\n\nNo bank details added by the driver. The driver must configure their payment methods in settings before payment can be processed.');
           } else {
@@ -2056,6 +2131,7 @@ export function NotificationsScreen({ navigation }) {
           }
           return;
         }
+
         navigation.navigate('Payment', {
           bookingId: n.bookingId,
           cost: b.cost,
@@ -2064,8 +2140,8 @@ export function NotificationsScreen({ navigation }) {
           material: b.material,
           weight: b.weight,
           transport: b.transport,
-          driverId: b.driverUid,
-          payoutDetails: b.payoutDetails,
+          driverId: driverId,
+          payoutDetails: { upiId, bankName, accountNumber, ifsc },
         });
       } else {
         Alert.alert('Error', 'Could not locate booking details.');
