@@ -1150,7 +1150,10 @@ export function FleetScreen({ navigation }) {
                     <Text style={{ fontSize: 14, fontWeight: '700', color: colors.text }}>{v.vehicleId || 'Vehicle pending'}</Text>
                     <Text style={{ fontSize: 12, color: colors.sub }}>{v.driverName || 'Driver'}</Text>
                   </View>
-                  <Badge label={v.status === 'confirmed' ? 'Payment Pending' : 'In Transit'} type={v.status === 'confirmed' ? 'yellow' : 'green'} />
+                  <Badge 
+                    label={v.status === 'confirmed' ? 'Payment Pending' : v.status === 'loaded' ? 'Cargo Loaded' : 'In Transit'} 
+                    type={v.status === 'confirmed' ? 'yellow' : v.status === 'loaded' ? 'blue' : 'green'} 
+                  />
                   <TouchableOpacity onPress={() => handleDeleteBooking(v.id)} style={{ padding: 6, marginLeft: 4 }}>
                     <Text style={{ fontSize: 16, color: colors.red, fontWeight: '900' }}>✕</Text>
                   </TouchableOpacity>

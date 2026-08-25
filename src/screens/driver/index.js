@@ -8,6 +8,7 @@ import { Btn, Card, StatCard, Badge, SectionLabel, BackBtn, BottomNav, Input } f
 import { db, auth } from '../../config/firebase';
 import { ref, set, get, push, update, onValue, off } from 'firebase/database';
 import { onAuthStateChanged } from 'firebase/auth';
+import { getCityDetails, calculateDistance } from '../../data';
 
 const screen = (pt = 60) => ({ padding: 20, paddingTop: pt, flexGrow: 1 });
 const h1 = { fontSize: 22, fontWeight: '900', color: colors.text, letterSpacing: -0.5, marginBottom: 4 };
@@ -775,13 +776,13 @@ export function MyTripsScreen({ navigation }) {
         if (!snap.exists()) { setTrips([]); setLoading(false); return; }
         const bookingsData = snap.val();
         const activeTrips = Object.values(bookingsData)
-          .filter(b => b.driverUid === uid && (b.status === 'confirmed' || b.status === 'paid' || b.status === 'In Transit' || b.status === 'Delivered'))
+          .filter(b => b.driverUid === uid && (b.status === 'confirmed' || b.status === 'paid' || b.status === 'loaded' || b.status === 'In Transit' || b.status === 'in_transit' || b.status === 'Delivered' || b.status === 'Completed'))
           .map(b => ({
             id: b.id,
             from: b.from,
             to: b.to,
             date: b.createdAt ? new Date(b.createdAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' }) : 'Today',
-            status: b.status === 'paid' ? 'Paid (Ready to Depart)' : b.status === 'confirmed' ? 'Confirmed (Pending Payment)' : b.status === 'In Transit' ? 'In Transit' : b.status || 'Confirmed',
+            status: b.status === 'paid' ? 'Paid (Ready to Load)' : b.status === 'loaded' ? 'Cargo Loaded (Ready to Depart)' : b.status === 'confirmed' ? 'Confirmed (Pending Payment)' : (b.status === 'In Transit' || b.status === 'in_transit') ? 'In Transit' : (b.status === 'Completed' || b.status === 'Delivered') ? 'Completed' : b.status || 'Confirmed',
             earnings: b.cost || b.amount || 0,
             km: b.distance || b.distKm || 0,
             material: b.material || 'Cargo',
@@ -795,9 +796,10 @@ export function MyTripsScreen({ navigation }) {
   }, []);
 
   const statusColor = { 
-    'Paid (Ready to Depart)': colors.green, 
+    'Paid (Ready to Load)': colors.green, 
+    'Cargo Loaded (Ready to Depart)': colors.blue, 
     'Confirmed (Pending Payment)': colors.yellow, 
-    'In Transit': colors.blue, 
+    'In Transit': colors.orange, 
     'Completed': colors.green, 
     'Cancelled': colors.red 
   };
@@ -844,30 +846,77 @@ export function MyTripsScreen({ navigation }) {
 // S21 — Trip Detail
 // ═══════════════════════════════════════════════════════════════
 export function TripDetailScreen({ navigation, route }) {
-  const trip = route?.params?.trip || {};
+  const tripParam = route?.params?.trip || {};
+  const [booking, setBooking] = useState(null);
+
+  useEffect(() => {
+    if (!tripParam.id) return;
+    const bRef = ref(db, `bookings/${tripParam.id}`);
+    const unsub = onValue(bRef, (snap) => {
+      if (snap.exists()) {
+        setBooking(snap.val());
+      }
+    });
+    return unsub;
+  }, [tripParam.id]);
+
+  const currentStatus = booking?.status || tripParam.status || 'confirmed';
+  const location = booking?.location || null;
+
+  // Compute distance to destination
+  let distanceToDestText = '';
+  let isWithin10km = false;
+  let currentDistKm = null;
+  if (tripParam.to) {
+    try {
+      const destCoords = getCityDetails(tripParam.to).coords; // [lng, lat]
+      if (location?.lat && location?.lng) {
+        currentDistKm = calculateDistance(location.lng, location.lat, destCoords[0], destCoords[1]);
+        isWithin10km = currentDistKm <= 10;
+        distanceToDestText = `${currentDistKm.toFixed(1)} km away from destination`;
+      } else {
+        distanceToDestText = 'Waiting for driver GPS location...';
+      }
+    } catch(e) {}
+  }
+
+  const statusMapping = {
+    'confirmed': 'Confirmed (Pending Payment)',
+    'paid': 'Paid (Ready to Load Cargo)',
+    'loaded': 'Cargo Loaded (Ready to Depart)',
+    'In Transit': '🛣️ Dispatched / In Transit',
+    'in_transit': '🛣️ Dispatched / In Transit',
+    'Completed': '✅ Completed',
+    'Delivered': '✅ Completed'
+  };
+
   const statusColor = { 
-    'Paid (Ready to Depart)': colors.green, 
     'Confirmed (Pending Payment)': colors.yellow, 
-    'In Transit': colors.blue, 
-    'Completed': colors.green, 
+    'Paid (Ready to Load Cargo)': colors.green, 
+    'Cargo Loaded (Ready to Depart)': colors.blue, 
+    '🛣️ Dispatched / In Transit': colors.orange, 
+    '✅ Completed': colors.green,
     'Cancelled': colors.red 
   };
+
+  const displayStatus = statusMapping[currentStatus] || currentStatus;
+
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: colors.bg }}>
       <ScrollView contentContainerStyle={screen()}>
         <BackBtn onPress={() => navigation.goBack()} />
         <Text style={h1}>Trip Detail</Text>
         <Card style={{ marginBottom: 16 }}>
-          <Text style={{ fontSize: fonts.xl, fontWeight: '900', color: colors.text, marginBottom: 4 }}>{trip.from} → {trip.to}</Text>
+          <Text style={{ fontSize: fonts.xl, fontWeight: '900', color: colors.text, marginBottom: 4 }}>{tripParam.from} → {tripParam.to}</Text>
           <View style={{ flexDirection: 'row', marginVertical: 6 }}>
-            <Badge label={trip.status || 'Confirmed'} color={statusColor[trip.status] || colors.green} />
+            <Badge label={displayStatus} color={statusColor[displayStatus] || colors.green} />
           </View>
           {[
-            ['Shipper Company', trip.companyName || 'Uri Logistics'],
-            ['Material', trip.material], 
-            ['Date', trip.date], 
-            ['Distance', `${trip.km} km`], 
-            ['Earnings', `₹${trip.earnings?.toLocaleString()}`]
+            ['Shipper Company', tripParam.companyName || 'Uri Logistics'],
+            ['Material', tripParam.material], 
+            ['Date', tripParam.date], 
+            ['Distance', `${tripParam.km} km`], 
+            ['Earnings', `₹${tripParam.earnings?.toLocaleString()}`]
           ].map(([k, v]) => (
             <View key={k} style={{ flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 10, borderBottomWidth: 1, borderColor: colors.border }}>
               <Text style={{ color: colors.textSub, fontSize: fonts.sm }}>{k}</Text>
@@ -875,23 +924,72 @@ export function TripDetailScreen({ navigation, route }) {
             </View>
           ))}
         </Card>
-        {(trip.status === 'Paid (Ready to Depart)' || trip.status === 'In Transit') && (
+
+        {/* Step-by-step Driver Flow Actions */}
+        {currentStatus === 'paid' && (
           <Btn 
-            label={trip.status === 'In Transit' ? "🧭 Continue Navigation" : "🧭 Start Trip & Navigation"}
+            label="📦 Confirm Cargo Loaded"
             onPress={async () => {
-              if (trip.status === 'Paid (Ready to Depart)') {
-                try {
-                  await update(ref(db, `bookings/${trip.id}`), { status: 'paid' });
-                } catch(e) {}
+              try {
+                await update(ref(db, `bookings/${tripParam.id}`), { status: 'loaded' });
+              } catch(e) {
+                console.log('Error marking cargo loaded:', e);
               }
+            }}
+            style={{ marginTop: 8 }}
+          />
+        )}
+
+        {currentStatus === 'loaded' && (
+          <Btn 
+            label="🧭 Start Transit / Navigation"
+            onPress={async () => {
+              try {
+                await update(ref(db, `bookings/${tripParam.id}`), { status: 'In Transit' });
+              } catch(e) {}
               navigation.navigate('RouteMap', { 
-                bookingId: trip.id, 
-                source: trip.from, 
-                destination: trip.to 
+                bookingId: tripParam.id, 
+                source: tripParam.from, 
+                destination: tripParam.to 
               });
             }}
             style={{ marginTop: 8 }}
           />
+        )}
+
+        {(currentStatus === 'In Transit' || currentStatus === 'in_transit') && (
+          <>
+            <Btn 
+              label="🧭 Continue Navigation Map"
+              onPress={() => {
+                navigation.navigate('RouteMap', { 
+                  bookingId: tripParam.id, 
+                  source: tripParam.from, 
+                  destination: tripParam.to 
+                });
+              }}
+              style={{ marginTop: 8 }}
+              variant="outline"
+            />
+
+            <View style={{ marginTop: 16, padding: 12, borderRadius: radius.md, backgroundColor: colors.border, borderWidth: 1, borderColor: colors.border, alignItems: 'center' }}>
+              <Text style={{ fontSize: fonts.xs, color: colors.textSub, marginBottom: 4 }}>📍 Destination Proximity Check:</Text>
+              <Text style={{ fontSize: fonts.sm, fontWeight: '700', color: isWithin10km ? colors.green : colors.textSub }}>{distanceToDestText}</Text>
+            </View>
+
+            <Btn 
+              label={isWithin10km ? "✅ Mark as Completed / Delivered" : `🔒 Complete Trip (Only within 10km)`}
+              disabled={!isWithin10km}
+              onPress={async () => {
+                try {
+                  await update(ref(db, `bookings/${tripParam.id}`), { status: 'Completed' });
+                } catch(e) {
+                  console.log('Error completing trip:', e);
+                }
+              }}
+              style={{ marginTop: 8, backgroundColor: isWithin10km ? colors.green : '#BDC1C6' }}
+            />
+          </>
         )}
       </ScrollView>
     </SafeAreaView>
