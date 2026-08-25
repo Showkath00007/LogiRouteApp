@@ -419,7 +419,7 @@ export function listenActiveBookingForDriver(driverUid, callback) {
   const handler = (snap) => {
     if (!snap.exists()) { callback(null); return; }
     const active = Object.values(snap.val())
-      .find(b => b.driverUid === driverUid && (b.status === 'confirmed' || b.status === 'paid' || b.status === 'loaded'));
+      .find(b => b.driverUid === driverUid && (b.status === 'confirmed' || b.status === 'paid' || b.status === 'loaded' || b.status === 'In Transit' || b.status === 'in_transit'));
     callback(active || null);
   };
   onValue(r, handler, (err) => console.warn('listenActiveBookingForDriver error:', err));
@@ -442,7 +442,7 @@ export function listenCompanyFleet(callback) {
     if (!user) { callback([]); return; }
 
     const fleet = Object.values(bookingsData)
-      .filter(b => b.companyUid === user.uid && (b.status === 'confirmed' || b.status === 'paid' || b.status === 'loaded'))
+      .filter(b => b.companyUid === user.uid && (b.status === 'confirmed' || b.status === 'paid' || b.status === 'loaded' || b.status === 'In Transit' || b.status === 'in_transit'))
       .map(b => {
         const driver = (driversData && driversData[b.driverUid]) || {};
         return {

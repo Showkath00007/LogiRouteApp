@@ -31,6 +31,7 @@ export function CompanyDashboard({ navigation }) {
   const [profile, setProfile] = useState(null);
   const [truckPos, setTruckPos] = useState(0);
   const [simulatedCargo, setSimulatedCargo] = useState(false);
+  const [fleet, setFleet] = useState([]);
 
   useEffect(() => {
     const timer = setInterval(() => {
@@ -76,7 +77,16 @@ export function CompanyDashboard({ navigation }) {
     return unsub;
   }, []);
 
-  const activeShipment = shipments.find(s => s.status === 'In Transit') || (simulatedCargo ? {
+  useEffect(() => {
+    const unsub = listenCompanyFleet(data => {
+      setFleet(data);
+    });
+    return unsub;
+  }, []);
+
+  const activeFleetBooking = fleet.find(f => f.status === 'paid' || f.status === 'loaded' || f.status === 'In Transit' || f.status === 'in_transit');
+  
+  const activeShipment = shipments.find(s => s.status === 'In Transit') || activeFleetBooking || (simulatedCargo ? {
     id: 'sim_8942',
     from: 'Chennai Hub',
     to: 'Mumbai Port',
@@ -274,12 +284,23 @@ export function CompanyDashboard({ navigation }) {
                   Active Cargo: {activeShipment.id.startsWith('sim') ? 'LR-SIM8942' : `LR-${activeShipment.id.substring(0, 4).toUpperCase()}`}
                 </Text>
                 <Text style={{ fontSize: 11, color: colors.textSub, marginTop: 2 }}>
-                  Route: {activeShipment.from} ➔ {activeShipment.to}
+                  Route: {activeShipment.from.split(',')[0].trim()} ➔ {activeShipment.to.split(',')[0].trim()}
                 </Text>
               </View>
               <View style={{ alignItems: 'flex-end', gap: 6 }}>
-                <View style={{ backgroundColor: colors.accentLight, paddingHorizontal: 8, paddingVertical: 3, borderRadius: 6 }}>
-                  <Text style={{ fontSize: 11, fontWeight: '800', color: colors.accent }}>IN TRANSIT</Text>
+                <View style={{ 
+                  backgroundColor: activeShipment.status === 'paid' ? colors.yellow + '15' : activeShipment.status === 'loaded' ? colors.blue + '15' : colors.accentLight, 
+                  paddingHorizontal: 8, 
+                  paddingVertical: 3, 
+                  borderRadius: 6 
+                }}>
+                  <Text style={{ 
+                    fontSize: 11, 
+                    fontWeight: '800', 
+                    color: activeShipment.status === 'paid' ? colors.yellow : activeShipment.status === 'loaded' ? colors.blue : colors.accent 
+                  }}>
+                    {activeShipment.status === 'paid' ? 'READY TO LOAD' : activeShipment.status === 'loaded' ? 'READY TO DEPART' : 'IN TRANSIT'}
+                  </Text>
                 </View>
                 {activeShipment.id.startsWith('sim') && (
                   <TouchableOpacity onPress={() => setSimulatedCargo(false)}>
@@ -298,15 +319,15 @@ export function CompanyDashboard({ navigation }) {
               {/* Checkpoint Nodes */}
               <View style={{ position: 'absolute', left: 0, width: 12, height: 12, borderRadius: 6, backgroundColor: colors.accent, borderWidth: 2, borderColor: colors.surface }} />
               <Text style={{ position: 'absolute', left: -4, top: 22, fontSize: 10, fontWeight: '700', color: colors.text }}>
-                {activeShipment.from.substring(0, 3).toUpperCase()}
+                {activeShipment.from.split(',')[0].trim().substring(0, 3).toUpperCase()}
               </Text>
 
               <View style={{ position: 'absolute', left: '50%', marginLeft: -6, width: 12, height: 12, borderRadius: 6, backgroundColor: truckPos >= 50 ? colors.accent : colors.border, borderWidth: 2, borderColor: colors.surface }} />
-              <Text style={{ position: 'absolute', left: '46%', top: 22, fontSize: 10, fontWeight: '700', color: colors.textSub }}>BLR</Text>
+              <Text style={{ position: 'absolute', left: '46%', top: 22, fontSize: 10, fontWeight: '700', color: colors.textSub }}>MID</Text>
 
               <View style={{ position: 'absolute', right: 0, width: 12, height: 12, borderRadius: 6, backgroundColor: truckPos >= 100 ? colors.accent : colors.border, borderWidth: 2, borderColor: colors.surface }} />
               <Text style={{ position: 'absolute', right: -4, top: 22, fontSize: 10, fontWeight: '700', color: colors.textSub }}>
-                {activeShipment.to.substring(0, 3).toUpperCase()}
+                {activeShipment.to.split(',')[0].trim().substring(0, 3).toUpperCase()}
               </Text>
 
               <View style={{ position: 'absolute', left: `${truckPos}%`, marginLeft: -12, top: -10 }}>
@@ -318,11 +339,15 @@ export function CompanyDashboard({ navigation }) {
             <View style={{ flexDirection: 'row', justifyContent: 'space-between', borderTopWidth: 1.5, borderColor: colors.border, paddingTop: 12, marginTop: 8 }}>
               <View style={{ alignItems: 'center' }}>
                 <Text style={{ fontSize: 11, color: colors.textMuted }}>SPEED</Text>
-                <Text style={{ fontSize: 13, fontWeight: '800', color: colors.text }}>64 km/h</Text>
+                <Text style={{ fontSize: 13, fontWeight: '800', color: colors.text }}>
+                  {activeShipment.location?.speed ? `${activeShipment.location.speed} km/h` : activeShipment.status === 'paid' || activeShipment.status === 'loaded' ? '0 km/h' : '60 km/h'}
+                </Text>
               </View>
               <View style={{ alignItems: 'center' }}>
                 <Text style={{ fontSize: 11, color: colors.textMuted }}>ETA</Text>
-                <Text style={{ fontSize: 13, fontWeight: '800', color: colors.text }}>2.5 hrs</Text>
+                <Text style={{ fontSize: 13, fontWeight: '800', color: colors.text }}>
+                  {activeShipment.location ? `${(calculateDistance(activeShipment.location.lng, activeShipment.location.lat, getCityDetails(activeShipment.to).coords[0], getCityDetails(activeShipment.to).coords[1]) / 50).toFixed(1)} hrs` : '2.5 hrs'}
+                </Text>
               </View>
               <View style={{ alignItems: 'center' }}>
                 <Text style={{ fontSize: 11, color: colors.textMuted }}>WEATHER</Text>
