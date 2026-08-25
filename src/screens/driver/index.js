@@ -526,6 +526,7 @@ export function DriverProfileSetup({ navigation }) {
   const [form, setForm] = useState({
     name: '', phone: '', license: '', vehicle: '', vehicleModel: '',
     vehicleType: 'Heavy', experience: '', city: '', address: '',
+    upiId: '', bankName: '', accountNumber: '', ifsc: '',
   });
   const [saving, setSaving] = useState(false);
   const vehicleTypes = ['Light', 'Medium', 'Heavy', 'Container'];
@@ -546,6 +547,10 @@ export function DriverProfileSetup({ navigation }) {
         experience: p.experience || '',
         city: p.city || '',
         address: p.address || '',
+        upiId: p.upiId || '',
+        bankName: p.bankName || '',
+        accountNumber: p.accountNumber || '',
+        ifsc: p.ifsc || '',
       }));
     });
   }, []);
@@ -570,6 +575,19 @@ export function DriverProfileSetup({ navigation }) {
     };
     try {
       await set(ref(db, `drivers/${uid}`), profileData);
+      
+      // Also sync directly to users/${uid}/profile node for checkout validation!
+      await update(ref(db, `users/${uid}/profile`), {
+        name: form.name,
+        phone: form.phone,
+        city: form.city,
+        type: 'driver',
+        selectedUpiId: form.upiId,
+        upiAccounts: [{ id: form.upiId, label: 'UPI Payout', app: 'UPI', primary: true, icon: '📱' }],
+        bankAccounts: [{ id: 'bank_payout', label: 'Bank Payout', bankName: form.bankName, accountNumber: form.accountNumber, ifsc: form.ifsc, icon: '🏦' }],
+        updatedAt: Date.now(),
+      });
+
       Alert.alert(
         '✅ Profile Saved!',
         'Your details have been submitted for admin approval. You will be notified once approved.',
@@ -613,6 +631,12 @@ export function DriverProfileSetup({ navigation }) {
             </TouchableOpacity>
           ))}
         </View>
+
+        <SectionLabel label="Payout Account Details (For Shipments)" style={{ marginTop: 8 }} />
+        <Input label="UPI ID" placeholder="e.g. name@okaxis" value={form.upiId} onChangeText={v => set_('upiId', v)} />
+        <Input label="Bank Name" placeholder="e.g. State Bank of India, HDFC" value={form.bankName} onChangeText={v => set_('bankName', v)} />
+        <Input label="Account Number" placeholder="Enter bank account number" value={form.accountNumber} onChangeText={v => set_('accountNumber', v)} keyboardType="numeric" />
+        <Input label="IFSC Code" placeholder="e.g. SBIN0001234" value={form.ifsc} onChangeText={v => set_('ifsc', v)} autoCapitalize="characters" />
 
         <View style={{ backgroundColor: colors.blue + '12', borderRadius: 12, padding: 14, marginBottom: 20, borderWidth: 1, borderColor: colors.blue + '30' }}>
           <Text style={{ fontSize: fonts.sm, fontWeight: '700', color: colors.blue, marginBottom: 4 }}>📋 What happens next?</Text>
