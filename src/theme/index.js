@@ -5,11 +5,11 @@
 
 export const colors = {
   // ── Backgrounds ──────────────────────────────────────────
-  bg: '#FAF6EE',           // Warm Premium Cream bg
-  surface: '#FFFFFF',      // White cards
-  card: '#FFFFFF',
-  surface2: '#F4EFE6',     // soft cream/beige
-  border: '#EAE3D2',       // warm beige separator lines
+  bg: '#FDFBF7',           // Clean Light Ivory bg
+  surface: '#FAF6EE',      // Rich Creamy Beige cards
+  card: '#FAF6EE',
+  surface2: '#FAF0E1',     // soft sand gray
+  border: '#E3DAC9',       // warm sand border
 
   // ── Primary Brand Colors ──────────────────────────────────
   accent: '#4F46E5',       // modern Indigo accent
