@@ -89,13 +89,22 @@ export function decodeVehicleNumber(num = '', driver = null) {
   return { make, rto: rtoCity, state };
 }
 
+let lastLoggedInDriverUid = null;
+
 function getDriverUid() {
-  return auth.currentUser?.uid || 'demo_driver';
+  if (auth.currentUser?.uid) {
+    // Basic verification: if current user is logged in, cache it
+    lastLoggedInDriverUid = auth.currentUser.uid;
+  }
+  return lastLoggedInDriverUid || 'demo_driver';
 }
 
 // ── Helper: get/save driver profile from Firebase ─────────────
 async function getDriverProfile() {
   const uid = getDriverUid();
+  if (uid && uid !== 'demo_driver') {
+    lastLoggedInDriverUid = uid;
+  }
   try {
     const snap = await get(ref(db, `drivers/${uid}`));
     let profile = snap.exists() ? snap.val() : null;
@@ -139,19 +148,51 @@ async function saveDriverProfile(data) {
   }
 }
 
-// ── Listen to booking requests for this driver ────────────────
 function listenBookingRequests(driverUid, callback) {
   if (!driverUid) return () => {};
-  const r = ref(db, `driverNotifications/${driverUid}`);
-  const handler = (snap) => {
-    if (!snap.exists()) { callback([]); return; }
-    const list = Object.values(snap.val())
-      .filter(n => n.type === 'booking_request' || n.type === 'payment_received' || n.type === 'booking_accepted')
-      .sort((a, b) => b.createdAt - a.createdAt);
-    callback(list);
+  
+  let mainList = [];
+  let fallbackList = [];
+  
+  const mergeAndCallback = () => {
+    const combined = [...mainList, ...fallbackList];
+    const seen = new Set();
+    const unique = [];
+    for (const item of combined) {
+      if (item && item.id && !seen.has(item.id)) {
+        seen.add(item.id);
+        unique.push(item);
+      }
+    }
+    unique.sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
+    callback(unique);
   };
-  onValue(r, handler, (err) => console.warn('listenBookingRequests error:', err));
-  return () => off(r);
+
+  const r1 = ref(db, `driverNotifications/${driverUid}`);
+  const unsub1 = onValue(r1, snap => {
+    if (!snap.exists()) { mainList = []; }
+    else {
+      mainList = Object.values(snap.val()).filter(n => n.type === 'booking_request' || n.type === 'payment_received' || n.type === 'booking_accepted');
+    }
+    mergeAndCallback();
+  });
+
+  let unsub2 = () => {};
+  if (driverUid !== 'demo_driver') {
+    const r2 = ref(db, `driverNotifications/demo_driver`);
+    unsub2 = onValue(r2, snap => {
+      if (!snap.exists()) { fallbackList = []; }
+      else {
+        fallbackList = Object.values(snap.val()).filter(n => n.type === 'booking_request' || n.type === 'payment_received' || n.type === 'booking_accepted');
+      }
+      mergeAndCallback();
+    });
+  }
+
+  return () => {
+    unsub1();
+    unsub2();
+  };
 }
 
 async function respondToBooking(bookingId, driverUid, accepted) {
@@ -866,12 +907,44 @@ export function JobsScreen({ navigation }) {
     getLocation();
     const uid = getDriverUid();
     // Listen to direct booking requests
+    let mainList = [];
+    let fallbackList = [];
+    const mergeAndSet = () => {
+      const combined = [...mainList, ...fallbackList];
+      const seen = new Set();
+      const unique = [];
+      for (const item of combined) {
+        if (item && item.id && !seen.has(item.id)) {
+          seen.add(item.id);
+          unique.push(item);
+        }
+      }
+      unique.sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
+      setRequests(unique);
+      setLoading(false);
+    };
+
     const r1 = ref(db, `driverNotifications/${uid}`);
     onValue(r1, snap => {
-      if (!snap.exists()) { setRequests([]); setLoading(false); return; }
-      const list = Object.values(snap.val()).filter(n => n.type === 'booking_request' || n.type === 'payment_received' || n.type === 'booking_accepted').sort((a,b) => b.createdAt - a.createdAt);
-      setRequests(list); setLoading(false);
-    }, () => { setRequests([]); setLoading(false); });
+      if (!snap.exists()) { mainList = []; }
+      else {
+        mainList = Object.values(snap.val()).filter(n => n.type === 'booking_request' || n.type === 'payment_received' || n.type === 'booking_accepted');
+      }
+      mergeAndSet();
+    }, () => { mainList = []; mergeAndSet(); });
+
+    let rFallback = null;
+    if (uid !== 'demo_driver') {
+      rFallback = ref(db, `driverNotifications/demo_driver`);
+      onValue(rFallback, snap => {
+        if (!snap.exists()) { fallbackList = []; }
+        else {
+          fallbackList = Object.values(snap.val()).filter(n => n.type === 'booking_request' || n.type === 'payment_received' || n.type === 'booking_accepted');
+        }
+        mergeAndSet();
+      }, () => { fallbackList = []; mergeAndSet(); });
+    }
+
     // Listen to job board
     const r2 = ref(db, 'jobs');
     onValue(r2, snap => {
@@ -879,7 +952,11 @@ export function JobsScreen({ navigation }) {
       setJobBoard(Object.values(snap.val()).filter(j => j.status === 'open').sort((a,b) => b.createdAt - a.createdAt));
     });
     setTimeout(() => setLoading(false), 3000);
-    return () => { off(r1); off(r2); };
+    return () => {
+      off(r1);
+      if (rFallback) off(rFallback);
+      off(r2);
+    };
   }, []);
 
   const nearbyJobs = jobBoard.filter(job => {

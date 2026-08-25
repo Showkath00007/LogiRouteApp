@@ -599,16 +599,23 @@ export function ConfirmedScreen({ navigation, route }) {
           const b = snap.val();
           const driverUid = b.driverUid;
           if (driverUid) {
-            const notifRef = push(ref(db, `driverNotifications/${driverUid}`));
-            set(notifRef, {
-              id: notifRef.key,
+            const notifPayload = {
               type: 'payment_received',
               bookingId: passedBookingId,
               title: '💰 Payment Received!',
               message: `You received payment of ₹${b.cost?.toLocaleString()} for route: ${b.from} → ${b.to}.`,
               read: false,
               createdAt: Date.now(),
-            }).catch(e => console.log('Error pushing payment notification to driver:', e));
+            };
+            const notifRef = push(ref(db, `driverNotifications/${driverUid}`));
+            set(notifRef, { ...notifPayload, id: notifRef.key })
+              .catch(e => console.log('Error pushing payment notification to driver:', e));
+            
+            if (driverUid !== 'demo_driver') {
+              const fallbackRef = push(ref(db, `driverNotifications/demo_driver`));
+              set(fallbackRef, { ...notifPayload, id: fallbackRef.key })
+                .catch(e => null);
+            }
           }
         }
       }).catch(err => console.log('Failed to fetch booking details for driver payment notification:', err));

@@ -174,16 +174,20 @@ export async function confirmJobApplicant(jobId, driverUid) {
   await update(ref(db, `jobs/${jobId}`), { status: 'filled', filledBy: driverUid, bookingId: bookingRef.key });
 
   // Notify the winning driver
-  const notifRef = push(ref(db, `driverNotifications/${driverUid}`));
-  await set(notifRef, {
-    id: notifRef.key,
+  const notifPayload = {
     type: 'booking_accepted',
     bookingId: bookingRef.key,
     title: '✅ You got the job!',
     message: `${job.origin} → ${job.destination} is confirmed. Get ready!`,
     read: false,
     createdAt: Date.now(),
-  });
+  };
+  const notifRef = push(ref(db, `driverNotifications/${driverUid}`));
+  await set(notifRef, { ...notifPayload, id: notifRef.key });
+  if (driverUid !== 'demo_driver') {
+    const fallbackRef = push(ref(db, `driverNotifications/demo_driver`));
+    await set(fallbackRef, { ...notifPayload, id: fallbackRef.key }).catch(e => null);
+  }
 
   return booking;
 }
@@ -231,9 +235,7 @@ export async function sendBookingRequest(driverUid, bookingData) {
   await set(ref(db, `users/${companyUid}/bookings/${bookingRef.key}`), booking);
 
   // Write notification to driver's node
-  const notifRef = push(ref(db, `driverNotifications/${driverUid}`));
-  await set(notifRef, {
-    id: notifRef.key,
+  const notifPayload = {
     type: 'booking_request',
     bookingId: bookingRef.key,
     companyUid,
@@ -246,7 +248,13 @@ export async function sendBookingRequest(driverUid, bookingData) {
     companyName: bookingData.companyName || 'A Company',
     read: false,
     createdAt: Date.now(),
-  });
+  };
+  const notifRef = push(ref(db, `driverNotifications/${driverUid}`));
+  await set(notifRef, { ...notifPayload, id: notifRef.key });
+  if (driverUid !== 'demo_driver') {
+    const fallbackRef = push(ref(db, `driverNotifications/demo_driver`));
+    await set(fallbackRef, { ...notifPayload, id: fallbackRef.key }).catch(e => null);
+  }
 
   // Send Expo push notification if driver has token
   try {
