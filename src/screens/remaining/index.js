@@ -262,6 +262,17 @@ export function PaymentScreen({ navigation, route }) {
   const [showWebView, setShowWebView] = useState(false);
   const [method, setMethod] = useState('upi');
   const [processing, setProcessing] = useState(false);
+  const [payoutDetails, setPayoutDetails] = useState(params.payoutDetails || null);
+
+  useEffect(() => {
+    if (params.bookingId) {
+      get(ref(db, `bookings/${params.bookingId}`)).then(snap => {
+        if (snap.exists() && snap.val().payoutDetails) {
+          setPayoutDetails(snap.val().payoutDetails);
+        }
+      }).catch(err => console.warn('Error fetching booking payoutDetails inside PaymentScreen:', err));
+    }
+  }, [params.bookingId]);
 
   const RAZORPAY_KEY = 'rzp_test_TGORQUDc14GslK';
 
@@ -453,6 +464,21 @@ export function PaymentScreen({ navigation, route }) {
             <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
               <Text style={{ fontSize: 14, fontWeight: '800', color: colors.text }}>Total</Text>
               <Text style={{ fontSize: 16, fontWeight: '900', color: colors.accent }}>₹{cost.toLocaleString()}</Text>
+            </View>
+          </Card>
+        )}
+
+        {payoutDetails && (
+          <Card style={{ marginBottom: 16 }}>
+            <SectionLabel label="Driver Payout Details" style={{ marginTop: 0 }} />
+            <Text style={{ fontSize: 13, color: colors.sub, marginBottom: 8 }}>
+              This payment will be settled to the driver using their registered payout accounts:
+            </Text>
+            <View style={{ gap: 6, backgroundColor: colors.surface2 || '#F8FAFC', padding: 12, borderRadius: radius.md, borderWidth: 1, borderColor: colors.border }}>
+              <Text style={{ fontSize: 13, fontWeight: '700', color: colors.text }}>UPI ID: <Text style={{ fontWeight: 'normal', color: colors.sub }}>{payoutDetails.upiId || 'Not Configured'}</Text></Text>
+              <Text style={{ fontSize: 13, fontWeight: '700', color: colors.text }}>Bank Name: <Text style={{ fontWeight: 'normal', color: colors.sub }}>{payoutDetails.bankName || 'Not Configured'}</Text></Text>
+              <Text style={{ fontSize: 13, fontWeight: '700', color: colors.text }}>Account No: <Text style={{ fontWeight: 'normal', color: colors.sub }}>{payoutDetails.accountNumber || 'Not Configured'}</Text></Text>
+              <Text style={{ fontSize: 13, fontWeight: '700', color: colors.text }}>IFSC Code: <Text style={{ fontWeight: 'normal', color: colors.sub }}>{payoutDetails.ifsc || 'Not Configured'}</Text></Text>
             </View>
           </Card>
         )}
