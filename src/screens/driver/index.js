@@ -869,7 +869,7 @@ export function JobsScreen({ navigation }) {
     const r1 = ref(db, `driverNotifications/${uid}`);
     onValue(r1, snap => {
       if (!snap.exists()) { setRequests([]); setLoading(false); return; }
-      const list = Object.values(snap.val()).filter(n => n.type === 'booking_request').sort((a,b) => b.createdAt - a.createdAt);
+      const list = Object.values(snap.val()).filter(n => n.type === 'booking_request' || n.type === 'payment_received').sort((a,b) => b.createdAt - a.createdAt);
       setRequests(list); setLoading(false);
     }, () => { setRequests([]); setLoading(false); });
     // Listen to job board
@@ -965,7 +965,7 @@ export function JobsScreen({ navigation }) {
         </TouchableOpacity>
       </View>
       <View style={{ flexDirection: 'row', backgroundColor: colors.surface, borderBottomWidth: 1, borderBottomColor: colors.border }}>
-        {[['requests','🔔 Requests', requests.filter(r=>!r.responded).length], ['board','📋 Job Board', nearbyJobs.length]].map(([id,label,count]) => (
+        {[['requests','🔔 Requests', requests.filter(r=>r.type === 'booking_request' && !r.responded).length], ['board','📋 Job Board', nearbyJobs.length]].map(([id,label,count]) => (
           <TouchableOpacity key={id} onPress={() => setActiveTab(id)}
             style={{ flex: 1, paddingVertical: 12, alignItems: 'center', borderBottomWidth: 2, borderBottomColor: activeTab===id ? colors.accent : 'transparent' }}>
             <Text style={{ fontSize: fonts.sm, fontWeight: '800', color: activeTab===id ? colors.accent : colors.textSub }}>
@@ -978,34 +978,48 @@ export function JobsScreen({ navigation }) {
         {loading ? (
           <View style={{ alignItems: 'center', marginTop: 40 }}><ActivityIndicator color={colors.accent} size="large" /><Text style={{ color: colors.textSub, marginTop: 12 }}>Loading...</Text></View>
         ) : activeTab === 'requests' ? (
-          requests.filter(r => !r.responded).length === 0 ? (
+          requests.filter(r => (r.type === 'booking_request' && !r.responded) || r.type === 'payment_received').length === 0 ? (
             <View style={{ alignItems: 'center', marginTop: 60 }}>
               <Text style={{ fontSize: 48, marginBottom: 16 }}>📭</Text>
               <Text style={{ fontSize: fonts.lg, fontWeight: '800', color: colors.text }}>No Requests Yet</Text>
               <Text style={{ fontSize: fonts.sm, color: colors.textSub, textAlign: 'center', marginTop: 8 }}>Direct booking requests from companies appear here.</Text>
             </View>
-          ) : requests.filter(r => !r.responded).map((job, i) => (
-            <Card key={job.id||i} style={{ marginBottom: 14, borderColor: job.responded ? colors.border : colors.orange+'44', borderWidth: job.responded ? 1.5 : 2 }}>
-              {!job.responded && <View style={{ backgroundColor: colors.orange+'18', borderRadius: 8, padding: 6, marginBottom: 10, alignItems: 'center' }}><Text style={{ fontSize: fonts.xs, fontWeight: '800', color: colors.orange }}>🔔 ACTION REQUIRED</Text></View>}
-              <Text style={{ fontSize: fonts.md, fontWeight: '900', color: colors.text, marginBottom: 4 }}>{job.from} → {job.to}</Text>
-              <Text style={{ fontSize: fonts.sm, color: colors.textSub, marginBottom: 8 }}>{job.material} · From: {job.companyName || 'Company'}</Text>
-              <View style={{ backgroundColor: colors.accent+'10', borderRadius: 8, padding: 10, marginBottom: 10, flexDirection: 'row', justifyContent: 'space-between' }}>
-                <Text style={{ fontSize: fonts.sm, color: colors.textSub }}>💰 Booking Value</Text>
-                <Text style={{ fontSize: fonts.md, fontWeight: '900', color: colors.accent }}>₹{(job.cost||job.estimatedCost||0).toLocaleString()}</Text>
-              </View>
-              <Text style={{ fontSize: fonts.xs, color: colors.textMuted, marginBottom: 10 }}>{new Date(job.createdAt).toLocaleString('en-IN')}</Text>
-              {job.responded ? (
-                <View style={{ padding: 10, alignItems: 'center', backgroundColor: job.accepted ? colors.green+'15' : colors.red+'15', borderRadius: 8 }}>
-                  <Text style={{ fontWeight: '700', color: job.accepted ? colors.green : colors.red }}>{job.accepted ? '✅ Accepted' : '❌ Declined'}</Text>
+          ) : requests.filter(r => (r.type === 'booking_request' && !r.responded) || r.type === 'payment_received').map((job, i) => {
+            if (job.type === 'payment_received') {
+              return (
+                <Card key={job.id||i} style={{ marginBottom: 14, borderColor: colors.green+'44', borderWidth: 2 }}>
+                  <View style={{ backgroundColor: colors.green+'18', borderRadius: 8, padding: 6, marginBottom: 10, alignItems: 'center' }}>
+                    <Text style={{ fontSize: fonts.xs, fontWeight: '800', color: colors.green }}>💰 PAYMENT CONFIRMED</Text>
+                  </View>
+                  <Text style={{ fontSize: fonts.md, fontWeight: '900', color: colors.text, marginBottom: 4 }}>{job.title}</Text>
+                  <Text style={{ fontSize: fonts.sm, color: colors.textSub, marginBottom: 8 }}>{job.message}</Text>
+                  <Text style={{ fontSize: fonts.xs, color: colors.textMuted }}>{new Date(job.createdAt).toLocaleString('en-IN')}</Text>
+                </Card>
+              );
+            }
+            return (
+              <Card key={job.id||i} style={{ marginBottom: 14, borderColor: job.responded ? colors.border : colors.orange+'44', borderWidth: job.responded ? 1.5 : 2 }}>
+                {!job.responded && <View style={{ backgroundColor: colors.orange+'18', borderRadius: 8, padding: 6, marginBottom: 10, alignItems: 'center' }}><Text style={{ fontSize: fonts.xs, fontWeight: '800', color: colors.orange }}>🔔 ACTION REQUIRED</Text></View>}
+                <Text style={{ fontSize: fonts.md, fontWeight: '900', color: colors.text, marginBottom: 4 }}>{job.from} → {job.to}</Text>
+                <Text style={{ fontSize: fonts.sm, color: colors.textSub, marginBottom: 8 }}>{job.material} · From: {job.companyName || 'Company'}</Text>
+                <View style={{ backgroundColor: colors.accent+'10', borderRadius: 8, padding: 10, marginBottom: 10, flexDirection: 'row', justifyContent: 'space-between' }}>
+                  <Text style={{ fontSize: fonts.sm, color: colors.textSub }}>💰 Booking Value</Text>
+                  <Text style={{ fontSize: fonts.md, fontWeight: '900', color: colors.accent }}>₹{(job.cost||job.estimatedCost||0).toLocaleString()}</Text>
                 </View>
-              ) : (
-                <View style={{ flexDirection: 'row', gap: 8 }}>
-                  <Btn label="✓ Accept" onPress={() => handleRespond(job, true)} style={{ flex: 1 }} />
-                  <Btn label="✗ Decline" onPress={() => handleRespond(job, false)} variant="ghost" style={{ flex: 1 }} />
-                </View>
-              )}
-            </Card>
-          ))
+                <Text style={{ fontSize: fonts.xs, color: colors.textMuted, marginBottom: 10 }}>{new Date(job.createdAt).toLocaleString('en-IN')}</Text>
+                {job.responded ? (
+                  <View style={{ padding: 10, alignItems: 'center', backgroundColor: job.accepted ? colors.green+'15' : colors.red+'15', borderRadius: 8 }}>
+                    <Text style={{ fontWeight: '700', color: job.accepted ? colors.green : colors.red }}>{job.accepted ? '✅ Accepted' : '❌ Declined'}</Text>
+                  </View>
+                ) : (
+                  <View style={{ flexDirection: 'row', gap: 8 }}>
+                    <Btn label="✓ Accept" onPress={() => handleRespond(job, true)} style={{ flex: 1 }} />
+                    <Btn label="✗ Decline" onPress={() => handleRespond(job, false)} variant="ghost" style={{ flex: 1 }} />
+                  </View>
+                )}
+              </Card>
+            );
+          })
         ) : (
           nearbyJobs.length === 0 ? (
             <View style={{ alignItems: 'center', marginTop: 60 }}>
