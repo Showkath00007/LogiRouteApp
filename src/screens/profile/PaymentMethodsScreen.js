@@ -32,7 +32,6 @@ export default function PaymentMethodsScreen({ navigation }) {
   // Form states for manual additions
   const [showAddUpi, setShowAddUpi] = useState(false);
   const [newUpiId, setNewUpiId] = useState('');
-  const [newUpiApp, setNewUpiApp] = useState('');
   const [newUpiPhone, setNewUpiPhone] = useState('');
 
   const [showAddBank, setShowAddBank] = useState(false);
@@ -116,7 +115,7 @@ export default function PaymentMethodsScreen({ navigation }) {
 
   const handleAddUpi = async () => {
     const formattedUpi = newUpiId.trim();
-    const appName = newUpiApp.trim() || 'UPI App';
+    const appName = 'BHIM UPI';
     let phone = newUpiPhone.trim();
 
     if (!formattedUpi) {
@@ -328,14 +327,6 @@ export default function PaymentMethodsScreen({ navigation }) {
               onChangeText={setNewUpiPhone}
               keyboardType="phone-pad"
               style={{ marginBottom: 12 }}
-            />
-
-            <Input
-              label="Provider App Name"
-              placeholder="e.g. PhonePe, GPay, Paytm"
-              value={newUpiApp}
-              onChangeText={setNewUpiApp}
-              style={{ marginBottom: 16 }}
             />
 
             <View style={{ flexDirection: 'row', gap: 10 }}>
