@@ -6,10 +6,10 @@
 export const colors = {
   // ── Backgrounds ──────────────────────────────────────────
   bg: '#FDFBF7',           // Clean Light Ivory bg
-  surface: '#F2EAD9',      // Richer Darker Cream cards
-  card: '#F2EAD9',
-  surface2: '#FAF0E1',     // soft sand gray
-  border: '#E3DAC9',       // warm sand border
+  surface: '#F7B0BB',      // Light Pink card surfaces
+  card: '#F7B0BB',
+  surface2: '#FAECEE',     // soft pink tint
+  border: '#E59DA8',       // rose border line
 
   // ── Primary Brand Colors ──────────────────────────────────
   accent: '#4F46E5',       // modern Indigo accent
