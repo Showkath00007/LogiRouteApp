@@ -146,7 +146,7 @@ function listenBookingRequests(driverUid, callback) {
   const handler = (snap) => {
     if (!snap.exists()) { callback([]); return; }
     const list = Object.values(snap.val())
-      .filter(n => n.type === 'booking_request' || n.type === 'payment_received')
+      .filter(n => n.type === 'booking_request' || n.type === 'payment_received' || n.type === 'booking_accepted')
       .sort((a, b) => b.createdAt - a.createdAt);
     callback(list);
   };
@@ -310,7 +310,7 @@ export function DriverDashboard({ navigation }) {
   );
 
   const pendingRequests = bookingRequests.filter(b => b.type === 'booking_request' && !b.responded);
-  const paymentAlerts = bookingRequests.filter(b => b.type === 'payment_received');
+  const paymentAlerts = bookingRequests.filter(b => b.type === 'payment_received' || b.type === 'booking_accepted');
   const statusColor = { available: colors.green, busy: colors.orange, pending: colors.yellow, offline: colors.textMuted };
 
   return (
@@ -869,7 +869,7 @@ export function JobsScreen({ navigation }) {
     const r1 = ref(db, `driverNotifications/${uid}`);
     onValue(r1, snap => {
       if (!snap.exists()) { setRequests([]); setLoading(false); return; }
-      const list = Object.values(snap.val()).filter(n => n.type === 'booking_request' || n.type === 'payment_received').sort((a,b) => b.createdAt - a.createdAt);
+      const list = Object.values(snap.val()).filter(n => n.type === 'booking_request' || n.type === 'payment_received' || n.type === 'booking_accepted').sort((a,b) => b.createdAt - a.createdAt);
       setRequests(list); setLoading(false);
     }, () => { setRequests([]); setLoading(false); });
     // Listen to job board
@@ -978,18 +978,21 @@ export function JobsScreen({ navigation }) {
         {loading ? (
           <View style={{ alignItems: 'center', marginTop: 40 }}><ActivityIndicator color={colors.accent} size="large" /><Text style={{ color: colors.textSub, marginTop: 12 }}>Loading...</Text></View>
         ) : activeTab === 'requests' ? (
-          requests.filter(r => (r.type === 'booking_request' && !r.responded) || r.type === 'payment_received').length === 0 ? (
+          requests.filter(r => (r.type === 'booking_request' && !r.responded) || r.type === 'payment_received' || r.type === 'booking_accepted').length === 0 ? (
             <View style={{ alignItems: 'center', marginTop: 60 }}>
               <Text style={{ fontSize: 48, marginBottom: 16 }}>📭</Text>
               <Text style={{ fontSize: fonts.lg, fontWeight: '800', color: colors.text }}>No Requests Yet</Text>
               <Text style={{ fontSize: fonts.sm, color: colors.textSub, textAlign: 'center', marginTop: 8 }}>Direct booking requests from companies appear here.</Text>
             </View>
-          ) : requests.filter(r => (r.type === 'booking_request' && !r.responded) || r.type === 'payment_received').map((job, i) => {
-            if (job.type === 'payment_received') {
+          ) : requests.filter(r => (r.type === 'booking_request' && !r.responded) || r.type === 'payment_received' || r.type === 'booking_accepted').map((job, i) => {
+            if (job.type === 'payment_received' || job.type === 'booking_accepted') {
+              const isPayment = job.type === 'payment_received';
               return (
-                <Card key={job.id||i} style={{ marginBottom: 14, borderColor: colors.green+'44', borderWidth: 2 }}>
-                  <View style={{ backgroundColor: colors.green+'18', borderRadius: 8, padding: 6, marginBottom: 10, alignItems: 'center' }}>
-                    <Text style={{ fontSize: fonts.xs, fontWeight: '800', color: colors.green }}>💰 PAYMENT CONFIRMED</Text>
+                <Card key={job.id||i} style={{ marginBottom: 14, borderColor: (isPayment ? colors.green : colors.accent)+'44', borderWidth: 2 }}>
+                  <View style={{ backgroundColor: (isPayment ? colors.green : colors.accent)+'18', borderRadius: 8, padding: 6, marginBottom: 10, alignItems: 'center' }}>
+                    <Text style={{ fontSize: fonts.xs, fontWeight: '800', color: isPayment ? colors.green : colors.accent }}>
+                      {isPayment ? '💰 PAYMENT CONFIRMED' : '✅ APPLICATION ACCEPTED'}
+                    </Text>
                   </View>
                   <Text style={{ fontSize: fonts.md, fontWeight: '900', color: colors.text, marginBottom: 4 }}>{job.title}</Text>
                   <Text style={{ fontSize: fonts.sm, color: colors.textSub, marginBottom: 8 }}>{job.message}</Text>
