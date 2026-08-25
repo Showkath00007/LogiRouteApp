@@ -6,34 +6,34 @@ const ThemeContext = createContext();
 
 export const THEMES = {
   indigo: {
-    name: 'Slate-Indigo (Default)',
-    accent: '#4F46E5',
-    accentDark: '#3730A3',
-    accentLight: '#EEF2FF',
-    grad1: ['#4F46E5', '#8B5CF6'],
-    icon: '🔮'
+    name: 'Neo-Midnight (Default)',
+    accent: '#06B6D4',
+    accentDark: '#0891B2',
+    accentLight: 'rgba(6, 182, 212, 0.15)',
+    grad1: ['#06B6D4', '#6366F1'],
+    icon: '🌌'
   },
   emerald: {
-    name: 'Emerald-Forest',
+    name: 'Neon-Mint',
     accent: '#10B981',
     accentDark: '#047857',
-    accentLight: '#ECFDF5',
-    grad1: ['#10B981', '#06B6D4'],
+    accentLight: 'rgba(16, 185, 129, 0.15)',
+    grad1: ['#10B981', '#00F2FE'],
     icon: '🌿'
   },
   midnight: {
-    name: 'Midnight-Navy',
-    accent: '#0F172A',
-    accentDark: '#020617',
-    accentLight: '#F1F5F9',
-    grad1: ['#1E293B', '#475569'],
-    icon: '🌌'
+    name: 'Amethyst-Glow',
+    accent: '#A855F7',
+    accentDark: '#7E22CE',
+    accentLight: 'rgba(168, 85, 247, 0.15)',
+    grad1: ['#A855F7', '#EC4899'],
+    icon: '🔮'
   },
   sunset: {
     name: 'Sunset-Amber',
     accent: '#F97316',
     accentDark: '#C2410C',
-    accentLight: '#FFF7ED',
+    accentLight: 'rgba(249, 117, 22, 0.15)',
     grad1: ['#F97316', '#F59E0B'],
     icon: '🌅'
   }

@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, Text, TouchableOpacity, ActivityIndicator, TextInput, StyleSheet } from 'react-native';
+import { View, Text, TouchableOpacity, ActivityIndicator, TextInput, StyleSheet, Platform } from 'react-native';
 import { colors, fonts, radius, spacing, shadow } from '../theme';
 
 // ── Button ──────────────────────────────────────────────────────────────
@@ -24,7 +24,23 @@ export function Btn({ label, onPress, variant = 'primary', disabled, loading, st
 
 // ── Card ────────────────────────────────────────────────────────────────
 export function Card({ children, style, onPress, accent }) {
-  const cardStyle = [{ backgroundColor: colors.surface, borderRadius: radius.lg, padding: spacing.base, borderWidth: 1.5, borderColor: accent ? accent + '33' : colors.border, borderLeftWidth: accent ? 4 : 1.5, borderLeftColor: accent || colors.border }, shadow.sm, style];
+  const cardStyle = [
+    { 
+      backgroundColor: colors.surface, 
+      borderRadius: radius.lg, 
+      padding: spacing.base, 
+      borderWidth: 1.5, 
+      borderColor: accent ? accent + '40' : colors.border, 
+      borderLeftWidth: accent ? 5 : 1.5, 
+      borderLeftColor: accent || colors.border,
+      shadowColor: accent || '#000',
+      shadowOffset: { width: 0, height: 4 },
+      shadowOpacity: accent ? 0.15 : 0.04,
+      shadowRadius: 10,
+      elevation: 3
+    }, 
+    style
+  ];
   if (onPress) return <TouchableOpacity activeOpacity={0.75} onPress={onPress} style={cardStyle}>{children}</TouchableOpacity>;
   return <View style={cardStyle}>{children}</View>;
 }
@@ -148,11 +164,11 @@ export function EmptyState({ icon = '📭', title, sub, action, onAction }) {
   return (
     <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', padding: spacing.xxl }}>
       <View style={{ width: 80, height: 80, borderRadius: 40, backgroundColor: colors.accentLight, alignItems: 'center', justifyContent: 'center', marginBottom: 16 }}>
-        <Text style={{ fontSize: 40 }}>{icon}</Text>
+        <Text style={{ fontSize: 36 }}>{icon}</Text>
       </View>
-      <Text style={{ color: colors.text, fontSize: fonts.lg, fontWeight: '800', textAlign: 'center' }}>{title}</Text>
-      {sub && <Text style={{ color: colors.textSub, fontSize: fonts.base, textAlign: 'center', marginTop: 8, lineHeight: 22 }}>{sub}</Text>}
-      {action && <Btn label={action} onPress={onAction} style={{ marginTop: 20, paddingHorizontal: 32 }} />}
+      <Text style={{ color: colors.text, fontSize: fonts.md, fontWeight: '950', marginBottom: 6, textAlign: 'center' }}>{title}</Text>
+      <Text style={{ color: colors.textSub, fontSize: fonts.sm, textAlign: 'center', marginBottom: 20 }}>{sub}</Text>
+      {action && onAction && <Btn label={action} onPress={onAction} style={{ minWidth: 160 }} />}
     </View>
   );
 }
@@ -252,7 +268,21 @@ export function TransportIcon({ type, size = 28 }) {
 // ── BottomNav ────────────────────────────────────────────────────────────
 export function BottomNav({ tabs, activeTab, onTabPress }) {
   return (
-    <View style={{ flexDirection: 'row', backgroundColor: colors.surface, borderTopWidth: 1.5, borderTopColor: colors.border, paddingBottom: 20, paddingTop: 8, shadowColor: '#000', shadowOffset: { width: 0, height: -4 }, shadowOpacity: 0.06, shadowRadius: 12, elevation: 10 }}>
+    <View style={{ 
+      flexDirection: 'row', 
+      backgroundColor: colors.surface, 
+      borderWidth: 1.5,
+      borderColor: colors.border,
+      borderRadius: radius.xl,
+      marginHorizontal: 16,
+      marginBottom: Platform.OS === 'ios' ? 34 : 16,
+      paddingVertical: 10,
+      shadowColor: '#000', 
+      shadowOffset: { width: 0, height: 8 }, 
+      shadowOpacity: 0.18, 
+      shadowRadius: 15, 
+      elevation: 6 
+    }}>
       {tabs.map(tab => {
         const isActive = activeTab === tab.id;
         return (
