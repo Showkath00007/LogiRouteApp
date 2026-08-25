@@ -195,7 +195,6 @@ export default function PaymentMethodsScreen({ navigation }) {
       setVerifyingUpiObj(null);
       setOtpInput('');
       setNewUpiId('');
-      setNewUpiApp('');
       setNewUpiPhone('');
       setShowAddUpi(false);
     }, 1000);
