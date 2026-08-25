@@ -541,7 +541,7 @@ export function PaymentScreen({ navigation, route }) {
         </View>
 
         <Btn
-          label={Platform.OS === 'web' ? `🔒 Confirm Simulated Payment (Test Mode)` : `Pay ₹${cost.toLocaleString()} via Razorpay →`}
+          label={`🔒 Confirm Simulated Payment (Test Mode)`}
           onPress={() => {
             if (Platform.OS === 'web') {
               const yes = window.confirm(`Simulate payment of ₹${cost.toLocaleString()}?`);
@@ -553,7 +553,20 @@ export function PaymentScreen({ navigation, route }) {
                 });
               }
             } else {
-              openWebView();
+              Alert.alert(
+                '💳 Confirm Payment (Test Mode)',
+                `Simulate payment of ₹${cost.toLocaleString()} for this cargo booking?`,
+                [
+                  { text: 'Cancel', style: 'cancel' },
+                  { text: 'Confirm Pay ✓', onPress: () => {
+                    navigation.navigate('Confirmed', {
+                      ...params,
+                      payment_id: 'pay_mock_' + Date.now().toString().slice(-6),
+                      amount: cost,
+                    });
+                  }}
+                ]
+              );
             }
           }}
         />
