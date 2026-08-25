@@ -5,11 +5,11 @@
 
 export const colors = {
   // ── Backgrounds ──────────────────────────────────────────
-  bg: '#F7B0BB',           // Light Pink page bg
-  surface: '#FFF0F2',      // Soft cotton-candy pink cards
-  card: '#FFF0F2',
-  surface2: '#FCE5E9',     // soft pink tint
-  border: '#E59DA8',       // rose border line
+  bg: '#FAF6EE',           // Warm Premium Cream bg
+  surface: '#FFFFFF',      // White cards
+  card: '#FFFFFF',
+  surface2: '#F4EFE6',     // soft cream/beige
+  border: '#EAE3D2',       // warm beige separator lines
 
   // ── Primary Brand Colors ──────────────────────────────────
   accent: '#4F46E5',       // modern Indigo accent
