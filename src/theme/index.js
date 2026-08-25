@@ -5,10 +5,10 @@
 
 export const colors = {
   // ── Backgrounds ──────────────────────────────────────────
-  bg: '#FDFBF7',           // Clean Light Ivory bg
-  surface: '#F7B0BB',      // Light Pink card surfaces
-  card: '#F7B0BB',
-  surface2: '#FAECEE',     // soft pink tint
+  bg: '#F7B0BB',           // Light Pink page bg
+  surface: '#FFF0F2',      // Soft cotton-candy pink cards
+  card: '#FFF0F2',
+  surface2: '#FCE5E9',     // soft pink tint
   border: '#E59DA8',       // rose border line
 
   // ── Primary Brand Colors ──────────────────────────────────
