@@ -288,12 +288,24 @@ export function DriverDashboard({ navigation }) {
     setLoading(false);
   };
 
+  const [driverUid, setDriverUid] = useState(getDriverUid());
+
+  useEffect(() => {
+    const unsubAuth = onAuthStateChanged(auth, user => {
+      if (user) {
+        setDriverUid(user.uid);
+      } else {
+        setDriverUid('demo_driver');
+      }
+    });
+    return () => unsubAuth();
+  }, []);
+
   useEffect(() => {
     // Initial load — works whether or not a real Firebase Auth user exists
     loadDriver();
 
-    const uid = getDriverUid();
-    const unsubBookings = listenBookingRequests(uid, setBookingRequests);
+    const unsubBookings = listenBookingRequests(driverUid, setBookingRequests);
 
     // Re-fetch every time this screen comes back into focus
     // (e.g. returning from DriverProfileSetup after saving)
@@ -303,7 +315,7 @@ export function DriverDashboard({ navigation }) {
       unsubBookings();
       unsubFocus();
     };
-  }, [navigation]);
+  }, [navigation, driverUid]);
 
   const handleTab = (id) => {
     const routes = { trips: 'MyTrips', jobs: 'Jobs', earn: 'Earnings', profile: 'Profile' };
@@ -903,9 +915,26 @@ export function JobsScreen({ navigation }) {
     setLocLoading(false);
   };
 
+  const [driverUid, setDriverUid] = useState(getDriverUid());
+
+  useEffect(() => {
+    const unsubAuth = onAuthStateChanged(auth, user => {
+      if (user) {
+        setDriverUid(user.uid);
+      } else {
+        setDriverUid('demo_driver');
+      }
+    });
+    return () => unsubAuth();
+  }, []);
+
   useEffect(() => {
     getLocation();
-    const uid = getDriverUid();
+  }, []);
+
+  useEffect(() => {
+    if (!driverUid) return;
+    setLoading(true);
     // Listen to direct booking requests
     let mainList = [];
     let fallbackList = [];
@@ -924,7 +953,7 @@ export function JobsScreen({ navigation }) {
       setLoading(false);
     };
 
-    const r1 = ref(db, `driverNotifications/${uid}`);
+    const r1 = ref(db, `driverNotifications/${driverUid}`);
     onValue(r1, snap => {
       if (!snap.exists()) { mainList = []; }
       else {
@@ -934,7 +963,7 @@ export function JobsScreen({ navigation }) {
     }, () => { mainList = []; mergeAndSet(); });
 
     let rFallback = null;
-    if (uid !== 'demo_driver') {
+    if (driverUid !== 'demo_driver') {
       rFallback = ref(db, `driverNotifications/demo_driver`);
       onValue(rFallback, snap => {
         if (!snap.exists()) { fallbackList = []; }
@@ -957,7 +986,7 @@ export function JobsScreen({ navigation }) {
       if (rFallback) off(rFallback);
       off(r2);
     };
-  }, []);
+  }, [driverUid]);
 
   const nearbyJobs = jobBoard.filter(job => {
     if (!location || !job.originLat || !job.originLon) return true;
