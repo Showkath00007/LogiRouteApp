@@ -357,7 +357,7 @@ export function CompanyDashboard({ navigation }) {
                 {activeShipment.to.split(',')[0].trim().substring(0, 3).toUpperCase()}
               </Text>
 
-              <View style={{ position: 'absolute', left: `${progressPercent}%`, marginLeft: -12, top: -10 }}>
+              <View style={{ position: 'absolute', left: `${progressPercent}%`, marginLeft: -12, top: -10, transform: [{ scaleX: -1 }] }}>
                 <Text style={{ fontSize: 20 }}>🚛</Text>
               </View>
             </View>
