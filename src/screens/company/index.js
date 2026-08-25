@@ -95,29 +95,34 @@ export function CompanyDashboard({ navigation }) {
   } : null);
 
   let progressPercent = 0;
+  let etaText = '2.5 hrs';
   if (activeShipment) {
-    if (activeShipment.status === 'In Transit' || activeShipment.status === 'in_transit') {
-      if (activeShipment.id.startsWith('sim')) {
-        progressPercent = truckPos;
-      } else if (activeShipment.location?.lat && activeShipment.location?.lng) {
-        try {
-          const originCoords = getCityDetails(activeShipment.from).coords;
-          const destCoords = getCityDetails(activeShipment.to).coords;
-          const totalDist = calculateDistance(originCoords[0], originCoords[1], destCoords[0], destCoords[1]);
+    try {
+      const originCoords = getCityDetails(activeShipment.from).coords;
+      const destCoords = getCityDetails(activeShipment.to).coords;
+      const totalDist = calculateDistance(originCoords[0], originCoords[1], destCoords[0], destCoords[1]);
+      
+      if (activeShipment.status === 'In Transit' || activeShipment.status === 'in_transit') {
+        if (activeShipment.id.startsWith('sim')) {
+          progressPercent = truckPos;
+          etaText = '2.5 hrs';
+        } else if (activeShipment.location?.lat && activeShipment.location?.lng) {
           const remainingDist = calculateDistance(activeShipment.location.lng, activeShipment.location.lat, destCoords[0], destCoords[1]);
           if (totalDist > 0) {
             progressPercent = Math.max(0, Math.min(100, Math.round(((totalDist - remainingDist) / totalDist) * 100)));
-          } else {
-            progressPercent = 0;
           }
-        } catch(e) {
-          progressPercent = activeShipment.progress || 10;
+          etaText = `${(remainingDist / 50).toFixed(1)} hrs`;
+        } else {
+          progressPercent = activeShipment.progress || 0;
+          etaText = `${(totalDist / 50).toFixed(1)} hrs`;
         }
       } else {
-        progressPercent = activeShipment.progress || 0;
+        progressPercent = 0;
+        etaText = `${(totalDist / 50).toFixed(1)} hrs`;
       }
-    } else {
-      progressPercent = 0;
+    } catch(e) {
+      progressPercent = activeShipment.progress || 0;
+      etaText = '2.5 hrs';
     }
   }
 
@@ -372,9 +377,7 @@ export function CompanyDashboard({ navigation }) {
               </View>
               <View style={{ alignItems: 'center' }}>
                 <Text style={{ fontSize: 11, color: colors.textMuted }}>ETA</Text>
-                <Text style={{ fontSize: 13, fontWeight: '800', color: colors.text }}>
-                  {activeShipment.location ? `${(calculateDistance(activeShipment.location.lng, activeShipment.location.lat, getCityDetails(activeShipment.to).coords[0], getCityDetails(activeShipment.to).coords[1]) / 50).toFixed(1)} hrs` : '2.5 hrs'}
-                </Text>
+                <Text style={{ fontSize: 13, fontWeight: '800', color: colors.text }}>{etaText}</Text>
               </View>
               <View style={{ alignItems: 'center' }}>
                 <Text style={{ fontSize: 11, color: colors.textMuted }}>WEATHER</Text>
