@@ -93,7 +93,16 @@ export function UserTypeScreen({ navigation }) {
           <Text style={[s.typeName, selected === 'driver' && { color: colors.green }]}>Driver / Vendor</Text>
           <Text style={s.typeDesc}>Find jobs, track trips, manage earnings</Text>
         </TouchableOpacity>
-        <Btn label="Continue →" onPress={() => navigation.navigate('Login')} />
+        <Btn 
+          label="Continue →" 
+          onPress={() => {
+            if (selected === 'driver') {
+              navigation.navigate('DriverLogin');
+            } else {
+              navigation.navigate('Login');
+            }
+          }} 
+        />
       </ScrollView>
     </SafeAreaView>
   );

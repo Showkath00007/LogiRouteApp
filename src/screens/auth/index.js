@@ -60,24 +60,15 @@ export function LoginScreen({ navigation }) {
     <SafeAreaView style={{ flex: 1, backgroundColor: colors.bg }}>
       <ScrollView contentContainerStyle={[screen, { justifyContent: 'center', paddingVertical: 40 }]} keyboardShouldPersistTaps="handled">
         <Card style={{ backgroundColor: colors.surface, borderColor: colors.border, borderWidth: 1.5, ...shadow.lg, padding: 24 }}>
-          <View style={{ marginBottom: 20, alignItems: 'center' }}>
-            <View style={{ marginBottom: 16 }}>
-              <AppLogo size={75} />
+          <View style={{ marginBottom: 20 }}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12, marginBottom: 12 }}>
+              <BackBtn onPress={() => navigation.goBack()} style={{ marginBottom: 0 }} />
+              <AppLogo size={46} />
             </View>
-            <Text style={[h1, { color: colors.text, textAlign: 'center', marginBottom: 6 }]}>Welcome Back 👋</Text>
-            <Text style={[subText, { color: colors.sub, marginBottom: 0, textAlign: 'center' }]}>Login to your account</Text>
-          </View>
-
-          {/* Company / Driver toggle */}
-          <View style={{ flexDirection: 'row', backgroundColor: colors.surface2, borderRadius: radius.full, padding: 4, marginBottom: 24 }}>
-            <View style={{ flex: 1, backgroundColor: colors.accent, borderRadius: radius.full, paddingVertical: 8, alignItems: 'center' }}>
-              <Text style={{ fontSize: 13, fontWeight: '800', color: colors.white }}>🏢 Company</Text>
+            <View style={{ alignItems: 'center', marginTop: 8 }}>
+              <Text style={[h1, { color: colors.text, textAlign: 'center', marginBottom: 6 }]}>Welcome Back 👋</Text>
+              <Text style={[subText, { color: colors.sub, marginBottom: 0, textAlign: 'center' }]}>Login to your company account</Text>
             </View>
-            <TouchableOpacity
-              style={{ flex: 1, paddingVertical: 8, alignItems: 'center' }}
-              onPress={() => navigation.replace('DriverLogin')}>
-              <Text style={{ fontSize: 13, fontWeight: '700', color: colors.sub }}>🚛 Driver</Text>
-            </TouchableOpacity>
           </View>
 
           <Text style={s.label}>EMAIL</Text>
@@ -160,23 +151,14 @@ export function DriverLoginScreen({ navigation }) {
     <SafeAreaView style={{ flex: 1, backgroundColor: colors.bg }}>
       <ScrollView contentContainerStyle={[screen, { justifyContent: 'center', paddingVertical: 40 }]} keyboardShouldPersistTaps="handled">
         <Card style={{ backgroundColor: colors.surface, borderColor: colors.border, borderWidth: 1.5, ...shadow.lg, padding: 24 }}>
-          <View style={{ marginBottom: 20, alignItems: 'center' }}>
-            <View style={{ marginBottom: 16 }}>
-              <AppLogo size={75} />
+          <View style={{ marginBottom: 20 }}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12, marginBottom: 12 }}>
+              <BackBtn onPress={() => navigation.goBack()} style={{ marginBottom: 0 }} />
+              <AppLogo size={46} />
             </View>
-            <Text style={[h1, { color: colors.text, textAlign: 'center', marginBottom: 6 }]}>Driver Login 🚛</Text>
-            <Text style={[subText, { color: colors.sub, marginBottom: 0, textAlign: 'center' }]}>Access your driver account</Text>
-          </View>
-
-          {/* Company / Driver toggle */}
-          <View style={{ flexDirection: 'row', backgroundColor: colors.surface2, borderRadius: radius.full, padding: 4, marginBottom: 24 }}>
-            <TouchableOpacity
-              style={{ flex: 1, paddingVertical: 8, alignItems: 'center' }}
-              onPress={() => navigation.replace('Login')}>
-              <Text style={{ fontSize: 13, fontWeight: '700', color: colors.sub }}>🏢 Company</Text>
-            </TouchableOpacity>
-            <View style={{ flex: 1, backgroundColor: colors.green, borderRadius: radius.full, paddingVertical: 8, alignItems: 'center' }}>
-              <Text style={{ fontSize: 13, fontWeight: '800', color: colors.white }}>🚛 Driver</Text>
+            <View style={{ alignItems: 'center', marginTop: 8 }}>
+              <Text style={[h1, { color: colors.text, textAlign: 'center', marginBottom: 6 }]}>Driver Login 🚛</Text>
+              <Text style={[subText, { color: colors.sub, marginBottom: 0, textAlign: 'center' }]}>Access your driver account</Text>
             </View>
           </View>
 
