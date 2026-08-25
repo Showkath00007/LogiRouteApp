@@ -640,6 +640,33 @@ export function MyBookingsScreen({ navigation }) {
   const [bookings, setBookings] = useState([]);
   const [loading, setLoading] = useState(true);
 
+  const handleDeleteBooking = async (bookingId) => {
+    const confirm = Platform.OS === 'web'
+      ? window.confirm('Are you sure you want to delete this booking?')
+      : await new Promise(res => {
+          Alert.alert('Confirm Delete', 'Are you sure you want to delete this booking?', [
+            { text: 'Cancel', onPress: () => res(false), style: 'cancel' },
+            { text: 'Delete', onPress: () => res(true), style: 'destructive' }
+          ]);
+        });
+    if (!confirm) return;
+
+    try {
+      const uid = auth.currentUser?.uid;
+      await set(ref(db, `bookings/${bookingId}`), null);
+      if (uid) {
+        await set(ref(db, `users/${uid}/bookings/${bookingId}`), null);
+      }
+      if (Platform.OS === 'web') {
+        alert('Booking deleted successfully!');
+      } else {
+        Alert.alert('Success', 'Booking deleted successfully!');
+      }
+    } catch (err) {
+      console.warn('Error deleting booking:', err);
+    }
+  };
+
   useEffect(() => {
     const unsub = listenBookings(data => {
       setBookings(data);
@@ -668,7 +695,12 @@ export function MyBookingsScreen({ navigation }) {
             <Card key={b.id} style={{ marginBottom: 10 }}>
               <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 6 }}>
                 <Text style={{ fontSize: 14, fontWeight: '700', color: colors.text }}>{b.from} → {b.to}</Text>
-                <Badge label={b.status} type={STATUS_TYPE[b.status] || 'default'} />
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                  <Badge label={b.status} type={STATUS_TYPE[b.status] || 'default'} />
+                  <TouchableOpacity onPress={() => handleDeleteBooking(b.id)} style={{ padding: 4 }}>
+                    <Text style={{ fontSize: 15, color: colors.red, fontWeight: '900' }}>✕</Text>
+                  </TouchableOpacity>
+                </View>
               </View>
               <Text style={{ fontSize: 12, color: colors.sub }}>{b.driver} · {b.material}</Text>
               <Text style={{ fontSize: 13, color: colors.accent, fontWeight: '700', marginTop: 4 }}>₹{b.amount?.toLocaleString()}</Text>
@@ -686,6 +718,14 @@ export function MyBookingsScreen({ navigation }) {
                 <Btn 
                   label="💳 Pay Now" 
                   onPress={() => {
+                    if (!b.payoutDetails || (b.payoutDetails.upiId === 'Not Configured' && b.payoutDetails.bankName === 'Not Configured')) {
+                      if (Platform.OS === 'web') {
+                        alert('⚠️ Payment Unavailable\n\nNo bank details added by the driver. The driver must configure their payment methods in settings before payment can be processed.');
+                      } else {
+                        Alert.alert('Payment Unavailable', 'No bank details added by the driver. The driver must configure their payment methods in settings before payment can be processed.');
+                      }
+                      return;
+                    }
                     navigation.navigate('Payment', {
                       bookingId: b.id,
                       cost: b.cost || b.amount || 12000,
@@ -695,6 +735,7 @@ export function MyBookingsScreen({ navigation }) {
                       weight: b.weight,
                       transport: b.transport,
                       driverId: b.driverUid,
+                      payoutDetails: b.payoutDetails,
                     });
                   }}
                   style={{ marginTop: 10, marginBottom: 0, paddingVertical: 8 }}
@@ -2007,6 +2048,14 @@ export function NotificationsScreen({ navigation }) {
       const bookingSnap = await get(ref(db, `bookings/${n.bookingId}`));
       if (bookingSnap.exists()) {
         const b = bookingSnap.val();
+        if (!b.payoutDetails || (b.payoutDetails.upiId === 'Not Configured' && b.payoutDetails.bankName === 'Not Configured')) {
+          if (Platform.OS === 'web') {
+            alert('⚠️ Payment Unavailable\n\nNo bank details added by the driver. The driver must configure their payment methods in settings before payment can be processed.');
+          } else {
+            Alert.alert('Payment Unavailable', 'No bank details added by the driver. The driver must configure their payment methods in settings before payment can be processed.');
+          }
+          return;
+        }
         navigation.navigate('Payment', {
           bookingId: n.bookingId,
           cost: b.cost,
@@ -2016,6 +2065,7 @@ export function NotificationsScreen({ navigation }) {
           weight: b.weight,
           transport: b.transport,
           driverId: b.driverUid,
+          payoutDetails: b.payoutDetails,
         });
       } else {
         Alert.alert('Error', 'Could not locate booking details.');

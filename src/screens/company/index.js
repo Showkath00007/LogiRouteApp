@@ -9,7 +9,8 @@ import { listenShipments, createShipment, getShipments, getUserProfile, listenUs
 import { listenCompanyFleet, listenAllNotifications, postOpenJob, listenCompanyJobs, confirmJobApplicant, listenCompanyTeam } from '../../config/DriverService';
 import { getProfile, saveProfile } from '../../config/UserStore';
 import { useTheme } from '../../context/ThemeContext';
-import { auth } from '../../config/firebase';
+import { auth, db } from '../../config/firebase';
+import { ref, set } from 'firebase/database';
 import { onAuthStateChanged } from 'firebase/auth';
 
 const screen = (pt = 60) => ({ padding: 20, paddingTop: pt, flexGrow: 1 });
@@ -1084,6 +1085,33 @@ export function FleetScreen({ navigation }) {
   const [fleet, setFleet] = useState([]);
   const [loading, setLoading] = useState(true);
 
+  const handleDeleteBooking = async (bookingId) => {
+    const confirm = Platform.OS === 'web'
+      ? window.confirm('Are you sure you want to delete this booking?')
+      : await new Promise(res => {
+          Alert.alert('Confirm Delete', 'Are you sure you want to delete this booking?', [
+            { text: 'Cancel', onPress: () => res(false), style: 'cancel' },
+            { text: 'Delete', onPress: () => res(true), style: 'destructive' }
+          ]);
+        });
+    if (!confirm) return;
+
+    try {
+      const uid = auth.currentUser?.uid;
+      await set(ref(db, `bookings/${bookingId}`), null);
+      if (uid) {
+        await set(ref(db, `users/${uid}/bookings/${bookingId}`), null);
+      }
+      if (Platform.OS === 'web') {
+        alert('Booking deleted successfully!');
+      } else {
+        Alert.alert('Success', 'Booking deleted successfully!');
+      }
+    } catch (err) {
+      console.warn('Error deleting booking:', err);
+    }
+  };
+
   useEffect(() => {
     const unsub = listenCompanyFleet(data => {
       setFleet(data);
@@ -1123,6 +1151,9 @@ export function FleetScreen({ navigation }) {
                     <Text style={{ fontSize: 12, color: colors.sub }}>{v.driverName || 'Driver'}</Text>
                   </View>
                   <Badge label={v.status === 'confirmed' ? 'Payment Pending' : 'In Transit'} type={v.status === 'confirmed' ? 'yellow' : 'green'} />
+                  <TouchableOpacity onPress={() => handleDeleteBooking(v.id)} style={{ padding: 6, marginLeft: 4 }}>
+                    <Text style={{ fontSize: 16, color: colors.red, fontWeight: '900' }}>✕</Text>
+                  </TouchableOpacity>
                 </View>
                 <Text style={{ fontSize: 12, color: colors.sub, marginBottom: 4 }}>📍 {v.from} → {v.to}</Text>
 
@@ -1143,6 +1174,14 @@ export function FleetScreen({ navigation }) {
                     <Btn 
                       label="💳 Pay Now" 
                       onPress={() => {
+                        if (!v.payoutDetails || (v.payoutDetails.upiId === 'Not Configured' && v.payoutDetails.bankName === 'Not Configured')) {
+                          if (Platform.OS === 'web') {
+                            alert('⚠️ Payment Unavailable\n\nNo bank details added by the driver. The driver must configure their payment methods in settings before payment can be processed.');
+                          } else {
+                            Alert.alert('Payment Unavailable', 'No bank details added by the driver. The driver must configure their payment methods in settings before payment can be processed.');
+                          }
+                          return;
+                        }
                         navigation.navigate('Payment', {
                           bookingId: v.id,
                           cost: v.cost || v.amount || 12000,
@@ -1152,6 +1191,7 @@ export function FleetScreen({ navigation }) {
                           weight: v.weight,
                           transport: v.transport,
                           driverId: v.driverUid,
+                          payoutDetails: v.payoutDetails,
                         });
                       }}
                       style={{ marginTop: 8, marginBottom: 0, paddingVertical: 8 }}
