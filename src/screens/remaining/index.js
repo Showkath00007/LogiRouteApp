@@ -1743,8 +1743,8 @@ export function ProfileScreen({ navigation }) {
   const menuItems = [
     { icon: '✏️', label: t('editProfile'), sub: t('editProfileSub'), route: 'EditProfile' },
     { icon: '🪄', label: 'Setup Wizard', sub: 'Re-run onboarding configuration', route: 'ProfileSetup' },
-    { icon: '💸', label: 'Payout Release Hub', sub: 'Approve driver fuel slips & cash-outs', route: 'PayoutRelease' },
-    { icon: '🏢', label: t('companyDetails'), sub: t('companyDetailsSub'), route: 'CompanyDetails' },
+    profile?.type === 'company' && { icon: '💸', label: 'Payout Release Hub', sub: 'Approve driver fuel slips & cash-outs', route: 'PayoutRelease' },
+    profile?.type === 'company' && { icon: '🏢', label: t('companyDetails'), sub: t('companyDetailsSub'), route: 'CompanyDetails' },
     {
       icon: '🪪',
       label: profile?.type === 'company' ? 'KYC Documents' : t('kycDocs'),
@@ -1752,10 +1752,10 @@ export function ProfileScreen({ navigation }) {
       color: colors.green,
       route: 'KYCDocuments'
     },
-    {
+    profile?.type !== 'company' && {
       icon: '💳',
-      label: profile?.type === 'company' ? 'Driver Payout Accounts' : t('paymentMethods'),
-      sub: profile?.type === 'company' ? 'View driver bank & UPI payout details' : t('paymentMethodsSub'),
+      label: 'Bank Details',
+      sub: 'Add UPI ID & Bank Account details for transaction',
       route: 'PaymentMethods'
     },
     { icon: '🎨', label: 'Theme Customizer', sub: 'Personalize portal colors', route: 'ThemeCustomizer' },
@@ -1764,7 +1764,7 @@ export function ProfileScreen({ navigation }) {
     { icon: '❓', label: t('helpSupport'), sub: '', route: 'HelpSupport' },
     { icon: 'ℹ️', label: t('aboutApp'), sub: 'v1.0.0', route: null },
     { icon: '🚪', label: t('logout'), sub: '', color: colors.red, route: null, action: handleLogout },
-  ];
+  ].filter(Boolean);
 
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: colors.bg }}>

@@ -249,79 +249,14 @@ export default function PaymentMethodsScreen({ navigation }) {
     );
   }
 
-  if (profile?.type === 'company') {
-    const activePayouts = bookings.filter(b => b.payoutDetails);
-    return (
-      <SafeAreaView style={{ flex: 1, backgroundColor: colors.bg }}>
-        <ScrollView contentContainerStyle={{ padding: 20, paddingTop: 60, flexGrow: 1 }}>
-          <BackBtn onPress={() => navigation.goBack()} />
-          <Text style={{ fontSize: 24, fontWeight: '900', color: colors.text, marginBottom: 4 }}>Driver Payout Accounts</Text>
-          <Text style={{ fontSize: 13, color: colors.sub, marginBottom: 20 }}>
-            Registered payment details sent by drivers upon booking acceptance.
-          </Text>
 
-          <SectionLabel label="Active Booking Payouts" />
-          {activePayouts.length === 0 ? (
-            <Card style={{ marginBottom: 20 }}>
-              <Text style={{ textAlign: 'center', color: colors.sub, paddingVertical: 12 }}>
-                No active bookings with payout details yet.
-              </Text>
-            </Card>
-          ) : (
-            activePayouts.map(b => (
-              <Card key={b.id} style={{ marginBottom: 12 }}>
-                <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
-                  <Text style={{ fontSize: 14, fontWeight: '700', color: colors.text }}>{b.driver || 'Driver'}</Text>
-                  <Badge label={b.status} type={b.status === 'Paid' ? 'green' : 'yellow'} />
-                </View>
-                <Text style={{ fontSize: 12, color: colors.sub, marginBottom: 8 }}>📍 {b.from} → {b.to} ({b.date})</Text>
-                
-                <View style={{ gap: 4, backgroundColor: colors.surface2 || '#F8FAFC', padding: 10, borderRadius: radius.md, borderWidth: 1, borderColor: colors.border }}>
-                  <Text style={{ fontSize: 12, fontWeight: '700', color: colors.text }}>UPI ID: <Text style={{ fontWeight: 'normal', color: colors.sub }}>{b.payoutDetails.upiId || 'Not Configured'}</Text></Text>
-                  <Text style={{ fontSize: 12, fontWeight: '700', color: colors.text }}>Bank Name: <Text style={{ fontWeight: 'normal', color: colors.sub }}>{b.payoutDetails.bankName || 'Not Configured'}</Text></Text>
-                  <Text style={{ fontSize: 12, fontWeight: '700', color: colors.text }}>Account No: <Text style={{ fontWeight: 'normal', color: colors.sub }}>{b.payoutDetails.accountNumber || 'Not Configured'}</Text></Text>
-                  <Text style={{ fontSize: 12, fontWeight: '700', color: colors.text }}>IFSC Code: <Text style={{ fontWeight: 'normal', color: colors.sub }}>{b.payoutDetails.ifsc || 'Not Configured'}</Text></Text>
-                </View>
-              </Card>
-            ))
-          )}
-
-          <SectionLabel label="Registered Drivers Directory" style={{ marginTop: 12 }} />
-          {drivers.length === 0 ? (
-            <Card>
-              <Text style={{ textAlign: 'center', color: colors.sub, paddingVertical: 12 }}>
-                No registered drivers found.
-              </Text>
-            </Card>
-          ) : (
-            drivers.map(d => (
-              <Card key={d.uid} style={{ marginBottom: 12 }}>
-                <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
-                  <Text style={{ fontSize: 15, fontWeight: '900', color: colors.text }}>{d.name || 'Driver'}</Text>
-                  <Badge label={d.vehicle || 'No Vehicle'} type="blue" />
-                </View>
-                <Text style={{ fontSize: 12, color: colors.sub, marginBottom: 8 }}>📞 {d.phone} · 📍 {d.city || 'No Location'}</Text>
-                
-                <View style={{ gap: 4, backgroundColor: colors.surface2 || '#F8FAFC', padding: 10, borderRadius: radius.md, borderWidth: 1, borderColor: colors.border }}>
-                  <Text style={{ fontSize: 12, fontWeight: '700', color: colors.text }}>UPI ID: <Text style={{ fontWeight: 'normal', color: colors.sub }}>{d.upiId || 'Not Configured'}</Text></Text>
-                  <Text style={{ fontSize: 12, fontWeight: '700', color: colors.text }}>Bank Name: <Text style={{ fontWeight: 'normal', color: colors.sub }}>{d.bankName || 'Not Configured'}</Text></Text>
-                  <Text style={{ fontSize: 12, fontWeight: '700', color: colors.text }}>Account No: <Text style={{ fontWeight: 'normal', color: colors.sub }}>{d.accountNumber || 'Not Configured'}</Text></Text>
-                  <Text style={{ fontSize: 12, fontWeight: '700', color: colors.text }}>IFSC Code: <Text style={{ fontWeight: 'normal', color: colors.sub }}>{d.ifsc || 'Not Configured'}</Text></Text>
-                </View>
-              </Card>
-            ))
-          )}
-        </ScrollView>
-      </SafeAreaView>
-    );
-  }
 
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: colors.bg }}>
       <ScrollView contentContainerStyle={{ padding: 20, paddingTop: 60, flexGrow: 1 }} keyboardShouldPersistTaps="handled">
         <BackBtn onPress={() => navigation.goBack()} />
-        <Text style={{ fontSize: 24, fontWeight: '900', color: colors.text, marginBottom: 4 }}>Payment Methods</Text>
-        <Text style={{ fontSize: 13, color: colors.sub, marginBottom: 20 }}>Manage UPI & bank accounts</Text>
+        <Text style={{ fontSize: 24, fontWeight: '900', color: colors.text, marginBottom: 4 }}>Bank Details</Text>
+        <Text style={{ fontSize: 13, color: colors.sub, marginBottom: 20 }}>Manage UPI & bank accounts to receive payouts</Text>
 
         {bankAccounts.length === 0 && (
           <View style={{
