@@ -1127,9 +1127,27 @@ export function FleetScreen({ navigation }) {
                 <Text style={{ fontSize: 12, color: colors.sub, marginBottom: 4 }}>📍 {v.from} → {v.to}</Text>
 
                 {v.status === 'confirmed' ? (
-                  <Text style={{ fontSize: 12, color: colors.orange, fontWeight: '700', marginBottom: 6 }}>
-                    ⚠️ Location hidden — Payment Pending
-                  </Text>
+                  <>
+                    <Text style={{ fontSize: 12, color: colors.orange, fontWeight: '700', marginBottom: 6 }}>
+                      ⚠️ Location hidden — Payment Pending
+                    </Text>
+                    <Btn 
+                      label="💳 Pay Now" 
+                      onPress={() => {
+                        navigation.navigate('Payment', {
+                          bookingId: v.id,
+                          cost: v.cost || v.amount || 12000,
+                          source: v.from,
+                          destination: v.to,
+                          material: v.material,
+                          weight: v.weight,
+                          transport: v.transport,
+                          driverId: v.driverUid,
+                        });
+                      }}
+                      style={{ marginTop: 8, marginBottom: 0, paddingVertical: 8 }}
+                    />
+                  </>
                 ) : loc ? (
                   <>
                     <Text style={{ fontSize: 12, color: isLive ? colors.green : colors.orange, fontWeight: '600' }}>
