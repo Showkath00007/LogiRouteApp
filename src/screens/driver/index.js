@@ -621,11 +621,14 @@ export function DriverProfileSetup({ navigation }) {
         updatedAt: Date.now(),
       });
 
-      Alert.alert(
-        '✅ Profile Saved!',
-        'Your details have been submitted for admin approval. You will be notified once approved.',
-        [{ text: 'OK', onPress: () => navigation.navigate('DriverDashboard') }]
-      );
+      navigation.navigate('Success', {
+        type: 'driver',
+        title: 'Profile Submitted successfully!',
+        desc: 'Your details have been submitted for admin approval. You will be notified once approved.',
+        buttonLabel: 'Enter Dashboard →',
+        target: 'DriverDashboard',
+        replace: true
+      });
     } catch (e) {
       console.warn('DriverProfileSetup save error:', e);
       Alert.alert(

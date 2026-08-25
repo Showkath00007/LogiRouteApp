@@ -860,7 +860,11 @@ const s = StyleSheet.create({
 
 export function SuccessScreen({ navigation, route }) {
   const type = route?.params?.type || 'company';
-  const targetDashboard = type === 'driver' ? 'DriverDashboard' : 'CompanyDashboard';
+  const title = route?.params?.title || 'Successfully Registered!';
+  const desc = route?.params?.desc || `Your ${type === 'driver' ? 'Driver' : 'Company'} account has been successfully created and configured. You are now ready to access the dashboard.`;
+  const buttonLabel = route?.params?.buttonLabel || 'Enter Dashboard →';
+  const targetDashboard = route?.params?.target || (type === 'driver' ? 'DriverDashboard' : 'CompanyDashboard');
+  const replaceNav = route?.params?.replace !== false;
 
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: colors.bg, justifyContent: 'center', alignItems: 'center', padding: 20 }}>
@@ -868,14 +872,17 @@ export function SuccessScreen({ navigation, route }) {
         <Text style={{ fontSize: 60 }}>🎉</Text>
       </View>
       <Text style={{ fontSize: 26, fontWeight: '900', color: colors.text, textAlign: 'center', marginBottom: 8 }}>
-        Successfully Registered!
+        {title}
       </Text>
       <Text style={{ fontSize: 14, color: colors.sub, textAlign: 'center', marginBottom: 32, paddingHorizontal: 20, lineHeight: 20 }}>
-        Your {type === 'driver' ? 'Driver' : 'Company'} account has been successfully created and configured. You are now ready to access the dashboard.
+        {desc}
       </Text>
       <Btn
-        label="Enter Dashboard →"
-        onPress={() => navigation.replace(targetDashboard)}
+        label={buttonLabel}
+        onPress={() => {
+          if (replaceNav) navigation.replace(targetDashboard);
+          else navigation.navigate(targetDashboard);
+        }}
         style={{ width: '100%' }}
       />
     </SafeAreaView>
