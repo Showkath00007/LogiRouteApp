@@ -74,8 +74,7 @@ export function UserTypeScreen({ navigation }) {
         <TouchableOpacity 
           style={[
             s.typeCard, 
-            { backgroundColor: '#f7b0bb' },
-            selected === 'company' && { borderColor: colors.accent, borderWidth: 3 }
+            selected === 'company' && { borderColor: colors.accent, backgroundColor: colors.accentLight }
           ]} 
           onPress={() => setSelected('company')}
         >
@@ -86,8 +85,7 @@ export function UserTypeScreen({ navigation }) {
         <TouchableOpacity 
           style={[
             s.typeCard, 
-            { backgroundColor: '#f7b0bb' },
-            selected === 'driver' && { borderColor: colors.green, borderWidth: 3 }
+            selected === 'driver' && { borderColor: colors.green, backgroundColor: colors.greenTint }
           ]} 
           onPress={() => setSelected('driver')}
         >
