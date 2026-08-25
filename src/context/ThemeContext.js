@@ -6,12 +6,12 @@ const ThemeContext = createContext();
 
 export const THEMES = {
   indigo: {
-    name: 'Neo-Midnight (Default)',
-    accent: '#06B6D4',
-    accentDark: '#0891B2',
-    accentLight: 'rgba(6, 182, 212, 0.15)',
-    grad1: ['#06B6D4', '#6366F1'],
-    icon: '🌌'
+    name: 'Cream-Indigo (Default)',
+    accent: '#4F46E5',
+    accentDark: '#3730A3',
+    accentLight: '#EEF2FF',
+    grad1: ['#4F46E5', '#8B5CF6'],
+    icon: '🔮'
   },
   emerald: {
     name: 'Neon-Mint',
