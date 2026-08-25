@@ -496,6 +496,40 @@ export function DriverDashboard({ navigation }) {
           </View>
         </TouchableOpacity>
 
+        {(!driver?.upiId || !driver?.bankName || !driver?.accountNumber) && (
+          <TouchableOpacity
+            onPress={() => navigation.navigate('PaymentMethods')}
+            style={{
+              backgroundColor: '#FFF8F2',
+              borderColor: '#FFC085',
+              borderWidth: 1.5,
+              borderRadius: radius.lg,
+              padding: 16,
+              marginBottom: 16,
+              flexDirection: 'row',
+              alignItems: 'center',
+              gap: 12,
+              shadowColor: '#D97706',
+              shadowOffset: { width: 0, height: 2 },
+              shadowOpacity: 0.05,
+              shadowRadius: 5,
+              elevation: 2
+            }}
+            activeOpacity={0.8}
+          >
+            <View style={{ width: 44, height: 44, borderRadius: 22, backgroundColor: '#FFFBEB', alignItems: 'center', justifyContent: 'center' }}>
+              <Text style={{ fontSize: 22 }}>💳</Text>
+            </View>
+            <View style={{ flex: 1 }}>
+              <Text style={{ fontSize: 15, fontWeight: '900', color: '#D97706' }}>Configure Payout Accounts</Text>
+              <Text style={{ fontSize: 12, color: '#B45309', marginTop: 2 }}>
+                Please add your Bank Account or UPI ID to receive payments from companies.
+              </Text>
+            </View>
+            <Text style={{ fontSize: 16, color: '#D97706', fontWeight: '900' }}>→</Text>
+          </TouchableOpacity>
+        )}
+
         {/* Quick actions */}
         <SectionLabel label="Quick Actions" />
         <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 10 }}>
