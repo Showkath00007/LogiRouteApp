@@ -1711,10 +1711,12 @@ export function ProfileScreen({ navigation }) {
       color: colors.green,
       route: 'KYCDocuments'
     },
-    // Only show Payment Methods for drivers
-    ...(profile?.type === 'driver' ? [
-      { icon: '💳', label: t('paymentMethods'), sub: t('paymentMethodsSub'), route: 'PaymentMethods' }
-    ] : []),
+    {
+      icon: '💳',
+      label: profile?.type === 'company' ? 'Driver Payout Accounts' : t('paymentMethods'),
+      sub: profile?.type === 'company' ? 'View driver bank & UPI payout details' : t('paymentMethodsSub'),
+      route: 'PaymentMethods'
+    },
     { icon: '🎨', label: 'Theme Customizer', sub: 'Personalize portal colors', route: 'ThemeCustomizer' },
     { icon: '🔔', label: t('notificationPrefs'), sub: '', route: 'Notifications' },
     { icon: '⚙️', label: t('settings'), sub: '', route: 'Settings' },

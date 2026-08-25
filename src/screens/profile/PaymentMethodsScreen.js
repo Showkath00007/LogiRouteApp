@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { View, Text, ScrollView, SafeAreaView, TouchableOpacity, Alert, ActivityIndicator, Modal, Platform } from 'react-native';
 import { colors, radius, shadow } from '../../theme';
-import { BackBtn, Card, SectionLabel, Btn, Input } from '../../components';
-import { saveUserProfile, getUserProfile } from '../../config/firebaseService';
+import { BackBtn, Card, SectionLabel, Btn, Input, Badge } from '../../components';
+import { saveUserProfile, getUserProfile, listenBookings } from '../../config/firebaseService';
 
 const showAlert = (title, message) => {
   if (Platform.OS === 'web') {
@@ -18,6 +18,8 @@ async function sendTwilioSMS(to, body) {
 }
 
 export default function PaymentMethodsScreen({ navigation }) {
+  const [profile, setProfile] = useState(null);
+  const [bookings, setBookings] = useState([]);
   const [selected, setSelected] = useState(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -44,15 +46,16 @@ export default function PaymentMethodsScreen({ navigation }) {
   useEffect(() => {
     async function loadData() {
       try {
-        const profile = await getUserProfile();
-        if (profile?.upiAccounts && Array.isArray(profile.upiAccounts)) {
-          setUpiAccounts(profile.upiAccounts);
+        const uProf = await getUserProfile();
+        setProfile(uProf);
+        if (uProf?.upiAccounts && Array.isArray(uProf.upiAccounts)) {
+          setUpiAccounts(uProf.upiAccounts);
         }
-        if (profile?.bankAccounts && Array.isArray(profile.bankAccounts)) {
-          setBankAccounts(profile.bankAccounts);
+        if (uProf?.bankAccounts && Array.isArray(uProf.bankAccounts)) {
+          setBankAccounts(uProf.bankAccounts);
         }
-        if (profile?.selectedUpiId) {
-          setSelected(profile.selectedUpiId);
+        if (uProf?.selectedUpiId) {
+          setSelected(uProf.selectedUpiId);
         }
       } catch (e) {
         console.log('Error loading payment methods:', e);
@@ -62,6 +65,15 @@ export default function PaymentMethodsScreen({ navigation }) {
     }
     loadData();
   }, []);
+
+  useEffect(() => {
+    if (profile?.type === 'company') {
+      const unsub = listenBookings(data => {
+        setBookings(data);
+      });
+      return unsub;
+    }
+  }, [profile?.type]);
 
   const handleSave = async () => {
     if (bankAccounts.length === 0) {
@@ -215,6 +227,46 @@ export default function PaymentMethodsScreen({ navigation }) {
       <SafeAreaView style={{ flex: 1, backgroundColor: colors.bg, alignItems: 'center', justifyContent: 'center' }}>
         <ActivityIndicator size="large" color={colors.accent} />
         <Text style={{ color: colors.textSub, marginTop: 12 }}>Loading details...</Text>
+      </SafeAreaView>
+    );
+  }
+
+  if (profile?.type === 'company') {
+    const activePayouts = bookings.filter(b => b.payoutDetails);
+    return (
+      <SafeAreaView style={{ flex: 1, backgroundColor: colors.bg }}>
+        <ScrollView contentContainerStyle={{ padding: 20, paddingTop: 60, flexGrow: 1 }}>
+          <BackBtn onPress={() => navigation.goBack()} />
+          <Text style={{ fontSize: 24, fontWeight: '900', color: colors.text, marginBottom: 4 }}>Driver Payout Accounts</Text>
+          <Text style={{ fontSize: 13, color: colors.sub, marginBottom: 20 }}>
+            Registered payment details sent by drivers upon booking acceptance.
+          </Text>
+
+          {activePayouts.length === 0 ? (
+            <Card>
+              <Text style={{ textAlign: 'center', color: colors.sub, paddingVertical: 20 }}>
+                No active driver payout accounts configured yet. Once a driver accepts a cargo request, their payout details will appear here.
+              </Text>
+            </Card>
+          ) : (
+            activePayouts.map(b => (
+              <Card key={b.id} style={{ marginBottom: 12 }}>
+                <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
+                  <Text style={{ fontSize: 14, fontWeight: '700', color: colors.text }}>{b.driver || 'Driver'}</Text>
+                  <Badge label={b.status} type={b.status === 'Paid' ? 'green' : 'yellow'} />
+                </View>
+                <Text style={{ fontSize: 12, color: colors.sub, marginBottom: 8 }}>📍 {b.from} → {b.to} ({b.date})</Text>
+                
+                <View style={{ gap: 4, backgroundColor: colors.surface2 || '#F8FAFC', padding: 10, borderRadius: radius.md, borderWidth: 1, borderColor: colors.border }}>
+                  <Text style={{ fontSize: 12, fontWeight: '700', color: colors.text }}>UPI ID: <Text style={{ fontWeight: 'normal', color: colors.sub }}>{b.payoutDetails.upiId || 'Not Configured'}</Text></Text>
+                  <Text style={{ fontSize: 12, fontWeight: '700', color: colors.text }}>Bank Name: <Text style={{ fontWeight: 'normal', color: colors.sub }}>{b.payoutDetails.bankName || 'Not Configured'}</Text></Text>
+                  <Text style={{ fontSize: 12, fontWeight: '700', color: colors.text }}>Account No: <Text style={{ fontWeight: 'normal', color: colors.sub }}>{b.payoutDetails.accountNumber || 'Not Configured'}</Text></Text>
+                  <Text style={{ fontSize: 12, fontWeight: '700', color: colors.text }}>IFSC Code: <Text style={{ fontWeight: 'normal', color: colors.sub }}>{b.payoutDetails.ifsc || 'Not Configured'}</Text></Text>
+                </View>
+              </Card>
+            ))
+          )}
+        </ScrollView>
       </SafeAreaView>
     );
   }
