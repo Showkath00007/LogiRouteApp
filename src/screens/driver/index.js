@@ -501,7 +501,6 @@ export function DriverDashboard({ navigation }) {
         <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 10 }}>
           {[
             ['📋', 'My Trips', () => navigation.navigate('MyTrips')],
-            ['💳', 'Payment Details', () => navigation.navigate('PaymentMethods')],
             ['🔔', 'Jobs', () => navigation.navigate('Jobs')],
             ['💰', 'Earnings', () => navigation.navigate('Earnings')],
             ['🚛', 'Vehicle', () => navigation.navigate('Vehicle')],
