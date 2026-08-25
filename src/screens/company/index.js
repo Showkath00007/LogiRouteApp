@@ -891,11 +891,25 @@ export function AnalyticsScreen({ navigation }) {
             </Text>
           </Card>
         ) : allActivities.length === 0 ? (
-          <Card>
-            <Text style={{ textAlign: 'center', color: colors.sub, paddingVertical: 20 }}>
-              Cargo is in transit or yet to be completed / delivered.
-            </Text>
-          </Card>
+          <>
+            <Card style={{ marginBottom: 16, backgroundColor: colors.accentLight, borderColor: colors.accent, borderWidth: 1 }}>
+              <Text style={{ fontSize: 15, fontWeight: '850', color: colors.accent, marginBottom: 4 }}>📈 Active Fleet Cargo</Text>
+              <Text style={{ fontSize: 13, color: colors.sub }}>Analytics reports and cost trend charts will generate automatically after these active journeys are completed.</Text>
+            </Card>
+
+            <SectionLabel label="Currently in Fleet" />
+            {totalDrafts.filter(s => s.status !== 'Completed' && s.status !== 'Delivered').map(c => (
+              <Card key={c.id} style={{ marginBottom: 10 }}>
+                <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
+                  <Text style={{ fontSize: 14, fontWeight: '750', color: colors.text }}>{c.from?.split(',')[0]} ➔ {c.to?.split(',')[0]}</Text>
+                  <Badge label={c.status === 'in_transit' || c.status === 'In Transit' ? '🛣️ In Transit' : c.status} color={c.status === 'paid' ? colors.green : c.status === 'loaded' ? colors.blue : colors.orange} />
+                </View>
+                <Text style={{ fontSize: 12, color: colors.sub }}>• Material: {c.material || 'General Cargo'}</Text>
+                <Text style={{ fontSize: 12, color: colors.sub, marginTop: 2 }}>• Driver: {c.driver || 'Demo Driver'}</Text>
+                {c.date && <Text style={{ fontSize: 11, color: colors.muted, marginTop: 4 }}>Pickup Date: {c.date}</Text>}
+              </Card>
+            ))}
+          </>
         ) : (
           <>
             <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 10, marginBottom: 16 }}>
