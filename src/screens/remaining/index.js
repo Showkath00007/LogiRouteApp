@@ -14,7 +14,7 @@ import { auth, db } from '../../config/firebase';
 import { ref, set, update, onValue, get } from 'firebase/database';
 import { signOut } from 'firebase/auth';
 import { getUserProfile, listenNotifications, listenBookings, createBooking, listenShipments } from '../../config/firebaseService';
-import { sendBookingRequest, listenAllNotifications, markAnyNotificationRead, markAllNotificationsReadUnified, simulateNewNotification, postOpenJob } from '../../config/DriverService';
+import { sendBookingRequest, listenAllNotifications, markAnyNotificationRead, markAllNotificationsReadUnified, simulateNewNotification, postOpenJob, listenCompanyFleet } from '../../config/DriverService';
 
 const screen = (pt = 60) => ({ padding: 20, paddingTop: pt, flexGrow: 1 });
 const h1 = { fontSize: 22, fontWeight: '900', color: colors.text, letterSpacing: -0.5, marginBottom: 4 };
@@ -1503,24 +1503,46 @@ export function HistoryScreen({ navigation }) {
 
 export function ReportsScreen({ navigation }) {
   const [shipments, setShipments] = useState([]);
+  const [fleet, setFleet] = useState([]);
   const [loading, setLoading] = useState(true);
   const [activeCategory, setActiveCategory] = useState('all');
 
   useEffect(() => {
-    const unsub = listenShipments(data => {
-      setShipments(data);
+    const unsubFleet = listenCompanyFleet(data => {
+      setFleet(data || []);
+    });
+    const unsubShipments = listenShipments(data => {
+      setShipments(data || []);
       setLoading(false);
     });
-    return unsub;
+    return () => {
+      unsubFleet();
+      unsubShipments();
+    };
   }, []);
 
-  const totalSpend = shipments.reduce((sum, s) => sum + (s.cost || 0), 0);
+  const normalizedFleet = fleet.map(b => ({
+    id: b.id,
+    from: b.from,
+    to: b.to,
+    material: b.material || 'General Cargo',
+    km: b.distance || b.km || parseFloat(b.distance) || 46,
+    cost: b.cost || b.amount || 12000,
+    createdAt: b.createdAt || Date.now(),
+    transport: b.transport || 'truck',
+    driver: b.driver || 'Demo Driver',
+    date: b.date
+  }));
+
+  const allActivities = [...shipments, ...normalizedFleet];
+
+  const totalSpend = allActivities.reduce((sum, s) => sum + (s.cost || 0), 0);
   const totalSpendLabel = totalSpend >= 100000 ? `₹${(totalSpend / 100000).toFixed(1)}L` : `₹${(totalSpend / 1000).toFixed(1)}K`;
   
   // Dynamic metrics based on interactive selections
-  const totalDistance = shipments.reduce((sum, s) => sum + (Number(s.km) || 0), 0);
+  const totalDistance = allActivities.reduce((sum, s) => sum + (Number(s.km) || 0), 0);
   const estimatedFuel = Math.round(totalDistance * 0.26); // 0.26 L/km average fleet burn
-  const totalTollsCrossed = shipments.length * 4; // average 4 checkpoints per trip
+  const totalTollsCrossed = allActivities.length * 4; // average 4 checkpoints per trip
   const estimatedSavings = Math.round(totalSpend * 0.14); // 14% optimization savings
 
   const monthLabel = new Date().toLocaleDateString('en-IN', { month: 'long', year: 'numeric' });
@@ -1530,7 +1552,7 @@ export function ReportsScreen({ navigation }) {
       const Print = require('expo-print');
       const Sharing = require('expo-sharing');
       
-      const rows = shipments.map(s => `
+      const rows = allActivities.map(s => `
         <tr style="border-bottom: 1px solid #eee;">
           <td style="padding: 10px; font-size: 11px; color: #4b5563;">LR-${(s.id || '').substring(0, 5).toUpperCase()}</td>
           <td style="padding: 10px; font-weight: 600; font-size: 12px; color: #1f2937;">${s.from?.split(',')[0]} ➔ ${s.to?.split(',')[0]}</td>
@@ -1626,7 +1648,7 @@ export function ReportsScreen({ navigation }) {
 
         {loading ? (
           <ActivityIndicator color={colors.accent} style={{ marginVertical: 20 }} />
-        ) : shipments.length === 0 ? (
+        ) : allActivities.length === 0 ? (
           <Card>
             <Text style={{ textAlign: 'center', color: colors.sub, paddingVertical: 20 }}>
               No shipments found. Build a shipment to generate analytics reports.
@@ -1673,7 +1695,7 @@ export function ReportsScreen({ navigation }) {
                 <View style={{ gap: 10 }}>
                   <View style={{ flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 4 }}>
                     <Text style={{ fontSize: 13, color: colors.sub }}>Total Base Shipments</Text>
-                    <Text style={{ fontSize: 13, fontWeight: '700', color: colors.text }}>{shipments.length}</Text>
+                    <Text style={{ fontSize: 13, fontWeight: '700', color: colors.text }}>{allActivities.length}</Text>
                   </View>
                   <View style={{ flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 4 }}>
                     <Text style={{ fontSize: 13, color: colors.sub }}>Est. Fuel Surcharges (42%)</Text>

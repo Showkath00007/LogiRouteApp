@@ -794,15 +794,37 @@ export function ShipmentDetailScreen({ navigation, route }) {
 // S15 — Analytics
 export function AnalyticsScreen({ navigation }) {
   const [shipments, setShipments] = useState([]);
+  const [fleet, setFleet] = useState([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const unsub = listenShipments(data => {
-      setShipments(data);
+    const unsubFleet = listenCompanyFleet(data => {
+      setFleet(data || []);
+    });
+    const unsubShipments = listenShipments(data => {
+      setShipments(data || []);
       setLoading(false);
     });
-    return unsub;
+    return () => {
+      unsubFleet();
+      unsubShipments();
+    };
   }, []);
+
+  const normalizedFleet = fleet.map(b => ({
+    id: b.id,
+    from: b.from,
+    to: b.to,
+    material: b.material || 'General Cargo',
+    km: b.distance || b.km || parseFloat(b.distance) || 46,
+    cost: b.cost || b.amount || 12000,
+    createdAt: b.createdAt || Date.now(),
+    transport: b.transport || 'truck',
+    driver: b.driver || 'Demo Driver',
+    date: b.date
+  }));
+
+  const allActivities = [...shipments, ...normalizedFleet];
 
   const now = new Date();
   const monthLabel = now.toLocaleDateString('en-IN', { month: 'long', year: 'numeric' });
@@ -812,7 +834,7 @@ export function AnalyticsScreen({ navigation }) {
     const d = new Date(now.getFullYear(), now.getMonth() - (5 - i), 1);
     return { key: `${d.getFullYear()}-${d.getMonth()}`, label: d.toLocaleDateString('en-IN', { month: 'short' }), total: 0 };
   });
-  shipments.forEach(s => {
+  allActivities.forEach(s => {
     if (!s.createdAt) return;
     const d = new Date(s.createdAt);
     const bucket = monthBuckets.find(b => b.key === `${d.getFullYear()}-${d.getMonth()}`);
@@ -828,7 +850,7 @@ export function AnalyticsScreen({ navigation }) {
     ? Math.round(((thisMonth.total - lastMonth.total) / lastMonth.total) * 100)
     : (thisMonth.total > 0 ? 100 : 0);
 
-  const thisMonthShipments = shipments.filter(s => {
+  const thisMonthShipments = allActivities.filter(s => {
     if (!s.createdAt) return false;
     const d = new Date(s.createdAt);
     return `${d.getFullYear()}-${d.getMonth()}` === thisMonth.key;
@@ -836,12 +858,12 @@ export function AnalyticsScreen({ navigation }) {
   const kmCovered = thisMonthShipments.reduce((sum, s) => sum + (Number(s.km) || 0), 0);
 
   // Transport split across all shipments
-  const transportCounts = shipments.reduce((acc, s) => {
+  const transportCounts = allActivities.reduce((acc, s) => {
     const t = s.transport || 'truck';
     acc[t] = (acc[t] || 0) + 1;
     return acc;
   }, {});
-  const totalTransportCount = shipments.length || 1;
+  const totalTransportCount = allActivities.length || 1;
   const transportSplit = Object.entries(transportCounts)
     .map(([t, count]) => ({
       label: t.charAt(0).toUpperCase() + t.slice(1),
@@ -861,7 +883,7 @@ export function AnalyticsScreen({ navigation }) {
 
         {loading ? (
           <ActivityIndicator color={colors.accent} style={{ marginVertical: 20 }} />
-        ) : shipments.length === 0 ? (
+        ) : allActivities.length === 0 ? (
           <Card>
             <Text style={{ textAlign: 'center', color: colors.sub, paddingVertical: 20 }}>
               No shipment data yet. Analytics will fill in as you create shipments.
