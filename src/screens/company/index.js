@@ -1243,6 +1243,18 @@ export function FleetScreen({ navigation }) {
                     <Text style={{ fontSize: 11, color: colors.muted, marginBottom: 6 }}>
                       Updated {Math.max(1, Math.round(staleMs / 1000))}s ago (driver's phone GPS)
                     </Text>
+                    <Btn 
+                      label="🗺️ Track on Map" 
+                      onPress={() => {
+                        navigation.navigate('RouteMap', {
+                          bookingId: v.id,
+                          source: `${loc.lat},${loc.lng}`,
+                          destination: v.to,
+                        });
+                      }}
+                      style={{ marginTop: 6, marginBottom: 0, paddingVertical: 8 }}
+                      variant="outline"
+                    />
                   </>
                 ) : (
                   <Text style={{ fontSize: 12, color: colors.muted, marginBottom: 6 }}>Waiting for driver's phone GPS…</Text>
