@@ -146,7 +146,7 @@ function listenBookingRequests(driverUid, callback) {
   const handler = (snap) => {
     if (!snap.exists()) { callback([]); return; }
     const list = Object.values(snap.val())
-      .filter(n => n.type === 'booking_request')
+      .filter(n => n.type === 'booking_request' || n.type === 'payment_received')
       .sort((a, b) => b.createdAt - a.createdAt);
     callback(list);
   };
@@ -309,7 +309,8 @@ export function DriverDashboard({ navigation }) {
     </SafeAreaView>
   );
 
-  const pendingRequests = bookingRequests.filter(b => !b.responded);
+  const pendingRequests = bookingRequests.filter(b => b.type === 'booking_request' && !b.responded);
+  const paymentAlerts = bookingRequests.filter(b => b.type === 'payment_received');
   const statusColor = { available: colors.green, busy: colors.orange, pending: colors.yellow, offline: colors.textMuted };
 
   return (
@@ -402,7 +403,22 @@ export function DriverDashboard({ navigation }) {
           </>
         )}
 
-        {/* Stats */}
+        {paymentAlerts.length > 0 && (
+          <Card style={{ marginBottom: 16 }}>
+            <SectionLabel label="🔔 Recent Notifications" style={{ marginTop: 0 }} />
+            {paymentAlerts.map((al, idx) => (
+              <View key={al.id || idx} style={{ paddingVertical: 10, borderBottomWidth: idx < paymentAlerts.length - 1 ? 1 : 0, borderColor: colors.border }}>
+                <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <Text style={{ fontSize: fonts.sm, fontWeight: '800', color: colors.text }}>{al.title || 'Notification'}</Text>
+                  <Text style={{ fontSize: fonts.xs, color: colors.textMuted }}>
+                    {al.createdAt ? new Date(al.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : 'Now'}
+                  </Text>
+                </View>
+                <Text style={{ fontSize: fonts.sm, color: colors.textSub, marginTop: 4 }}>{al.message}</Text>
+              </View>
+            ))}
+          </Card>
+        )}
         <View style={{ flexDirection: 'row', gap: 10, marginBottom: 16 }}>
           <StatCard icon="🛣️" value={driver?.trips || 0} label="Total Trips" color={colors.blue} style={{ flex: 1 }} />
           <StatCard icon="⭐" value={(driver?.rating || 5.0).toFixed(1)} label="Rating" color={colors.yellow} style={{ flex: 1 }} />
@@ -701,28 +717,37 @@ export function MyTripsScreen({ navigation }) {
   useEffect(() => {
     const uid = getDriverUid();
     try {
-      const r = ref(db, `driverNotifications/${uid}`);
-      onValue(r, snap => {
+      const bRef = ref(db, 'bookings');
+      onValue(bRef, snap => {
         if (!snap.exists()) { setTrips([]); setLoading(false); return; }
-        const accepted = Object.values(snap.val())
-          .filter(n => n.type === 'booking_request' && n.accepted === true)
-          .map(n => ({
-            id: n.id,
-            from: n.from,
-            to: n.to,
-            date: new Date(n.createdAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' }),
-            status: 'Completed',
-            earnings: n.cost || 0,
-            km: n.distKm || 0,
-            material: n.material || 'Cargo',
-          }));
-        setTrips(accepted);
+        const bookingsData = snap.val();
+        const activeTrips = Object.values(bookingsData)
+          .filter(b => b.driverUid === uid && (b.status === 'confirmed' || b.status === 'paid' || b.status === 'In Transit' || b.status === 'Delivered'))
+          .map(b => ({
+            id: b.id,
+            from: b.from,
+            to: b.to,
+            date: b.createdAt ? new Date(b.createdAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' }) : 'Today',
+            status: b.status === 'paid' ? 'Paid (Ready to Depart)' : b.status === 'confirmed' ? 'Confirmed (Pending Payment)' : b.status === 'In Transit' ? 'In Transit' : b.status || 'Confirmed',
+            earnings: b.cost || b.amount || 0,
+            km: b.distance || b.distKm || 0,
+            material: b.material || 'Cargo',
+            companyName: b.companyName || 'Uri Logistics',
+          }))
+          .sort((a, b) => b.id.localeCompare(a.id));
+        setTrips(activeTrips);
         setLoading(false);
       }, () => { setTrips([]); setLoading(false); });
     } catch (e) { setTrips([]); setLoading(false); }
   }, []);
 
-  const statusColor = { Completed: colors.green, Cancelled: colors.red, 'In Progress': colors.blue, Pending: colors.yellow };
+  const statusColor = { 
+    'Paid (Ready to Depart)': colors.green, 
+    'Confirmed (Pending Payment)': colors.yellow, 
+    'In Transit': colors.blue, 
+    'Completed': colors.green, 
+    'Cancelled': colors.red 
+  };
 
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: colors.bg }}>
@@ -747,9 +772,12 @@ export function MyTripsScreen({ navigation }) {
                 </View>
                 <Badge label={t.status} color={statusColor[t.status] || colors.textMuted} />
               </View>
-              <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
-                <Text style={{ fontSize: fonts.sm, color: colors.textSub }}>🛣️ {t.km} km</Text>
-                <Text style={{ fontSize: fonts.base, fontWeight: '800', color: colors.green }}>₹{t.earnings?.toLocaleString()}</Text>
+              <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: 4 }}>
+                <Text style={{ fontSize: fonts.xs, color: colors.textMuted }}>🏢 {t.companyName}</Text>
+                <View style={{ flexDirection: 'row', gap: 10, alignItems: 'center' }}>
+                  <Text style={{ fontSize: fonts.xs, color: colors.textSub }}>🛣️ {t.km} km</Text>
+                  <Text style={{ fontSize: fonts.sm, fontWeight: '800', color: colors.green }}>₹{t.earnings?.toLocaleString()}</Text>
+                </View>
               </View>
             </Card>
           ))
@@ -764,6 +792,13 @@ export function MyTripsScreen({ navigation }) {
 // ═══════════════════════════════════════════════════════════════
 export function TripDetailScreen({ navigation, route }) {
   const trip = route?.params?.trip || {};
+  const statusColor = { 
+    'Paid (Ready to Depart)': colors.green, 
+    'Confirmed (Pending Payment)': colors.yellow, 
+    'In Transit': colors.blue, 
+    'Completed': colors.green, 
+    'Cancelled': colors.red 
+  };
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: colors.bg }}>
       <ScrollView contentContainerStyle={screen()}>
@@ -771,11 +806,19 @@ export function TripDetailScreen({ navigation, route }) {
         <Text style={h1}>Trip Detail</Text>
         <Card style={{ marginBottom: 16 }}>
           <Text style={{ fontSize: fonts.xl, fontWeight: '900', color: colors.text, marginBottom: 4 }}>{trip.from} → {trip.to}</Text>
-          <Badge label={trip.status || 'Completed'} color={trip.status === 'Completed' ? colors.green : colors.red} />
-          {[['Material', trip.material], ['Date', trip.date], ['Distance', `${trip.km} km`], ['Earnings', `₹${trip.earnings?.toLocaleString()}`]].map(([k, v]) => (
-            <View key={k} style={{ flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 8, borderBottomWidth: 1, borderColor: colors.border }}>
-              <Text style={{ color: colors.textSub }}>{k}</Text>
-              <Text style={{ color: colors.text, fontWeight: '700' }}>{v}</Text>
+          <View style={{ flexDirection: 'row', marginVertical: 6 }}>
+            <Badge label={trip.status || 'Confirmed'} color={statusColor[trip.status] || colors.green} />
+          </View>
+          {[
+            ['Shipper Company', trip.companyName || 'Uri Logistics'],
+            ['Material', trip.material], 
+            ['Date', trip.date], 
+            ['Distance', `${trip.km} km`], 
+            ['Earnings', `₹${trip.earnings?.toLocaleString()}`]
+          ].map(([k, v]) => (
+            <View key={k} style={{ flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 10, borderBottomWidth: 1, borderColor: colors.border }}>
+              <Text style={{ color: colors.textSub, fontSize: fonts.sm }}>{k}</Text>
+              <Text style={{ color: colors.text, fontWeight: '700', fontSize: fonts.sm }}>{v}</Text>
             </View>
           ))}
         </Card>
