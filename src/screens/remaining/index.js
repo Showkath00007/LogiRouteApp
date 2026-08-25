@@ -294,6 +294,13 @@ export function PaymentScreen({ navigation, route }) {
     <p>Opening Razorpay...</p>
   </div>
   <script>
+    if (typeof window.ReactNativeWebView === 'undefined') {
+      window.ReactNativeWebView = {
+        postMessage: function(msg) {
+          window.parent.postMessage(msg, '*');
+        }
+      };
+    }
     window.onload = function() {
       try {
         if (typeof Razorpay === 'undefined') {
@@ -403,9 +410,40 @@ export function PaymentScreen({ navigation, route }) {
     }, 15000); // 15s — generous enough for a slow connection, short enough not to leave the user stuck like before
   };
 
+  useEffect(() => {
+    if (Platform.OS === 'web' && showWebView) {
+      const handleWebMessage = (event) => {
+        try {
+          // Re-route message payload to handleMessage format
+          handleMessage({ nativeEvent: { data: event.data } });
+        } catch (e) {}
+      };
+      window.addEventListener('message', handleWebMessage);
+      return () => window.removeEventListener('message', handleWebMessage);
+    }
+  }, [showWebView]);
+
   useEffect(() => () => { if (timeoutRef.current) clearTimeout(timeoutRef.current); }, []);
 
   if (showWebView) {
+    if (Platform.OS === 'web') {
+      return (
+        <SafeAreaView style={{ flex: 1, backgroundColor: '#0A0C12' }}>
+          <View style={{ flexDirection: 'row', alignItems: 'center', padding: 16, paddingTop: 52, borderBottomWidth: 1, borderColor: colors.border }}>
+            <TouchableOpacity onPress={() => { if (timeoutRef.current) clearTimeout(timeoutRef.current); setShowWebView(false); }} style={{ marginRight: 12 }}>
+              <Text style={{ color: colors.accent, fontSize: 16 }}>✕ Cancel</Text>
+            </TouchableOpacity>
+            <Text style={{ color: colors.text, fontSize: 16, fontWeight: '700', flex: 1 }}>Razorpay Payment</Text>
+            <Text style={{ fontSize: 13, color: colors.green, fontWeight: '700' }}>🔒 Secure</Text>
+          </View>
+          <iframe
+            srcDoc={razorpayHTML}
+            style={{ flex: 1, border: 'none', width: '100%', height: '100%', backgroundColor: '#0A0C12' }}
+          />
+        </SafeAreaView>
+      );
+    }
+
     return (
       <SafeAreaView style={{ flex: 1, backgroundColor: '#0A0C12' }}>
         <View style={{ flexDirection: 'row', alignItems: 'center', padding: 16, paddingTop: 52, borderBottomWidth: 1, borderColor: colors.border }}>
