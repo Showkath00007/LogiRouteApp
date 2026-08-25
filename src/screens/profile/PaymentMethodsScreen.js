@@ -123,15 +123,16 @@ export default function PaymentMethodsScreen({ navigation }) {
     }
     setSaving(true);
     try {
-      const uid = auth.currentUser?.uid;
+      const uid = auth.currentUser?.uid || 'demo_driver';
       const primaryBank = bankAccounts[0] || {};
       const primaryUpi = upiAccounts[0] || {};
       const selectedUpi = selected || primaryUpi.id || '';
 
-      await saveUserProfile({
+      await update(ref(db, `users/${uid}/profile`), {
         upiAccounts,
         bankAccounts,
-        selectedUpiId: selectedUpi
+        selectedUpiId: selectedUpi,
+        updatedAt: Date.now()
       });
 
       // Also update directly to drivers/${uid} node for compatibility
@@ -298,7 +299,7 @@ export default function PaymentMethodsScreen({ navigation }) {
         <Text style={{ fontSize: 24, fontWeight: '900', color: colors.text, marginBottom: 4 }}>Bank Details</Text>
         <Text style={{ fontSize: 13, color: colors.sub, marginBottom: 20 }}>Manage UPI & bank accounts to receive payouts</Text>
 
-        {bankAccounts.length === 0 && (
+        {bankAccounts.length === 0 && upiAccounts.length === 0 && (
           <View style={{
             backgroundColor: '#FFF8F2',
             borderWidth: 1.5,
