@@ -855,7 +855,7 @@ export function AnalyticsScreen({ navigation }) {
     const d = new Date(s.createdAt);
     return `${d.getFullYear()}-${d.getMonth()}` === thisMonth.key;
   });
-  const kmCovered = thisMonthShipments.reduce((sum, s) => sum + (Number(s.km) || 0), 0);
+  const kmCovered = thisMonthShipments.reduce((sum, s) => (s.status === 'Completed' || s.status === 'Delivered') ? sum + (Number(s.km) || 0) : sum, 0);
 
   // Transport split across all shipments
   const transportCounts = allActivities.reduce((acc, s) => {
