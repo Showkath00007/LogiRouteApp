@@ -710,6 +710,8 @@ export function ConfirmedScreen({ navigation, route }) {
 export function MyBookingsScreen({ navigation }) {
   const [bookings, setBookings] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [selectedEpodBooking, setSelectedEpodBooking] = useState(null);
+  const [showEpodModal, setShowEpodModal] = useState(false);
 
   const handleDeleteBooking = async (bookingId) => {
     const confirm = Platform.OS === 'web'
@@ -849,11 +851,117 @@ export function MyBookingsScreen({ navigation }) {
                   }}
                   style={{ marginTop: 10, marginBottom: 0, paddingVertical: 8 }}
                 />
+              {b.status === 'Completed' && (
+                <Btn 
+                  label="📋 View Proof of Delivery (e-POD)" 
+                  onPress={() => {
+                    setSelectedEpodBooking(b);
+                    setShowEpodModal(true);
+                  }}
+                  variant="outline"
+                  style={{ marginTop: 10, marginBottom: 0, paddingVertical: 8 }}
+                />
               )}
             </Card>
           ))
         )}
       </ScrollView>
+
+      {selectedEpodBooking && (
+        <Modal
+          visible={showEpodModal}
+          transparent={true}
+          animationType="slide"
+          onRequestClose={() => {
+            setShowEpodModal(false);
+            setSelectedEpodBooking(null);
+          }}
+        >
+          <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'center', alignItems: 'center', padding: 20 }}>
+            <View style={{ backgroundColor: colors.surface, borderRadius: radius.xl, padding: 24, width: '100%', maxWidth: 460, ...shadow.lg }}>
+              
+              {/* Certificate Header */}
+              <View style={{ borderBottomWidth: 1.5, borderColor: colors.border, paddingBottom: 12, marginBottom: 16 }}>
+                <Text style={{ fontSize: 20, fontWeight: '900', color: colors.accent, letterSpacing: -0.5 }}>📋 Proof of Delivery Certificate</Text>
+                <Text style={{ fontSize: 11, color: colors.muted, fontWeight: '600', marginTop: 2 }}>ELECTRONIC PROOF OF DELIVERY (e-POD)</Text>
+              </View>
+
+              <ScrollView style={{ maxHeight: 380 }} showsVerticalScrollIndicator={false}>
+                {/* Route Overview */}
+                <View style={{ backgroundColor: colors.surface2, borderRadius: 10, padding: 12, marginBottom: 16, borderWidth: 1, borderColor: colors.border }}>
+                  <Text style={{ fontSize: 14, fontWeight: '800', color: colors.text }}>{selectedEpodBooking.from} → {selectedEpodBooking.to}</Text>
+                  <Text style={{ fontSize: 12, color: colors.sub, marginTop: 4 }}>
+                    • Cargo: {selectedEpodBooking.material} · {selectedEpodBooking.weight || '10 Tons'}
+                  </Text>
+                  <Text style={{ fontSize: 12, color: colors.sub, marginTop: 2 }}>
+                    • Driver Assigned: {selectedEpodBooking.driver || 'Demo Driver'}
+                  </Text>
+                </View>
+
+                {/* Recipient Details */}
+                <View style={{ gap: 8, marginBottom: 20 }}>
+                  <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
+                    <Text style={{ fontSize: 13, color: colors.sub }}>Consignee Name</Text>
+                    <Text style={{ fontSize: 13, fontWeight: '700', color: colors.text }}>{selectedEpodBooking.consigneeName || 'Not Available'}</Text>
+                  </View>
+                  <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
+                    <Text style={{ fontSize: 13, color: colors.sub }}>Consignee Mobile</Text>
+                    <Text style={{ fontSize: 13, fontWeight: '700', color: colors.text }}>{selectedEpodBooking.consigneePhone || 'Not Available'}</Text>
+                  </View>
+                  <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
+                    <Text style={{ fontSize: 13, color: colors.sub }}>Delivery Timestamp</Text>
+                    <Text style={{ fontSize: 13, fontWeight: '700', color: colors.text }}>
+                      {selectedEpodBooking.epodTimestamp ? new Date(selectedEpodBooking.epodTimestamp).toLocaleString() : 'Not Available'}
+                    </Text>
+                  </View>
+                  <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
+                    <Text style={{ fontSize: 13, color: colors.sub }}>OTP Status</Text>
+                    <Text style={{ fontSize: 13, fontWeight: '800', color: colors.green }}>✓ Verified (Secure OTP Gate)</Text>
+                  </View>
+                </View>
+
+                {/* Signature preview */}
+                <Text style={{ fontSize: 11, fontWeight: '800', color: colors.textSub, marginBottom: 8, letterSpacing: 0.5 }}>DIGITAL SIGNATURE SECURED</Text>
+                <View style={{ height: 120, backgroundColor: '#FAF8F5', borderRadius: 10, borderWidth: 1, borderColor: colors.border, justifyContent: 'center', alignItems: 'center', overflow: 'hidden' }}>
+                  {selectedEpodBooking.signatureType === 'drawn' ? (
+                    <View style={{ width: '100%', height: '100%', position: 'relative' }}>
+                      {(() => {
+                        try {
+                          const pts = JSON.parse(selectedEpodBooking.consigneeSignature || '[]');
+                          return pts.map((d, idx) => (
+                            <View 
+                              key={idx} 
+                              style={{ 
+                                position: 'absolute', 
+                                left: d.x - 2, 
+                                top: d.y - 2, 
+                                width: 4, 
+                                height: 4, 
+                                borderRadius: 2, 
+                                backgroundColor: '#1A73E8' 
+                              }} 
+                            />
+                          ));
+                        } catch(err) {
+                          return <Text style={{ fontStyle: 'italic', color: colors.sub, fontSize: 13 }}>Invalid Signature Coordinates</Text>;
+                        }
+                      })()}
+                    </View>
+                  ) : (
+                    <Text style={{ fontSize: 24, fontStyle: 'italic', fontWeight: '800', color: colors.accent }}>
+                      {selectedEpodBooking.consigneeSignature || selectedEpodBooking.consigneeName || 'Signed'}
+                    </Text>
+                  )}
+                </View>
+              </ScrollView>
+
+              <View style={{ marginTop: 24 }}>
+                <Btn label="Close Certificate" onPress={() => { setShowEpodModal(false); setSelectedEpodBooking(null); }} style={{ width: '100%' }} />
+              </View>
+            </View>
+          </View>
+        </Modal>
+      )}
     </SafeAreaView>
   );
 }

@@ -874,6 +874,15 @@ export function TripDetailScreen({ navigation, route }) {
   const tripParam = route?.params?.trip || {};
   const [booking, setBooking] = useState(null);
 
+  const [showEpod, setShowEpod] = useState(false);
+  const [recipientName, setRecipientName] = useState('');
+  const [recipientPhone, setRecipientPhone] = useState('');
+  const [otpCode, setOtpCode] = useState('123456');
+  const [signatureType, setSignatureType] = useState('typed'); // 'typed' or 'drawn'
+  const [typedSign, setTypedSign] = useState('');
+  const [dots, setDots] = useState([]);
+  const [otpVerified, setOtpVerified] = useState(false);
+
   useEffect(() => {
     if (!tripParam.id) return;
     const bRef = ref(db, `bookings/${tripParam.id}`);
@@ -884,6 +893,64 @@ export function TripDetailScreen({ navigation, route }) {
     });
     return unsub;
   }, [tripParam.id]);
+
+  const handleCompleteEpod = async () => {
+    if (!recipientName.trim()) {
+      Alert.alert('Error', 'Please enter recipient name.');
+      return;
+    }
+    if (!recipientPhone.trim()) {
+      Alert.alert('Error', 'Please enter recipient phone number.');
+      return;
+    }
+    if (!otpVerified && otpCode !== '123456') {
+      Alert.alert('Error', 'Please enter correct OTP code (123456) or verify.');
+      return;
+    }
+
+    try {
+      let signatureData = '';
+      if (signatureType === 'typed') {
+        signatureData = typedSign.trim() || recipientName;
+      } else {
+        signatureData = JSON.stringify(dots);
+      }
+
+      await update(ref(db, `bookings/${tripParam.id}`), {
+        status: 'Completed',
+        consigneeName: recipientName.trim(),
+        consigneePhone: recipientPhone.trim(),
+        consigneeSignature: signatureData,
+        signatureType: signatureType,
+        epodTimestamp: Date.now()
+      });
+
+      const driverUid = auth.currentUser?.uid || 'demo_driver';
+      const nRef = push(ref(db, `driverNotifications/${driverUid}`));
+      await set(nRef, {
+        id: nRef.key,
+        type: 'delivery_completed',
+        title: 'Cargo Delivered! 📦',
+        body: `Trip ${tripParam.from} to ${tripParam.to} completed and signed by ${recipientName.trim()}.`,
+        timestamp: Date.now()
+      });
+
+      const companyUid = booking?.companyUid || tripParam.companyUid || 'demo_company';
+      const cnRef = push(ref(db, `driverNotifications/${companyUid}`));
+      await set(cnRef, {
+        id: cnRef.key,
+        type: 'delivery_completed',
+        title: 'Shipment Delivered! 📦',
+        body: `Your shipment from ${tripParam.from} to ${tripParam.to} has been delivered and signed by ${recipientName.trim()}.`,
+        timestamp: Date.now()
+      });
+
+      setShowEpod(false);
+    } catch(e) {
+      console.log('Error completing epod:', e);
+      Alert.alert('Error', 'Failed to complete e-POD. Please try again.');
+    }
+  };
 
   const currentStatus = booking?.status || tripParam.status || 'confirmed';
   const location = booking?.location || null;
@@ -1005,18 +1072,151 @@ export function TripDetailScreen({ navigation, route }) {
             <Btn 
               label={isWithin10km ? "✅ Mark as Completed / Delivered" : `🔒 Complete Trip (Only within 10km)`}
               disabled={!isWithin10km}
-              onPress={async () => {
-                try {
-                  await update(ref(db, `bookings/${tripParam.id}`), { status: 'Completed' });
-                } catch(e) {
-                  console.log('Error completing trip:', e);
-                }
-              }}
+              onPress={() => setShowEpod(true)}
               style={{ marginTop: 8, backgroundColor: isWithin10km ? colors.green : '#BDC1C6' }}
             />
           </>
         )}
       </ScrollView>
+
+      <Modal
+        visible={showEpod}
+        transparent={true}
+        animationType="slide"
+        onRequestClose={() => setShowEpod(false)}
+      >
+        <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'center', alignItems: 'center', padding: 20 }}>
+          <View style={{ backgroundColor: colors.surface, borderRadius: radius.xl, padding: 24, width: '100%', maxWidth: 440, ...shadow.lg }}>
+            <Text style={{ fontSize: 20, fontWeight: '900', color: colors.text, marginBottom: 4 }}>📦 Complete Cargo Delivery</Text>
+            <Text style={{ fontSize: 13, color: colors.textSub, marginBottom: 16 }}>Collect consignee details and digital signature.</Text>
+
+            <ScrollView style={{ maxHeight: 380 }} showsVerticalScrollIndicator={false}>
+              <Text style={{ fontSize: 11, fontWeight: '800', color: colors.textSub, marginBottom: 6, letterSpacing: 0.5 }}>RECIPIENT NAME</Text>
+              <TextInput
+                style={{ height: 44, borderWidth: 1, borderColor: colors.border, borderRadius: 8, paddingHorizontal: 12, marginBottom: 12, backgroundColor: colors.surface2, color: colors.text }}
+                placeholder="Enter consignee name"
+                placeholderTextColor={colors.muted}
+                value={recipientName}
+                onChangeText={setRecipientName}
+              />
+
+              <Text style={{ fontSize: 11, fontWeight: '800', color: colors.textSub, marginBottom: 6, letterSpacing: 0.5 }}>RECIPIENT PHONE</Text>
+              <TextInput
+                style={{ height: 44, borderWidth: 1, borderColor: colors.border, borderRadius: 8, paddingHorizontal: 12, marginBottom: 12, backgroundColor: colors.surface2, color: colors.text }}
+                placeholder="Enter 10-digit mobile"
+                placeholderTextColor={colors.muted}
+                value={recipientPhone}
+                onChangeText={setRecipientPhone}
+                keyboardType="phone-pad"
+              />
+
+              <Text style={{ fontSize: 11, fontWeight: '800', color: colors.textSub, marginBottom: 6, letterSpacing: 0.5 }}>DELIVERY OTP (SIMULATED: 123456)</Text>
+              <View style={{ flexDirection: 'row', gap: 8, marginBottom: 16 }}>
+                <TextInput
+                  style={{ flex: 1, height: 44, borderWidth: 1, borderColor: colors.border, borderRadius: 8, paddingHorizontal: 12, backgroundColor: colors.surface2, color: colors.text, textAlign: 'center', fontSize: 16, fontWeight: '800' }}
+                  placeholder="123456"
+                  placeholderTextColor={colors.muted}
+                  value={otpCode}
+                  onChangeText={setOtpCode}
+                  keyboardType="numeric"
+                  maxLength={6}
+                />
+                <TouchableOpacity
+                  onPress={() => {
+                    if (otpCode === '123456') {
+                      setOtpVerified(true);
+                      Alert.alert('Success', 'OTP verified successfully!');
+                    } else {
+                      Alert.alert('Error', 'Invalid OTP code. Use 123456.');
+                    }
+                  }}
+                  style={{ backgroundColor: otpVerified ? colors.green : colors.accent, borderRadius: 8, paddingHorizontal: 16, justifyContent: 'center' }}
+                >
+                  <Text style={{ color: colors.white, fontSize: 13, fontWeight: '800' }}>{otpVerified ? '✓ Verified' : 'Verify'}</Text>
+                </TouchableOpacity>
+              </View>
+
+              <Text style={{ fontSize: 11, fontWeight: '800', color: colors.textSub, marginBottom: 6, letterSpacing: 0.5 }}>SIGNATURE METHOD</Text>
+              <View style={{ flexDirection: 'row', gap: 8, marginBottom: 12 }}>
+                <TouchableOpacity
+                  onPress={() => setSignatureType('typed')}
+                  style={{ flex: 1, paddingVertical: 8, borderColor: signatureType === 'typed' ? colors.accent : colors.border, borderRadius: 8, alignItems: 'center', backgroundColor: signatureType === 'typed' ? colors.accentLight : 'transparent', borderWidth: 1.5 }}
+                >
+                  <Text style={{ fontSize: 12, fontWeight: '800', color: signatureType === 'typed' ? colors.accent : colors.sub }}>⌨ Typed Sign</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  onPress={() => setSignatureType('drawn')}
+                  style={{ flex: 1, paddingVertical: 8, borderColor: signatureType === 'drawn' ? colors.accent : colors.border, borderRadius: 8, alignItems: 'center', backgroundColor: signatureType === 'drawn' ? colors.accentLight : 'transparent', borderWidth: 1.5 }}
+                >
+                  <Text style={{ fontSize: 12, fontWeight: '800', color: signatureType === 'drawn' ? colors.accent : colors.sub }}>🖌 Draw Sign</Text>
+                </TouchableOpacity>
+              </View>
+
+              {signatureType === 'typed' ? (
+                <TextInput
+                  style={{ height: 44, borderWidth: 1, borderColor: colors.border, borderRadius: 8, paddingHorizontal: 12, marginBottom: 12, backgroundColor: colors.surface2, color: colors.text, fontSize: 16, fontStyle: 'italic' }}
+                  placeholder="Type full name to sign"
+                  placeholderTextColor={colors.muted}
+                  value={typedSign}
+                  onChangeText={setTypedSign}
+                />
+              ) : (
+                <View style={{ marginBottom: 12 }}>
+                  <View
+                    style={{ height: 120, backgroundColor: '#FFF', borderRadius: 8, borderWidth: 1, borderColor: colors.border, position: 'relative', overflow: 'hidden' }}
+                    onTouchStart={(e) => {
+                      const { locationX, locationY } = e.nativeEvent;
+                      setDots(prev => [...prev, { x: locationX, y: locationY }]);
+                    }}
+                    onTouchMove={(e) => {
+                      const { locationX, locationY } = e.nativeEvent;
+                      setDots(prev => [...prev, { x: locationX, y: locationY }]);
+                    }}
+                  >
+                    {dots.map((d, idx) => (
+                      <View 
+                        key={idx} 
+                        style={{ 
+                          position: 'absolute', 
+                          left: d.x - 2, 
+                          top: d.y - 2, 
+                          width: 4, 
+                          height: 4, 
+                          borderRadius: 2, 
+                          backgroundColor: '#1A73E8' 
+                        }} 
+                      />
+                    ))}
+                    {dots.length === 0 && (
+                      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', opacity: 0.35 }}>
+                        <Text style={{ fontSize: 12, color: colors.sub }}>Draw recipient signature here</Text>
+                      </View>
+                    )}
+                  </View>
+                  <TouchableOpacity onPress={() => setDots([])} style={{ alignSelf: 'flex-end', marginTop: 4 }}>
+                    <Text style={{ fontSize: 12, color: colors.accent, fontWeight: '800' }}>Clear Signature 🧹</Text>
+                  </TouchableOpacity>
+                </View>
+              )}
+            </ScrollView>
+
+            <View style={{ flexDirection: 'row', gap: 10, marginTop: 16 }}>
+              <TouchableOpacity
+                onPress={() => setShowEpod(false)}
+                style={{ flex: 1, paddingVertical: 12, borderRadius: 10, borderColor: colors.border, alignItems: 'center', borderWidth: 1.5 }}
+              >
+                <Text style={{ fontSize: 14, fontWeight: '800', color: colors.sub }}>Cancel</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                onPress={handleCompleteEpod}
+                style={{ flex: 1, paddingVertical: 12, borderRadius: 10, backgroundColor: colors.green, alignItems: 'center' }}
+              >
+                <Text style={{ fontSize: 14, fontWeight: '800', color: colors.white }}>Confirm e-POD ✓</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
     </SafeAreaView>
   );
 }

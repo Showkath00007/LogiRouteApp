@@ -880,6 +880,37 @@ export function RouteMapScreen({ navigation, route }) {
                   font-size: 13px;
                   transform: rotate(45deg);
                 }
+
+                /* Weather & Hazard Toggle controls */
+                .map-overlay-toggles {
+                  position: absolute;
+                  top: 80px;
+                  right: 14px;
+                  z-index: 1000;
+                  display: flex;
+                  flex-direction: column;
+                  gap: 8px;
+                }
+                .overlay-toggle-btn {
+                  background: #FFFFFF;
+                  border: 1.5px solid #BDC1C6;
+                  border-radius: 20px;
+                  padding: 8px 12px;
+                  font-size: 11px;
+                  font-weight: 700;
+                  color: #3C4043;
+                  cursor: pointer;
+                  display: flex;
+                  align-items: center;
+                  gap: 6px;
+                  box-shadow: 0 2px 6px rgba(0,0,0,0.15);
+                  transition: all 0.2s;
+                }
+                .overlay-toggle-btn.active {
+                  background: #E8F0FE;
+                  border-color: #1A73E8;
+                  color: #1A73E8;
+                }
               </style>
             </head>
             <body>
@@ -902,6 +933,15 @@ export function RouteMapScreen({ navigation, route }) {
                     Google Maps ↗
                   </a>
                 </div>
+              </div>
+
+              <div class="map-overlay-toggles">
+                <button class="overlay-toggle-btn active" id="btn-weather" onclick="toggleWeather()">
+                  🌧️ Weather Radar
+                </button>
+                <button class="overlay-toggle-btn active" id="btn-hazards" onclick="toggleHazards()">
+                  ⚠️ Road Hazards
+                </button>
               </div>
 
               {/* Live Turn-by-Turn Navigation Mode HUD */}
@@ -1005,6 +1045,67 @@ export function RouteMapScreen({ navigation, route }) {
 
                 if (coords.length > 0) {
                   map.fitBounds(routeLine.getBounds(), { padding: [50, 50] });
+                }
+
+                // Weather and Road Hazards Overlays setup
+                const midPoint = coords.length > 0 ? coords[Math.floor(coords.length / 2)] : [${centerLat}, ${centerLng}];
+                const hazardPos1 = coords.length > 3 ? coords[Math.floor(coords.length / 3)] : [${centerLat}, ${centerLng}];
+                const hazardPos2 = coords.length > 3 ? coords[Math.floor(coords.length * 2 / 3)] : [${centerLat}, ${centerLng}];
+
+                const weatherCircle = L.circle(midPoint, {
+                  color: '#34A853',
+                  fillColor: '#34A853',
+                  fillOpacity: 0.2,
+                  radius: 8000
+                }).addTo(map);
+                weatherCircle.bindPopup('<b style="color:#188038;font-size:14px;">🌧️ Rain Radar Area:</b><br/>Light to moderate showers detected. Drive with caution.');
+
+                const hazardIcon1 = L.divIcon({
+                  className: '',
+                  html: '<div style="font-size:24px; cursor:pointer; filter:drop-shadow(0 2px 4px rgba(0,0,0,0.3));">⚠️</div>',
+                  iconSize: [30, 30],
+                  iconAnchor: [15, 15]
+                });
+                const hazardIcon2 = L.divIcon({
+                  className: '',
+                  html: '<div style="font-size:24px; cursor:pointer; filter:drop-shadow(0 2px 4px rgba(0,0,0,0.3));">🚨</div>',
+                  iconSize: [30, 30],
+                  iconAnchor: [15, 15]
+                });
+
+                const hazardMarker1 = L.marker(hazardPos1, { icon: hazardIcon1 }).addTo(map);
+                hazardMarker1.bindPopup('<b>⚠️ Slow Traffic Ahead</b><br/>Heavy congestion reported. Speed limit reduced to 30 km/h.');
+
+                const hazardMarker2 = L.marker(hazardPos2, { icon: hazardIcon2 }).addTo(map);
+                hazardMarker2.bindPopup('<b>🚨 Road Maintenance</b><br/>Single-lane traffic in effect. Prepare to merge.');
+
+                let showWeather = true;
+                let showHazards = true;
+
+                function toggleWeather() {
+                  showWeather = !showWeather;
+                  const btn = document.getElementById('btn-weather');
+                  if (showWeather) {
+                    weatherCircle.addTo(map);
+                    btn.classList.add('active');
+                  } else {
+                    map.removeLayer(weatherCircle);
+                    btn.classList.remove('active');
+                  }
+                }
+
+                function toggleHazards() {
+                  showHazards = !showHazards;
+                  const btn = document.getElementById('btn-hazards');
+                  if (showHazards) {
+                    hazardMarker1.addTo(map);
+                    hazardMarker2.addTo(map);
+                    btn.classList.add('active');
+                  } else {
+                    map.removeLayer(hazardMarker1);
+                    map.removeLayer(hazardMarker2);
+                    btn.classList.remove('active');
+                  }
                 }
 
                 // In-App Turn-by-Turn Navigation Engine Simulation
