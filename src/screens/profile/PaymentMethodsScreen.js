@@ -3,6 +3,8 @@ import { View, Text, ScrollView, SafeAreaView, TouchableOpacity, Alert, Activity
 import { colors, radius, shadow } from '../../theme';
 import { BackBtn, Card, SectionLabel, Btn, Input, Badge } from '../../components';
 import { saveUserProfile, getUserProfile, listenBookings } from '../../config/firebaseService';
+import { db } from '../../config/firebase';
+import { ref, onValue } from 'firebase/database';
 
 const showAlert = (title, message) => {
   if (Platform.OS === 'web') {
@@ -66,10 +68,26 @@ export default function PaymentMethodsScreen({ navigation }) {
     loadData();
   }, []);
 
+  const [drivers, setDrivers] = useState([]);
+
   useEffect(() => {
     if (profile?.type === 'company') {
       const unsub = listenBookings(data => {
         setBookings(data);
+      });
+      return unsub;
+    }
+  }, [profile?.type]);
+
+  useEffect(() => {
+    if (profile?.type === 'company') {
+      const r = ref(db, 'drivers');
+      const unsub = onValue(r, snap => {
+        if (snap.exists()) {
+          setDrivers(Object.values(snap.val()));
+        } else {
+          setDrivers([]);
+        }
       });
       return unsub;
     }
@@ -242,10 +260,11 @@ export default function PaymentMethodsScreen({ navigation }) {
             Registered payment details sent by drivers upon booking acceptance.
           </Text>
 
+          <SectionLabel label="Active Booking Payouts" />
           {activePayouts.length === 0 ? (
-            <Card>
-              <Text style={{ textAlign: 'center', color: colors.sub, paddingVertical: 20 }}>
-                No active driver payout accounts configured yet. Once a driver accepts a cargo request, their payout details will appear here.
+            <Card style={{ marginBottom: 20 }}>
+              <Text style={{ textAlign: 'center', color: colors.sub, paddingVertical: 12 }}>
+                No active bookings with payout details yet.
               </Text>
             </Card>
           ) : (
@@ -262,6 +281,32 @@ export default function PaymentMethodsScreen({ navigation }) {
                   <Text style={{ fontSize: 12, fontWeight: '700', color: colors.text }}>Bank Name: <Text style={{ fontWeight: 'normal', color: colors.sub }}>{b.payoutDetails.bankName || 'Not Configured'}</Text></Text>
                   <Text style={{ fontSize: 12, fontWeight: '700', color: colors.text }}>Account No: <Text style={{ fontWeight: 'normal', color: colors.sub }}>{b.payoutDetails.accountNumber || 'Not Configured'}</Text></Text>
                   <Text style={{ fontSize: 12, fontWeight: '700', color: colors.text }}>IFSC Code: <Text style={{ fontWeight: 'normal', color: colors.sub }}>{b.payoutDetails.ifsc || 'Not Configured'}</Text></Text>
+                </View>
+              </Card>
+            ))
+          )}
+
+          <SectionLabel label="Registered Drivers Directory" style={{ marginTop: 12 }} />
+          {drivers.length === 0 ? (
+            <Card>
+              <Text style={{ textAlign: 'center', color: colors.sub, paddingVertical: 12 }}>
+                No registered drivers found.
+              </Text>
+            </Card>
+          ) : (
+            drivers.map(d => (
+              <Card key={d.uid} style={{ marginBottom: 12 }}>
+                <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
+                  <Text style={{ fontSize: 15, fontWeight: '900', color: colors.text }}>{d.name || 'Driver'}</Text>
+                  <Badge label={d.vehicle || 'No Vehicle'} type="blue" />
+                </View>
+                <Text style={{ fontSize: 12, color: colors.sub, marginBottom: 8 }}>📞 {d.phone} · 📍 {d.city || 'No Location'}</Text>
+                
+                <View style={{ gap: 4, backgroundColor: colors.surface2 || '#F8FAFC', padding: 10, borderRadius: radius.md, borderWidth: 1, borderColor: colors.border }}>
+                  <Text style={{ fontSize: 12, fontWeight: '700', color: colors.text }}>UPI ID: <Text style={{ fontWeight: 'normal', color: colors.sub }}>{d.upiId || 'Not Configured'}</Text></Text>
+                  <Text style={{ fontSize: 12, fontWeight: '700', color: colors.text }}>Bank Name: <Text style={{ fontWeight: 'normal', color: colors.sub }}>{d.bankName || 'Not Configured'}</Text></Text>
+                  <Text style={{ fontSize: 12, fontWeight: '700', color: colors.text }}>Account No: <Text style={{ fontWeight: 'normal', color: colors.sub }}>{d.accountNumber || 'Not Configured'}</Text></Text>
+                  <Text style={{ fontSize: 12, fontWeight: '700', color: colors.text }}>IFSC Code: <Text style={{ fontWeight: 'normal', color: colors.sub }}>{d.ifsc || 'Not Configured'}</Text></Text>
                 </View>
               </Card>
             ))
