@@ -295,9 +295,28 @@ export async function respondToBooking(bookingId, driverUid, accepted) {
     console.warn('Error reading booking in respondToBooking:', err);
   }
 
+  let payoutDetails = null;
+  if (accepted) {
+    try {
+      const uSnap = await get(ref(db, `users/${driverUid}/profile`));
+      if (uSnap.exists()) {
+        const uData = uSnap.val();
+        payoutDetails = {
+          upiId: uData.selectedUpiId || (uData.upiAccounts && uData.upiAccounts[0]?.id) || 'Not Configured',
+          bankName: (uData.bankAccounts && uData.bankAccounts[0]?.bankName) || 'Not Configured',
+          accountNumber: (uData.bankAccounts && uData.bankAccounts[0]?.accountNumber) || 'Not Configured',
+          ifsc: (uData.bankAccounts && uData.bankAccounts[0]?.ifsc) || 'Not Configured',
+        };
+      }
+    } catch (err) {
+      console.warn('Error reading driver profile for payment details:', err);
+    }
+  }
+
   await update(ref(db, `bookings/${bookingId}`), {
     status,
     respondedAt: Date.now(),
+    ...(payoutDetails ? { payoutDetails } : {}),
   });
 
 
@@ -305,7 +324,8 @@ export async function respondToBooking(bookingId, driverUid, accepted) {
   if (companyUid) {
     await update(ref(db, `users/${companyUid}/bookings/${bookingId}`), {
       status: accepted ? 'Confirmed' : 'Cancelled',
-      updatedAt: Date.now()
+      updatedAt: Date.now(),
+      ...(payoutDetails ? { payoutDetails } : {}),
     });
 
     const notifRef = push(ref(db, `driverNotifications/${companyUid}`));
@@ -319,6 +339,7 @@ export async function respondToBooking(bookingId, driverUid, accepted) {
         : 'The driver declined. Please select another driver.',
       read: false,
       createdAt: Date.now(),
+      ...(payoutDetails ? { payoutDetails } : {}),
     });
   }
 }

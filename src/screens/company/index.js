@@ -1131,6 +1131,15 @@ export function FleetScreen({ navigation }) {
                     <Text style={{ fontSize: 12, color: colors.orange, fontWeight: '700', marginBottom: 6 }}>
                       ⚠️ Location hidden — Payment Pending
                     </Text>
+                    {v.payoutDetails && (
+                      <View style={{ backgroundColor: colors.surface2 || '#F8FAFC', padding: 8, borderRadius: radius.md, borderWidth: 1, borderColor: colors.border, marginBottom: 8 }}>
+                        <Text style={{ fontSize: 11, fontWeight: '700', color: colors.text, marginBottom: 2 }}>💳 Driver Payout Account Details:</Text>
+                        <Text style={{ fontSize: 10, color: colors.sub }}>• UPI ID: {v.payoutDetails.upiId || 'Not Configured'}</Text>
+                        <Text style={{ fontSize: 10, color: colors.sub }}>• Bank Name: {v.payoutDetails.bankName || 'Not Configured'}</Text>
+                        <Text style={{ fontSize: 10, color: colors.sub }}>• Account No: {v.payoutDetails.accountNumber || 'Not Configured'}</Text>
+                        <Text style={{ fontSize: 10, color: colors.sub }}>• IFSC Code: {v.payoutDetails.ifsc || 'Not Configured'}</Text>
+                      </View>
+                    )}
                     <Btn 
                       label="💳 Pay Now" 
                       onPress={() => {

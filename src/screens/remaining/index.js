@@ -647,6 +647,15 @@ export function MyBookingsScreen({ navigation }) {
               <Text style={{ fontSize: 12, color: colors.sub }}>{b.driver} · {b.material}</Text>
               <Text style={{ fontSize: 13, color: colors.accent, fontWeight: '700', marginTop: 4 }}>₹{b.amount?.toLocaleString()}</Text>
               <Text style={{ fontSize: 11, color: colors.muted, marginTop: 2 }}>{b.date}</Text>
+              {b.payoutDetails && (
+                <View style={{ backgroundColor: colors.surface2 || '#F8FAFC', padding: 8, borderRadius: radius.md, borderWidth: 1, borderColor: colors.border, marginTop: 6 }}>
+                  <Text style={{ fontSize: 11, fontWeight: '700', color: colors.text, marginBottom: 2 }}>💳 Driver Payout Account Details:</Text>
+                  <Text style={{ fontSize: 10, color: colors.sub }}>• UPI ID: {b.payoutDetails.upiId || 'Not Configured'}</Text>
+                  <Text style={{ fontSize: 10, color: colors.sub }}>• Bank Name: {b.payoutDetails.bankName || 'Not Configured'}</Text>
+                  <Text style={{ fontSize: 10, color: colors.sub }}>• Account No: {b.payoutDetails.accountNumber || 'Not Configured'}</Text>
+                  <Text style={{ fontSize: 10, color: colors.sub }}>• IFSC Code: {b.payoutDetails.ifsc || 'Not Configured'}</Text>
+                </View>
+              )}
               {b.status === 'Confirmed' && (
                 <Btn 
                   label="💳 Pay Now" 
@@ -2075,7 +2084,16 @@ export function NotificationsScreen({ navigation }) {
                 <NotifCard icon={n.icon} title={n.title} msg={n.message} time={timeAgo(n.createdAt)} color={n.color} unread={n.unread} delay={i * 80} />
               </TouchableOpacity>
               {n.type === 'booking_accepted' && (
-                <View style={{ marginTop: 6, paddingLeft: 46 }}>
+                <View style={{ marginTop: 6, paddingLeft: 46, gap: 6 }}>
+                  {n.payoutDetails && (
+                    <View style={{ backgroundColor: colors.surface2 || '#F8FAFC', padding: 8, borderRadius: radius.md, borderWidth: 1, borderColor: colors.border, marginBottom: 4 }}>
+                      <Text style={{ fontSize: 11, fontWeight: '700', color: colors.text, marginBottom: 2 }}>💳 Driver Payout Account Details:</Text>
+                      <Text style={{ fontSize: 10, color: colors.sub }}>• UPI ID: {n.payoutDetails.upiId || 'Not Configured'}</Text>
+                      <Text style={{ fontSize: 10, color: colors.sub }}>• Bank Name: {n.payoutDetails.bankName || 'Not Configured'}</Text>
+                      <Text style={{ fontSize: 10, color: colors.sub }}>• Account No: {n.payoutDetails.accountNumber || 'Not Configured'}</Text>
+                      <Text style={{ fontSize: 10, color: colors.sub }}>• IFSC Code: {n.payoutDetails.ifsc || 'Not Configured'}</Text>
+                    </View>
+                  )}
                   <Btn 
                     label="💳 Make Payment" 
                     onPress={() => handlePaymentFromNotification(n)}
