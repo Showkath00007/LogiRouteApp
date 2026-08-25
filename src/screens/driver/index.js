@@ -436,6 +436,45 @@ export function DriverDashboard({ navigation }) {
           </View>
         </Card>
 
+        {/* Route Safety & Weather Checker */}
+        <TouchableOpacity
+          onPress={() => navigation.navigate('RoadAlerts')}
+          style={{
+            backgroundColor: '#FFFFFF',
+            borderRadius: radius.lg,
+            padding: 16,
+            marginBottom: 16,
+            borderWidth: 1.5,
+            borderColor: colors.accent,
+            shadowColor: colors.accent,
+            shadowOffset: { width: 0, height: 4 },
+            shadowOpacity: 0.1,
+            shadowRadius: 10,
+            elevation: 3
+          }}
+          activeOpacity={0.8}
+        >
+          <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12, flex: 1 }}>
+              <View style={{ width: 44, height: 44, borderRadius: 22, backgroundColor: '#EEF2FF', alignItems: 'center', justifyContent: 'center' }}>
+                <Text style={{ fontSize: 22 }}>🛣️</Text>
+              </View>
+              <View style={{ flex: 1 }}>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                  <Text style={{ fontSize: 15, fontWeight: '900', color: colors.text }}>Route Safety & Weather Checker</Text>
+                  <View style={{ backgroundColor: '#ECFDF5', paddingHorizontal: 6, paddingVertical: 2, borderRadius: 4 }}>
+                    <Text style={{ fontSize: 10, fontWeight: '800', color: '#059669' }}>FEASIBILITY</Text>
+                  </View>
+                </View>
+                <Text style={{ fontSize: 12, color: colors.textSub, marginTop: 2 }}>
+                  Enter source & destination to verify highway weather, road alerts & safety
+                </Text>
+              </View>
+            </View>
+            <Text style={{ fontSize: 18, color: colors.accent, fontWeight: '900', marginLeft: 8 }}>→</Text>
+          </View>
+        </TouchableOpacity>
+
         {/* Quick actions */}
         <SectionLabel label="Quick Actions" />
         <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 10 }}>
