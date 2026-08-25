@@ -71,12 +71,24 @@ export function UserTypeScreen({ navigation }) {
       <ScrollView contentContainerStyle={s.screen}>
         <Text style={s.h1}>I am a...</Text>
         <Text style={s.subText}>Choose your role to get started</Text>
-        <TouchableOpacity style={[s.typeCard, selected === 'company' && s.typeCardSelected]} onPress={() => setSelected('company')}>
+        <TouchableOpacity 
+          style={[
+            s.typeCard, 
+            selected === 'company' && { borderColor: colors.accent, backgroundColor: colors.accentLight }
+          ]} 
+          onPress={() => setSelected('company')}
+        >
           <Text style={{ fontSize: 48, marginBottom: 10 }}>🏢</Text>
           <Text style={[s.typeName, selected === 'company' && { color: colors.accent }]}>Company / Manager</Text>
           <Text style={s.typeDesc}>Manage shipments, optimize routes, control costs</Text>
         </TouchableOpacity>
-        <TouchableOpacity style={[s.typeCard, selected === 'driver' && { ...s.typeCardSelected, borderColor: colors.green, backgroundColor: colors.greenS }]} onPress={() => setSelected('driver')}>
+        <TouchableOpacity 
+          style={[
+            s.typeCard, 
+            selected === 'driver' && { borderColor: colors.green, backgroundColor: colors.greenTint }
+          ]} 
+          onPress={() => setSelected('driver')}
+        >
           <Text style={{ fontSize: 48, marginBottom: 10 }}>🚛</Text>
           <Text style={[s.typeName, selected === 'driver' && { color: colors.green }]}>Driver / Vendor</Text>
           <Text style={s.typeDesc}>Find jobs, track trips, manage earnings</Text>
