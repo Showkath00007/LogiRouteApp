@@ -893,7 +893,7 @@ export function AnalyticsScreen({ navigation }) {
         ) : allActivities.length === 0 ? (
           <Card>
             <Text style={{ textAlign: 'center', color: colors.sub, paddingVertical: 20 }}>
-              Cargo is yet to be completed / delivered.
+              Cargo is in transit or yet to be completed / delivered.
             </Text>
           </Card>
         ) : (
