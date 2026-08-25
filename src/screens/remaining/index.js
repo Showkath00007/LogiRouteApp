@@ -851,6 +851,7 @@ export function MyBookingsScreen({ navigation }) {
                   }}
                   style={{ marginTop: 10, marginBottom: 0, paddingVertical: 8 }}
                 />
+              )}
               {b.status === 'Completed' && (
                 <Btn 
                   label="📋 View Proof of Delivery (e-POD)" 
