@@ -94,6 +94,33 @@ export function CompanyDashboard({ navigation }) {
     status: 'In Transit'
   } : null);
 
+  let progressPercent = 0;
+  if (activeShipment) {
+    if (activeShipment.status === 'In Transit' || activeShipment.status === 'in_transit') {
+      if (activeShipment.id.startsWith('sim')) {
+        progressPercent = truckPos;
+      } else if (activeShipment.location?.lat && activeShipment.location?.lng) {
+        try {
+          const originCoords = getCityDetails(activeShipment.from).coords;
+          const destCoords = getCityDetails(activeShipment.to).coords;
+          const totalDist = calculateDistance(originCoords[0], originCoords[1], destCoords[0], destCoords[1]);
+          const remainingDist = calculateDistance(activeShipment.location.lng, activeShipment.location.lat, destCoords[0], destCoords[1]);
+          if (totalDist > 0) {
+            progressPercent = Math.max(0, Math.min(100, Math.round(((totalDist - remainingDist) / totalDist) * 100)));
+          } else {
+            progressPercent = 0;
+          }
+        } catch(e) {
+          progressPercent = activeShipment.progress || 10;
+        }
+      } else {
+        progressPercent = activeShipment.progress || 0;
+      }
+    } else {
+      progressPercent = 0;
+    }
+  }
+
   const activeCount = shipments.filter(s => s.status !== 'Delivered').length;
   const unreadAlerts = alerts.filter(a => a.unread === true).length;
 
@@ -281,7 +308,7 @@ export function CompanyDashboard({ navigation }) {
             <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
               <View style={{ flex: 1 }}>
                 <Text style={{ fontSize: 14, fontWeight: '850', color: colors.text }}>
-                  Active Cargo: {activeShipment.id.startsWith('sim') ? 'LR-SIM8942' : `LR-${activeShipment.id.substring(0, 4).toUpperCase()}`}
+                  Active Cargo: {activeShipment.id.startsWith('sim') ? 'LR-SIM8942' : `LR-${activeShipment.id.replace(/[^a-zA-Z0-9]/g, '').substring(0, 5).toUpperCase()}`}
                 </Text>
                 <Text style={{ fontSize: 11, color: colors.textSub, marginTop: 2 }}>
                   Route: {activeShipment.from.split(',')[0].trim()} ➔ {activeShipment.to.split(',')[0].trim()}
@@ -314,7 +341,7 @@ export function CompanyDashboard({ navigation }) {
             <View style={{ height: 40, justifyContent: 'center', marginVertical: 8, position: 'relative' }}>
               <View style={{ height: 4, backgroundColor: colors.border, borderRadius: 2, width: '100%' }} />
               
-              <View style={{ height: 4, backgroundColor: colors.accent, borderRadius: 2, width: `${truckPos}%`, position: 'absolute', left: 0 }} />
+              <View style={{ height: 4, backgroundColor: colors.accent, borderRadius: 2, width: `${progressPercent}%`, position: 'absolute', left: 0 }} />
 
               {/* Checkpoint Nodes */}
               <View style={{ position: 'absolute', left: 0, width: 12, height: 12, borderRadius: 6, backgroundColor: colors.accent, borderWidth: 2, borderColor: colors.surface }} />
@@ -322,15 +349,15 @@ export function CompanyDashboard({ navigation }) {
                 {activeShipment.from.split(',')[0].trim().substring(0, 3).toUpperCase()}
               </Text>
 
-              <View style={{ position: 'absolute', left: '50%', marginLeft: -6, width: 12, height: 12, borderRadius: 6, backgroundColor: truckPos >= 50 ? colors.accent : colors.border, borderWidth: 2, borderColor: colors.surface }} />
+              <View style={{ position: 'absolute', left: '50%', marginLeft: -6, width: 12, height: 12, borderRadius: 6, backgroundColor: progressPercent >= 50 ? colors.accent : colors.border, borderWidth: 2, borderColor: colors.surface }} />
               <Text style={{ position: 'absolute', left: '46%', top: 22, fontSize: 10, fontWeight: '700', color: colors.textSub }}>MID</Text>
 
-              <View style={{ position: 'absolute', right: 0, width: 12, height: 12, borderRadius: 6, backgroundColor: truckPos >= 100 ? colors.accent : colors.border, borderWidth: 2, borderColor: colors.surface }} />
+              <View style={{ position: 'absolute', right: 0, width: 12, height: 12, borderRadius: 6, backgroundColor: progressPercent >= 100 ? colors.accent : colors.border, borderWidth: 2, borderColor: colors.surface }} />
               <Text style={{ position: 'absolute', right: -4, top: 22, fontSize: 10, fontWeight: '700', color: colors.textSub }}>
                 {activeShipment.to.split(',')[0].trim().substring(0, 3).toUpperCase()}
               </Text>
 
-              <View style={{ position: 'absolute', left: `${truckPos}%`, marginLeft: -12, top: -10 }}>
+              <View style={{ position: 'absolute', left: `${progressPercent}%`, marginLeft: -12, top: -10 }}>
                 <Text style={{ fontSize: 20 }}>🚛</Text>
               </View>
             </View>
