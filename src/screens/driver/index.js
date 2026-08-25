@@ -268,6 +268,7 @@ export function DriverDashboard({ navigation }) {
   const [loading, setLoading] = useState(true);
   const [bookingRequests, setBookingRequests] = useState([]);
   const [activeTab, setActiveTab] = useState('home');
+  const [driverBookings, setDriverBookings] = useState([]);
 
   const tabs = [
     { id: 'home', icon: '🏠', label: 'Home' },
@@ -317,6 +318,22 @@ export function DriverDashboard({ navigation }) {
       unsubFocus();
     };
   }, [navigation, driverUid]);
+
+  useEffect(() => {
+    if (!driverUid) return;
+    const r = ref(db, 'bookings');
+    const handler = onValue(r, snap => {
+      if (!snap.exists()) {
+        setDriverBookings([]);
+        return;
+      }
+      const list = Object.values(snap.val()).filter(
+        b => b.driverUid === driverUid || (driverUid === 'demo_driver' && b.driverUid === 'demo_driver')
+      );
+      setDriverBookings(list);
+    });
+    return () => off(r, 'value', handler);
+  }, [driverUid]);
 
   const handleTab = (id) => {
     const routes = { trips: 'MyTrips', jobs: 'Jobs', earn: 'Earnings', profile: 'Profile' };
@@ -474,9 +491,17 @@ export function DriverDashboard({ navigation }) {
           </Card>
         )}
         <View style={{ flexDirection: 'row', gap: 10, marginBottom: 16 }}>
-          <StatCard icon="🛣️" value={driver?.trips || 0} label="Total Trips" color={colors.blue} style={{ flex: 1 }} />
+          <StatCard icon="🛣️" value={Math.max(driver?.trips || 0, driverBookings.filter(b => b.status === 'paid' || b.status === 'loaded' || b.status === 'In Transit' || b.status === 'Completed').length)} label="Total Trips" color={colors.blue} style={{ flex: 1 }} />
           <StatCard icon="⭐" value={(driver?.rating || 5.0).toFixed(1)} label="Rating" color={colors.yellow} style={{ flex: 1 }} />
-          <StatCard icon="💰" value={`₹${((driver?.earnings || 0) / 1000).toFixed(0)}K`} label="Earned" color={colors.green} style={{ flex: 1 }} />
+          <StatCard icon="💰" value={(() => {
+            const liveEarnings = driverBookings.filter(b => b.status === 'paid' || b.status === 'loaded' || b.status === 'In Transit' || b.status === 'Completed').reduce((sum, b) => sum + (b.cost || 0), 0);
+            const totalE = Math.max(driver?.earnings || 0, liveEarnings);
+            return totalE >= 100000
+              ? `₹${(totalE / 100000).toFixed(1)}L`
+              : totalE >= 1000
+              ? `₹${(totalE / 1000).toFixed(0)}K`
+              : `₹${totalE}`;
+          })()} label="Earned" color={colors.green} style={{ flex: 1 }} />
         </View>
 
         {/* Vehicle info */}
@@ -1373,12 +1398,13 @@ export function EarningsScreen({ navigation }) {
   const loadData = () => {
     getDriverProfile().then(setDriver);
     try {
-      const tripsRef = ref(db, `driverNotifications/${uid}`);
-      onValue(tripsRef, snap => {
+      const bookingsRef = ref(db, 'bookings');
+      onValue(bookingsRef, snap => {
         if (!snap.exists()) { setTrips([]); return; }
-        const accepted = Object.values(snap.val())
-          .filter(n => n.type === 'booking_request' && n.accepted === true);
-        setTrips(accepted);
+        const list = Object.values(snap.val()).filter(
+          b => (b.driverUid === uid || (uid === 'demo_driver' && b.driverUid === 'demo_driver')) && (b.status === 'paid' || b.status === 'loaded' || b.status === 'In Transit' || b.status === 'Completed')
+        );
+        setTrips(list);
       });
 
       const fuelRef = ref(db, `driverFuelSlips/${uid}`);
