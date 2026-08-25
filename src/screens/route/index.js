@@ -4,6 +4,8 @@ import { useLang } from '../../context/LanguageContext';
 import { colors, radius, shadow } from '../../theme';
 import { Btn, Card, StatCard, Badge, SectionLabel, BackBtn, Divider, TransportIcon, CostHero, Chip, Input } from '../../components';
 import { MATERIALS, apiOptimize, getCityDetails, getSimulatedRouteGeometry, calculateDistance, geocodeCityAsync, getRealDrivingRoute } from '../../data';
+import { db } from '../../config/firebase';
+import { ref, update } from 'firebase/database';
 
 const screen = (pt = 60) => ({ padding: 20, paddingTop: pt, flexGrow: 1 });
 const h1 = { fontSize: 22, fontWeight: '900', color: colors.text, letterSpacing: -0.5, marginBottom: 4 };
@@ -535,7 +537,7 @@ export function ResultScreen({ navigation, route }) {
 
 // S27 — Route Map (Google Maps styled navigation map with Web & Mobile support)
 export function RouteMapScreen({ navigation, route }) {
-  const { source, destination, data } = route?.params || { source: 'Guntakal, Andhra Pradesh', destination: 'Anantapur, Andhra Pradesh', data: {} };
+  const { source, destination, data, bookingId } = route?.params || { source: 'Guntakal, Andhra Pradesh', destination: 'Anantapur, Andhra Pradesh', data: {} };
   const [currentSource, setCurrentSource] = useState(source);
   const [mapHtml, setMapHtml] = useState('');
   const [loading, setLoading] = useState(true);
@@ -544,6 +546,72 @@ export function RouteMapScreen({ navigation, route }) {
     duration: data?.time_text || '',
     summary: 'Highway Corridor'
   });
+
+  useEffect(() => {
+    if (!bookingId) return;
+    let watchId = null;
+    if (typeof navigator !== 'undefined' && navigator.geolocation) {
+      watchId = navigator.geolocation.watchPosition(
+        (position) => {
+          const { latitude, longitude, heading, speed } = position.coords;
+          update(ref(db, `bookings/${bookingId}/location`), {
+            lat: latitude,
+            lng: longitude,
+            heading: heading || null,
+            speed: speed !== null && speed !== undefined ? Math.round(speed * 3.6) : null,
+            updatedAt: Date.now()
+          }).catch(err => console.log('RouteMapScreen failed to sync live GPS coordinates:', err));
+        },
+        (err) => console.log('RouteMapScreen watchPosition error:', err),
+        { enableHighAccuracy: true, maximumAge: 1000, timeout: 5000 }
+      );
+    }
+    return () => {
+      if (watchId && typeof navigator !== 'undefined' && navigator.geolocation) {
+        navigator.geolocation.clearWatch(watchId);
+      }
+    };
+  }, [bookingId]);
+
+  // Receive simulated coordinates from Leaflet navigation script
+  useEffect(() => {
+    if (!bookingId) return;
+    const handleMsg = (e) => {
+      try {
+        const data = JSON.parse(e.data);
+        if (data.lat && data.lng) {
+          update(ref(db, `bookings/${bookingId}/location`), {
+            lat: data.lat,
+            lng: data.lng,
+            speed: data.speed || null,
+            updatedAt: Date.now()
+          }).catch(() => {});
+        }
+      } catch(err) {}
+    };
+    if (typeof window !== 'undefined') {
+      window.addEventListener('message', handleMsg);
+    }
+    return () => {
+      if (typeof window !== 'undefined') {
+        window.removeEventListener('message', handleMsg);
+      }
+    };
+  }, [bookingId]);
+
+  const handleWebViewMessage = (e) => {
+    try {
+      const data = JSON.parse(e.nativeEvent.data);
+      if (data.lat && data.lng && bookingId) {
+        update(ref(db, `bookings/${bookingId}/location`), {
+          lat: data.lat,
+          lng: data.lng,
+          speed: data.speed || null,
+          updatedAt: Date.now()
+        }).catch(() => {});
+      }
+    } catch(err) {}
+  };
 
   const useCurrentLocation = () => {
     if (navigator.geolocation) {
@@ -975,11 +1043,14 @@ export function RouteMapScreen({ navigation, route }) {
                   // 1. Map Navigation Simulation: Move the car marker along the route path
                   navTimer = setInterval(() => {
                     if (coords.length === 0) return;
-                    
                     const elSpeed = document.getElementById('speedo-val');
-                    const currentSpeed = elSpeed ? parseInt(elSpeed.innerText) || 0 : 0;
+                    let currentSpeed = elSpeed ? parseInt(elSpeed.innerText) || 0 : 0;
 
-                    // Only advance the coordinate index if the device is physically moving (speed > 0)
+                    if (currentSpeed === 0) {
+                      currentSpeed = 60;
+                      if (elSpeed) elSpeed.innerText = '60';
+                    }
+
                     if (currentSpeed > 0) {
                       if (currentCoordIndex < coords.length - 1) {
                         currentCoordIndex++;
@@ -995,6 +1066,16 @@ export function RouteMapScreen({ navigation, route }) {
                     
                     // Pan map to follow the car along the route path
                     map.setView(nextLatLng, 16);
+
+                    // Post current coordinates back to parent React Native component
+                    try {
+                      const msg = JSON.stringify({ lat: nextLatLng[0], lng: nextLatLng[1], speed: currentSpeed });
+                      if (window.ReactNativeWebView) {
+                        window.ReactNativeWebView.postMessage(msg);
+                      } else {
+                        window.parent.postMessage(msg, "*");
+                      }
+                    } catch(err) {}
                     
                     // Update turn-by-turn guidance prompts dynamically based on coordinate progress
                     const pct = currentCoordIndex / coords.length;
@@ -1132,7 +1213,11 @@ export function RouteMapScreen({ navigation, route }) {
         ) : (
           /* Mobile WebView */
           WebViewComponent ? (
-            <WebViewComponent source={{ html: mapHtml }} style={{ flex: 1 }} />
+            <WebViewComponent 
+              source={{ html: mapHtml }} 
+              style={{ flex: 1 }} 
+              onMessage={handleWebViewMessage}
+            />
           ) : (
             <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
               <Text>Map preview available</Text>

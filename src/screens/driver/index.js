@@ -875,6 +875,24 @@ export function TripDetailScreen({ navigation, route }) {
             </View>
           ))}
         </Card>
+        {(trip.status === 'Paid (Ready to Depart)' || trip.status === 'In Transit') && (
+          <Btn 
+            label={trip.status === 'In Transit' ? "🧭 Continue Navigation" : "🧭 Start Trip & Navigation"}
+            onPress={async () => {
+              if (trip.status === 'Paid (Ready to Depart)') {
+                try {
+                  await update(ref(db, `bookings/${trip.id}`), { status: 'paid' });
+                } catch(e) {}
+              }
+              navigation.navigate('RouteMap', { 
+                bookingId: trip.id, 
+                source: trip.from, 
+                destination: trip.to 
+              });
+            }}
+            style={{ marginTop: 8 }}
+          />
+        )}
       </ScrollView>
     </SafeAreaView>
   );

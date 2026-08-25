@@ -419,7 +419,7 @@ export function listenActiveBookingForDriver(driverUid, callback) {
   const handler = (snap) => {
     if (!snap.exists()) { callback(null); return; }
     const active = Object.values(snap.val())
-      .find(b => b.driverUid === driverUid && b.status === 'confirmed');
+      .find(b => b.driverUid === driverUid && (b.status === 'confirmed' || b.status === 'paid'));
     callback(active || null);
   };
   onValue(r, handler, (err) => console.warn('listenActiveBookingForDriver error:', err));
