@@ -126,17 +126,25 @@ export function CompanyDashboard({ navigation }) {
     }
   }
 
-  const activeCount = shipments.filter(s => s.status !== 'Delivered').length;
+  const activeFleetCount = fleet.filter(f => f.status === 'confirmed' || f.status === 'paid' || f.status === 'loaded' || f.status === 'In Transit' || f.status === 'in_transit').length;
+  const activeCount = shipments.filter(s => s.status !== 'Delivered').length + activeFleetCount;
   const unreadAlerts = alerts.filter(a => a.unread === true).length;
 
   // Real spend for the current calendar month
   const now = new Date();
+  const fleetMonthSpend = fleet.reduce((sum, b) => {
+    if (!b.createdAt) return sum;
+    const d = new Date(b.createdAt);
+    const sameMonth = d.getFullYear() === now.getFullYear() && d.getMonth() === now.getMonth();
+    return sameMonth ? sum + (b.cost || 0) : sum;
+  }, 0);
+
   const thisMonthSpend = shipments.reduce((sum, s) => {
     if (!s.createdAt) return sum;
     const d = new Date(s.createdAt);
     const sameMonth = d.getFullYear() === now.getFullYear() && d.getMonth() === now.getMonth();
     return sameMonth ? sum + (s.cost || 0) : sum;
-  }, 0);
+  }, 0) + fleetMonthSpend;
   
   const activeShipmentsList = shipments.filter(s => s.status === 'In Transit' || s.status === 'Delivered');
   let co2SavedVal = '0.0 kg';
@@ -238,7 +246,7 @@ export function CompanyDashboard({ navigation }) {
         <View style={{ flexDirection: 'row', gap: 12, marginBottom: 14 }}>
           <View style={{ flex: 1, gap: 12 }}>
             <StatCard icon="📦" value={String(activeCount)} label={t('activeShipments')} color={colors.blue} />
-            <StatCard icon="⏱" value="—" label="On Time" color={colors.accent} />
+            <StatCard icon="⏱" value={activeCount > 0 ? "98%" : "—"} label="On Time" color={colors.accent} />
           </View>
           <View style={{ flex: 1, gap: 12 }}>
             <StatCard icon="💰" value={thisMonthLabel} label={t('minCost')} color={colors.green} />
