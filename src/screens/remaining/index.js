@@ -1677,7 +1677,7 @@ export function ProfileScreen({ navigation }) {
       route: 'KYCDocuments'
     },
     // Only show Payment Methods for drivers
-    ...(profile?.type !== 'company' ? [
+    ...(profile?.type === 'driver' ? [
       { icon: '💳', label: t('paymentMethods'), sub: t('paymentMethodsSub'), route: 'PaymentMethods' }
     ] : []),
     { icon: '🎨', label: 'Theme Customizer', sub: 'Personalize portal colors', route: 'ThemeCustomizer' },
