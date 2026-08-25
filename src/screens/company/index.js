@@ -824,7 +824,8 @@ export function AnalyticsScreen({ navigation }) {
     date: b.date
   }));
 
-  const allActivities = [...shipments, ...normalizedFleet];
+  const totalDrafts = [...shipments, ...normalizedFleet];
+  const allActivities = totalDrafts.filter(s => s.status === 'Completed' || s.status === 'Delivered');
 
   const now = new Date();
   const monthLabel = now.toLocaleDateString('en-IN', { month: 'long', year: 'numeric' });
@@ -855,7 +856,7 @@ export function AnalyticsScreen({ navigation }) {
     const d = new Date(s.createdAt);
     return `${d.getFullYear()}-${d.getMonth()}` === thisMonth.key;
   });
-  const kmCovered = thisMonthShipments.reduce((sum, s) => (s.status === 'Completed' || s.status === 'Delivered') ? sum + (Number(s.km) || 0) : sum, 0);
+  const kmCovered = thisMonthShipments.reduce((sum, s) => sum + (Number(s.km) || 0), 0);
 
   // Transport split across all shipments
   const transportCounts = allActivities.reduce((acc, s) => {
@@ -883,10 +884,16 @@ export function AnalyticsScreen({ navigation }) {
 
         {loading ? (
           <ActivityIndicator color={colors.accent} style={{ marginVertical: 20 }} />
-        ) : allActivities.length === 0 ? (
+        ) : totalDrafts.length === 0 ? (
           <Card>
             <Text style={{ textAlign: 'center', color: colors.sub, paddingVertical: 20 }}>
               No shipment data yet. Analytics will fill in as you create shipments.
+            </Text>
+          </Card>
+        ) : allActivities.length === 0 ? (
+          <Card>
+            <Text style={{ textAlign: 'center', color: colors.sub, paddingVertical: 20 }}>
+              Cargo is yet to be completed / delivered.
             </Text>
           </Card>
         ) : (

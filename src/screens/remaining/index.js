@@ -1534,7 +1534,8 @@ export function ReportsScreen({ navigation }) {
     date: b.date
   }));
 
-  const allActivities = [...shipments, ...normalizedFleet];
+  const totalDrafts = [...shipments, ...normalizedFleet];
+  const allActivities = totalDrafts.filter(s => s.status === 'Completed' || s.status === 'Delivered');
 
   const totalSpend = allActivities.reduce((sum, s) => sum + (s.cost || 0), 0);
   const totalSpendLabel = totalSpend >= 100000 ? `₹${(totalSpend / 100000).toFixed(1)}L` : `₹${(totalSpend / 1000).toFixed(1)}K`;
@@ -1648,10 +1649,16 @@ export function ReportsScreen({ navigation }) {
 
         {loading ? (
           <ActivityIndicator color={colors.accent} style={{ marginVertical: 20 }} />
-        ) : allActivities.length === 0 ? (
+        ) : totalDrafts.length === 0 ? (
           <Card>
             <Text style={{ textAlign: 'center', color: colors.sub, paddingVertical: 20 }}>
               No shipments found. Build a shipment to generate analytics reports.
+            </Text>
+          </Card>
+        ) : allActivities.length === 0 ? (
+          <Card>
+            <Text style={{ textAlign: 'center', color: colors.sub, paddingVertical: 20 }}>
+              Cargo is yet to be completed / delivered.
             </Text>
           </Card>
         ) : (
